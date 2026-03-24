@@ -425,6 +425,13 @@
   color: var(--textTitle);
 }
 
+.previewMessage {
+  margin: 0;
+  color: var(--textBody);
+  font-size: var(--fontSizeBodyS);
+  line-height: 1.5;
+}
+
 .archivedImportNote {
   margin-bottom: var(--spaceM);
   padding: var(--spaceS) var(--spaceM);
@@ -483,11 +490,6 @@
   font-size: var(--fontSizeBodyS);
 }
 
-.validationLabel {
-  font-weight: var(--fontWeightMedium);
-  color: var(--textTitle);
-}
-
 .validationValue {
   font-family: var(--fontMono);
   font-size: var(--fontSizeBodyXS);
@@ -508,31 +510,6 @@
   color: var(--textLight);
   font-style: italic;
   padding: var(--spaceM);
-}
-
-.previewGrid {
-  display: grid;
-  gap: var(--spaceS);
-}
-
-.previewItem {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spaceXS) 0;
-}
-
-.previewLabel {
-  font-weight: var(--fontWeightMedium);
-  color: var(--textBody);
-  font-size: var(--fontSizeBodyS);
-}
-
-.previewValue {
-  color: var(--textTitle);
-  font-size: var(--fontSizeBodyS);
-  text-align: right;
-  font-weight: var(--fontWeightMedium);
 }
 
 /* Confirmation Dialog */

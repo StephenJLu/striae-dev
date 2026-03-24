@@ -27,9 +27,11 @@ export const CasePreviewSection = ({
 
   return (
     <>
-      {/* Case Information - Always Blue */}
       <div className={styles.previewSection}>
-        <h3 className={styles.previewTitle}>Case Information</h3>
+        <h3 className={styles.previewTitle}>Case Import Preview</h3>
+        <p className={styles.previewMessage}>
+          Case package detected. Export metadata and file listings are hidden in preview for encrypted imports.
+        </p>
         {casePreview.archived && (
           <div className={styles.archivedImportNote}>
             Archived export detected. Original exporter imports are allowed for archived cases.
@@ -40,39 +42,8 @@ export const CasePreviewSection = ({
             {ARCHIVED_REGULAR_CASE_BLOCK_MESSAGE}
           </div>
         )}
-        <div className={styles.previewGrid}>
-          <div className={styles.previewItem}>
-            <span className={styles.previewLabel}>Case Number:</span>
-            <span className={styles.previewValue}>{casePreview.caseNumber}</span>
-          </div>
-          <div className={styles.previewItem}>
-            <span className={styles.previewLabel}>Exported by:</span>
-            <span className={styles.previewValue}>
-              {casePreview.exportedByName || casePreview.exportedBy || 'N/A'}
-            </span>
-          </div>
-          <div className={styles.previewItem}>
-            <span className={styles.previewLabel}>Lab/Company:</span>
-            <span className={styles.previewValue}>{casePreview.exportedByCompany || 'N/A'}</span>
-          </div>
-          <div className={styles.previewItem}>
-            <span className={styles.previewLabel}>Export Date:</span>
-            <span className={styles.previewValue}>
-              {new Date(casePreview.exportDate).toLocaleDateString()}
-            </span>
-          </div>
-          <div className={styles.previewItem}>
-            <span className={styles.previewLabel}>Total Images:</span>
-            <span className={styles.previewValue}>{casePreview.totalFiles}</span>
-          </div>
-          <div className={styles.previewItem}>
-            <span className={styles.previewLabel}>Archived Export:</span>
-            <span className={styles.previewValue}>{casePreview.archived ? 'Yes' : 'No'}</span>
-          </div>
-        </div>
       </div>
 
-      {/* Data Integrity Checks - Green/Red Based on Validation */}
       {casePreview.hashValid !== undefined && (
         <div className={`${styles.validationSection} ${casePreview.hashValid ? styles.validationSectionValid : styles.validationSectionInvalid}`}>
           <h3 className={styles.validationTitle}>Data Integrity Validation</h3>

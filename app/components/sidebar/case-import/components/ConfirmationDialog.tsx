@@ -29,26 +29,11 @@ export const ConfirmationDialog = ({
           <p className={styles.confirmationText}>
             Are you sure you want to import this case for review?
           </p>
+          <p className={styles.confirmationText}>
+            Export metadata and file listings are hidden for encrypted imports. Integrity validation will still be enforced.
+          </p>
           
           <div className={styles.confirmationDetails}>
-            <div className={styles.confirmationItem}>
-              <strong>Case Number:</strong> {casePreview.caseNumber}
-            </div>
-            <div className={styles.confirmationItem}>
-              <strong>Exported by:</strong> {casePreview.exportedByName || casePreview.exportedBy || 'N/A'}
-            </div>
-            <div className={styles.confirmationItem}>
-              <strong>Lab/Company:</strong> {casePreview.exportedByCompany || 'N/A'}
-            </div>
-            <div className={styles.confirmationItem}>
-              <strong>Export Date:</strong> {new Date(casePreview.exportDate).toLocaleDateString()}
-            </div>
-            <div className={styles.confirmationItem}>
-              <strong>Total Images:</strong> {casePreview.totalFiles}
-            </div>
-            <div className={styles.confirmationItem}>
-              <strong>Archived Export:</strong> {casePreview.archived ? 'Yes' : 'No'}
-            </div>
             {casePreview.archived && (
               <div className={styles.archivedImportNote}>
                 Archived export detected. Original exporter imports are allowed for archived cases.
