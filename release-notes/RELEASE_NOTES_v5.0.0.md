@@ -8,21 +8,21 @@
 
 ## Summary
 
-v5.0.0 introduces encrypted export and import workflows across case packages, confirmation packages, and archive packages while preserving signed forensic validation requirements. This release adds encryption-manifest-driven decryption during import, enforces mandatory encryption on protected package paths, removes legacy standalone public-key verification utility UI surface, and includes release-window hardening updates across archive/read-only guardrails, import preview behavior, and deploy configuration automation.
+v5.0.0 introduces encrypted export and import workflows across case packages, confirmation packages, and archive packages while preserving signed forensic validation requirements. This release adds encryption-manifest-driven decryption during import, enforces mandatory encryption on protected package paths, moves confirmation workflows to encrypted ZIP packages only with no legacy plaintext JSON import/export path, removes legacy standalone public-key verification utility UI surface, and includes release-window hardening updates across archive/read-only guardrails, import preview behavior, and deploy configuration automation.
 
 ## Detailed Changes
 
 ### Export Encryption Across Forensic Package Types
 
 - Added package encryption implementation for case exports using shared encryption utilities and package-level metadata.
-- Added confirmation export encryption support with encrypted confirmation payload handling.
+- Added confirmation export encryption support with encrypted confirmation ZIP package output only, failing closed when encryption keys are not configured.
 - Applied encryption to archive package outputs including bundled audit artifacts in archive workflows.
 - Added encryption metadata packaging through `ENCRYPTION_MANIFEST.json` to support deterministic import-time decryption.
 
 ### Import-Time Decryption and Validation Flow Updates
 
 - Added encrypted export preview handling so encrypted packages can be recognized and processed safely during import workflows.
-- Added encrypted confirmation import handling with decryption before hash/signature validation.
+- Added encrypted confirmation import handling with decryption before hash/signature validation, and removed legacy plaintext confirmation JSON/ZIP import acceptance.
 - Refined import/decryption overflow handling and related stability fixes for large encrypted payload paths.
 - Preserved fail-closed trust behavior by running normal signed/hash validation after decrypted content extraction.
 
@@ -44,7 +44,7 @@ v5.0.0 introduces encrypted export and import workflows across case packages, co
 - **Commits Included**: 14 (non-merge commits since the v4.3.4 release-notes baseline commit)
 - **Build Status**: Succeeded (`npm run build`)
 - **Typecheck Status**: Passed (`npm run typecheck`)
-- **Lint Status**: Failed - 1 error (`app/components/sidebar/case-import/components/ConfirmationPreviewSection.tsx`) and 12 known worker configuration warnings (`npm run lint`)
+- **Lint Status**: Passed with 12 known worker configuration warnings and 0 errors (`npm run lint`)
 
 ## Closing Note
 
