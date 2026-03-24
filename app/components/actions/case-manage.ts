@@ -22,7 +22,9 @@ import { getImageUrl } from './image-manage';
 import {
   calculateSHA256Secure,
   createPublicSigningKeyFileName,
+  encryptExportDataWithAllImages,
   generateForensicManifestSecure,
+  getCurrentEncryptionPublicKeyDetails,
   getCurrentPublicSigningKeyDetails,
   getVerificationPublicKey,
 } from '~/utils/forensics';
@@ -791,6 +793,43 @@ export const archiveCase = async (
       }
     }
 
+    const encryptionKeyDetails = getCurrentEncryptionPublicKeyDetails();
+
+    if (!encryptionKeyDetails.publicKeyPem || !encryptionKeyDetails.keyId) {
+      throw new Error(
+        'Archive encryption is mandatory. Your Striae instance does not have a configured encryption public key. ' +
+        'Please contact your administrator to set up export encryption.'
+      );
+    }
+
+    try {
+      const imagesToEncrypt = Object.entries(imageBlobs).map(([filename, blob]) => ({
+        filename,
+        blob
+      }));
+
+      const encryptionResult = await encryptExportDataWithAllImages(
+        caseJsonContent,
+        imagesToEncrypt,
+        encryptionKeyDetails.publicKeyPem,
+        encryptionKeyDetails.keyId
+      );
+
+      zip.file(`${caseNumber}_data.json`, encryptionResult.ciphertext);
+
+      if (imageFolder && encryptionResult.encryptedImages.length > 0) {
+        for (let index = 0; index < imagesToEncrypt.length; index += 1) {
+          const originalFilename = imagesToEncrypt[index].filename;
+          imageFolder.file(originalFilename, encryptionResult.encryptedImages[index]);
+        }
+      }
+
+      zip.file('ENCRYPTION_MANIFEST.json', JSON.stringify(encryptionResult.encryptionManifest, null, 2));
+    } catch (error) {
+      console.error('Archive encryption failed:', error);
+      throw new Error(`Failed to encrypt archive package: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
     const forensicManifest = await generateForensicManifestSecure(caseJsonContent, imageBlobs);
     const manifestSigningResponse = await signForensicManifest(user, caseNumber, forensicManifest);
 
@@ -913,12 +952,14 @@ export const archiveCase = async (
         '',
         'Package Contents',
         '- Case data JSON export with all image references',
-        '- images/ folder with exported image files',
+        '- images/ folder with exported image files (encrypted)',
         '- Full case audit trail export and signed audit metadata',
         '- Forensic manifest with server-side signature',
+        '- ENCRYPTION_MANIFEST.json with encryption metadata and encrypted image hashes',
         `- ${publicKeyFileName} for verification`,
         '',
         'This package is intended for read-only review and verification workflows.',
+        'This package is encrypted. Only Striae can decrypt and re-import it.',
       ].join('\n')
     );
 
