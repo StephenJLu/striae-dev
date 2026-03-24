@@ -5,7 +5,7 @@ import {
 } from './encryption-utils';
 
 interface Env {
-  API_TOKEN: string;
+  IMAGES_API_TOKEN: string;
   STRIAE_FILES: R2Bucket;
   DATA_AT_REST_ENCRYPTION_PRIVATE_KEY: string;
   DATA_AT_REST_ENCRYPTION_PUBLIC_KEY: string;
@@ -56,7 +56,7 @@ const createJsonResponse = (data: APIResponse, status: number = 200): Response =
 
 function hasValidToken(request: Request, env: Env): boolean {
   const authHeader = request.headers.get('Authorization');
-  const expectedToken = `Bearer ${env.API_TOKEN}`;
+  const expectedToken = `Bearer ${env.IMAGES_API_TOKEN}`;
   return authHeader === expectedToken;
 }
 

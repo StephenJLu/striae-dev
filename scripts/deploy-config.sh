@@ -782,7 +782,6 @@ required_vars=(
     "KEYS_AUTH"
     "PDF_WORKER_AUTH"
     "ACCOUNT_HASH"
-    "API_TOKEN"
     "BROWSER_API_TOKEN"
     "MANIFEST_SIGNING_PRIVATE_KEY"
     "MANIFEST_SIGNING_KEY_ID"
@@ -1536,7 +1535,6 @@ prompt_for_secrets() {
     prompt_for_var "KEYS_AUTH" "Keys worker authentication token (generate with: openssl rand -hex 16)"
     prompt_for_var "PDF_WORKER_AUTH" "PDF worker authentication token (generate with: openssl rand -hex 16)"
     prompt_for_var "ACCOUNT_HASH" "Cloudflare Images Account Hash"
-    prompt_for_var "API_TOKEN" "Images worker service API token"
     prompt_for_var "BROWSER_API_TOKEN" "Cloudflare Browser Rendering API token (for PDF Worker)"
 
     configure_manifest_signing_credentials
