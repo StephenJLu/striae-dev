@@ -471,25 +471,37 @@ export async function parseImportZip(zipFile: File, currentUser: User): Promise<
           .replace(/\//g, '_')
           .replace(/=/g, '');
 
-        // Extract encrypted images
+        // Extract encrypted images - iterate through zip.files directly to avoid JSZip folder recursion
         const encryptedImagePromises: Promise<[string, string]>[] = [];
         
-        zip.folder('images')?.forEach((relativePath, file) => {
-          // Skip directories
-          if (file.dir || !relativePath) {
-            return;
+        const fileList = Object.keys(zip.files);
+        for (const filePath of fileList) {
+          // Only process files in the images folder
+          if (!filePath.startsWith('images/') || filePath === 'images/' || filePath.endsWith('/')) {
+            continue;
           }
           
+          const file = zip.files[filePath];
+          if (!file || file.dir) {
+            continue;
+          }
+          
+          const filename = filePath.replace(/^images\//, '');
+          
           encryptedImagePromises.push((async () => {
-            const encryptedBlob = await file.async('uint8array');
-            // Convert to base64url
-            const encryptedBase64Url = btoa(String.fromCharCode(...encryptedBlob))
-              .replace(/\+/g, '-')
-              .replace(/\//g, '_')
-              .replace(/=/g, '');
-            return [relativePath, encryptedBase64Url] as [string, string];
+            try {
+              const encryptedBlob = await file.async('uint8array');
+              // Convert to base64url
+              const encryptedBase64Url = btoa(String.fromCharCode(...encryptedBlob))
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=/g, '');
+              return [filename, encryptedBase64Url] as [string, string];
+            } catch (err) {
+              throw new Error(`Failed to extract encrypted image ${filename}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+            }
           })());
-        });
+        }
         
         // Wait for all image conversions
         const encryptedImageResults = await Promise.all(encryptedImagePromises);
@@ -556,30 +568,40 @@ export async function parseImportZip(zipFile: File, currentUser: User): Promise<
       throw new Error('Case export missing exporter UID information. This case cannot be imported.');
     }
     
-    // Extract image files and create ID mapping
+    // Extract image files and create ID mapping - iterate through zip.files directly
     const imageFiles: { [filename: string]: Blob } = {};
     const imageIdMapping: { [exportFilename: string]: string } = {};
     
     const imageExtractionPromises: Promise<void>[] = [];
     
-    zip.folder('images')?.forEach((relativePath, file) => {
-      // Skip directories
-      if (file.dir || !relativePath) {
-        return;
+    const fileListForImages = Object.keys(zip.files);
+    for (const filePath of fileListForImages) {
+      // Only process files in the images folder
+      if (!filePath.startsWith('images/') || filePath === 'images/' || filePath.endsWith('/')) {
+        continue;
+      }
+      
+      const file = zip.files[filePath];
+      if (!file || file.dir) {
+        continue;
       }
       
       imageExtractionPromises.push((async () => {
-        const exportFilename = relativePath;
-        const blob = await file.async('blob');
-        imageFiles[exportFilename] = blob;
+        try {
+          const exportFilename = filePath.replace(/^images\//, '');
+          const blob = await file.async('blob');
+          imageFiles[exportFilename] = blob;
 
-        // Extract original image ID from filename
-        const originalImageId = extractImageIdFromFilename(exportFilename);
-        if (originalImageId) {
-          imageIdMapping[exportFilename] = originalImageId;
+          // Extract original image ID from filename
+          const originalImageId = extractImageIdFromFilename(exportFilename);
+          if (originalImageId) {
+            imageIdMapping[exportFilename] = originalImageId;
+          }
+        } catch (err) {
+          console.error(`Failed to extract image ${filePath}:`, err);
         }
       })());
-    });
+    }
     
     // Wait for all image extractions to complete
     await Promise.all(imageExtractionPromises);
