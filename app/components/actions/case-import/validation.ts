@@ -46,16 +46,23 @@ function resolveExporterUid(caseData: CaseExportData, parsedData: unknown): stri
 
   const candidates: unknown[] = [
     caseData.metadata.exportedByUid,
+    caseData.metadata.archivedBy,
     metadata.exportedByUid,
     metadata.exportedByUID,
     metadata.exporterUid,
     metadata.exporterUID,
+    metadata.archivedBy,
+    metadata.archivedByUid,
+    metadata.archivedByUID,
     metadata.userUid,
     metadata.userUID,
     root.exportedByUid,
     root.exportedByUID,
     root.exporterUid,
     root.exporterUID,
+    root.archivedBy,
+    root.archivedByUid,
+    root.archivedByUID,
     root.userUid,
     root.userUID
   ];
