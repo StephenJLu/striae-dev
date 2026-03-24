@@ -383,13 +383,15 @@ export class AuditService {
   public async logCaseCreation(
     user: User,
     caseNumber: string,
-    caseName: string
+    caseName: string,
+    renamedFromCaseNumber?: string
   ): Promise<void> {
     await this.logEventForUser(user,
       buildCaseCreationAuditParams({
         user,
         caseNumber,
-        caseName
+        caseName,
+        renamedFromCaseNumber
       })
     );
   }

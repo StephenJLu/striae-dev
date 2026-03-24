@@ -393,13 +393,21 @@ export const renameCase = async (
     // 5) Delete old case number in user's KV entry
     await removeUserCase(user, oldCaseNumber);
 
-    // Log successful case rename
+    // Log successful case rename under the original case number context
     const endTime = Date.now();
     await auditService.logCaseRename(
       user,
-      newCaseNumber, // Use new case number as the current context
+      oldCaseNumber,
       oldCaseNumber,
       newCaseNumber
+    );
+
+    // Log creation of the new case number as a rename-derived case
+    await auditService.logCaseCreation(
+      user,
+      newCaseNumber,
+      newCaseNumber,
+      oldCaseNumber
     );
 
     console.log(`✅ Case renamed: ${oldCaseNumber} → ${newCaseNumber} (${endTime - startTime}ms)`);

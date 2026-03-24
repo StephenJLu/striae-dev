@@ -197,6 +197,7 @@ export interface AuditQueryParams {
 export interface CaseAuditDetails {
   oldCaseName?: string;
   newCaseName?: string;
+  createdByRename?: boolean;
   totalFiles?: number;
   totalAnnotations?: number;
   confirmedFileNames?: string[];

@@ -6,6 +6,7 @@ interface BuildCaseCreationAuditParamsInput {
   user: User;
   caseNumber: string;
   caseName: string;
+  renamedFromCaseNumber?: string;
 }
 
 export const buildCaseCreationAuditParams = (
@@ -22,7 +23,9 @@ export const buildCaseCreationAuditParams = (
     caseNumber: input.caseNumber,
     workflowPhase: 'casework',
     caseDetails: {
+      oldCaseName: input.renamedFromCaseNumber,
       newCaseName: input.caseName,
+      createdByRename: Boolean(input.renamedFromCaseNumber),
       createdDate: new Date().toISOString(),
       totalFiles: 0,
       totalAnnotations: 0
