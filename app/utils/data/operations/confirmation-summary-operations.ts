@@ -311,3 +311,28 @@ export const removeCaseConfirmationSummary = async (
 
   await saveConfirmationSummaryDocument(user, summary);
 };
+
+export const moveCaseConfirmationSummary = async (
+  user: User,
+  fromCaseNumber: string,
+  toCaseNumber: string
+): Promise<void> => {
+  if (fromCaseNumber === toCaseNumber) {
+    return;
+  }
+
+  const summary = await getConfirmationSummaryDocument(user);
+  const existingCaseSummary = summary.cases[fromCaseNumber];
+  if (!existingCaseSummary) {
+    return;
+  }
+
+  delete summary.cases[fromCaseNumber];
+  summary.cases[toCaseNumber] = {
+    ...existingCaseSummary,
+    updatedAt: getIsoNow(),
+  };
+  summary.updatedAt = getIsoNow();
+
+  await saveConfirmationSummaryDocument(user, summary);
+};
