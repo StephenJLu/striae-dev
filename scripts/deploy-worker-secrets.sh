@@ -143,6 +143,34 @@ set_worker_secrets() {
     popd > /dev/null
 }
 
+build_data_worker_secret_list() {
+    local secrets=(
+        "R2_KEY_SECRET"
+        "MANIFEST_SIGNING_PRIVATE_KEY"
+        "MANIFEST_SIGNING_KEY_ID"
+        "EXPORT_ENCRYPTION_PRIVATE_KEY"
+        "EXPORT_ENCRYPTION_KEY_ID"
+    )
+
+    if [ -n "${DATA_AT_REST_ENCRYPTION_ENABLED:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_ENABLED")
+    fi
+
+    if [ -n "${DATA_AT_REST_ENCRYPTION_PRIVATE_KEY:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_PRIVATE_KEY")
+    fi
+
+    if [ -n "${DATA_AT_REST_ENCRYPTION_PUBLIC_KEY:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_PUBLIC_KEY")
+    fi
+
+    if [ -n "${DATA_AT_REST_ENCRYPTION_KEY_ID:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_KEY_ID")
+    fi
+
+    printf '%s\n' "${secrets[@]}"
+}
+
 # Deploy secrets to each worker
 echo -e "\n${BLUE}🔐 Deploying secrets to workers...${NC}"
 
@@ -186,8 +214,9 @@ if ! set_worker_secrets "User Worker" "workers/user-worker" \
 fi
 
 # Data Worker
-if ! set_worker_secrets "Data Worker" "workers/data-worker" \
-    "R2_KEY_SECRET" "MANIFEST_SIGNING_PRIVATE_KEY" "MANIFEST_SIGNING_KEY_ID" "EXPORT_ENCRYPTION_PRIVATE_KEY" "EXPORT_ENCRYPTION_KEY_ID"; then
+mapfile -t data_worker_secrets < <(build_data_worker_secret_list)
+
+if ! set_worker_secrets "Data Worker" "workers/data-worker" "${data_worker_secrets[@]}"; then
     echo -e "${YELLOW}⚠️  Skipping Data Worker (not configured)${NC}"
 fi
 

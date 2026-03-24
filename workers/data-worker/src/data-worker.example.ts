@@ -1,5 +1,11 @@
 import { signPayload as signWithWorkerKey } from './signature-utils';
-import { decryptExportData, decryptImageBlob } from './encryption-utils';
+import {
+  decryptExportData,
+  decryptImageBlob,
+  decryptJsonFromStorage,
+  encryptJsonForStorage,
+  type DataAtRestEnvelope
+} from './encryption-utils';
 import {
   AUDIT_EXPORT_SIGNATURE_VERSION,
   CONFIRMATION_SIGNATURE_VERSION,
@@ -23,6 +29,10 @@ interface Env {
   MANIFEST_SIGNING_KEY_ID: string;
   EXPORT_ENCRYPTION_PRIVATE_KEY?: string;
   EXPORT_ENCRYPTION_KEY_ID?: string;
+  DATA_AT_REST_ENCRYPTION_ENABLED?: string;
+  DATA_AT_REST_ENCRYPTION_PRIVATE_KEY?: string;
+  DATA_AT_REST_ENCRYPTION_PUBLIC_KEY?: string;
+  DATA_AT_REST_ENCRYPTION_KEY_ID?: string;
 }
 
 interface SuccessResponse {
@@ -54,6 +64,51 @@ const SIGN_MANIFEST_PATH = '/api/forensic/sign-manifest';
 const SIGN_CONFIRMATION_PATH = '/api/forensic/sign-confirmation';
 const SIGN_AUDIT_EXPORT_PATH = '/api/forensic/sign-audit-export';
 const DECRYPT_EXPORT_PATH = '/api/forensic/decrypt-export';
+const DATA_AT_REST_ENCRYPTION_ALGORITHM = 'RSA-OAEP-AES-256-GCM';
+const DATA_AT_REST_ENCRYPTION_VERSION = '1.0';
+
+function isDataAtRestEncryptionEnabled(env: Env): boolean {
+  const value = env.DATA_AT_REST_ENCRYPTION_ENABLED;
+  if (!value) {
+    return false;
+  }
+
+  const normalizedValue = value.trim().toLowerCase();
+  return normalizedValue === '1' || normalizedValue === 'true' || normalizedValue === 'yes' || normalizedValue === 'on';
+}
+
+function extractDataAtRestEnvelope(file: R2ObjectBody): DataAtRestEnvelope | null {
+  const metadata = file.customMetadata;
+  if (!metadata) {
+    return null;
+  }
+
+  const {
+    algorithm,
+    encryptionVersion,
+    keyId,
+    dataIv,
+    wrappedKey
+  } = metadata;
+
+  if (
+    typeof algorithm !== 'string' ||
+    typeof encryptionVersion !== 'string' ||
+    typeof keyId !== 'string' ||
+    typeof dataIv !== 'string' ||
+    typeof wrappedKey !== 'string'
+  ) {
+    return null;
+  }
+
+  return {
+    algorithm,
+    encryptionVersion,
+    keyId,
+    dataIv,
+    wrappedKey
+  };
+}
 
 async function signPayloadWithWorkerKey(payload: string, env: Env): Promise<{
   algorithm: string;
@@ -365,6 +420,39 @@ export default {
           if (!file) {
             return createResponse([], 200);
           }
+
+          const atRestEnvelope = extractDataAtRestEnvelope(file);
+          if (atRestEnvelope) {
+            if (atRestEnvelope.algorithm !== DATA_AT_REST_ENCRYPTION_ALGORITHM) {
+              return createResponse({ error: 'Unsupported data-at-rest encryption algorithm' }, 500);
+            }
+
+            if (atRestEnvelope.encryptionVersion !== DATA_AT_REST_ENCRYPTION_VERSION) {
+              return createResponse({ error: 'Unsupported data-at-rest encryption version' }, 500);
+            }
+
+            if (!env.DATA_AT_REST_ENCRYPTION_PRIVATE_KEY) {
+              return createResponse(
+                { error: 'Data-at-rest decryption is not configured on this server' },
+                500
+              );
+            }
+
+            try {
+              const encryptedData = await file.arrayBuffer();
+              const plaintext = await decryptJsonFromStorage(
+                encryptedData,
+                atRestEnvelope,
+                env.DATA_AT_REST_ENCRYPTION_PRIVATE_KEY
+              );
+              const decryptedPayload = JSON.parse(plaintext);
+              return createResponse(decryptedPayload);
+            } catch (error) {
+              console.error('Data-at-rest decryption failed:', error);
+              return createResponse({ error: 'Failed to decrypt stored data' }, 500);
+            }
+          }
+
           const fileText = await file.text();
           const data = JSON.parse(fileText);
           return createResponse(data);
@@ -372,7 +460,41 @@ export default {
 
         case 'PUT': {
           const newData = await request.json();
-          await bucket.put(filename, JSON.stringify(newData));
+          const serializedData = JSON.stringify(newData);
+
+          if (!isDataAtRestEncryptionEnabled(env)) {
+            await bucket.put(filename, serializedData);
+            return createResponse({ success: true });
+          }
+
+          if (!env.DATA_AT_REST_ENCRYPTION_PUBLIC_KEY || !env.DATA_AT_REST_ENCRYPTION_KEY_ID) {
+            return createResponse(
+              { error: 'Data-at-rest encryption is enabled but not fully configured' },
+              500
+            );
+          }
+
+          try {
+            const encryptedPayload = await encryptJsonForStorage(
+              serializedData,
+              env.DATA_AT_REST_ENCRYPTION_PUBLIC_KEY,
+              env.DATA_AT_REST_ENCRYPTION_KEY_ID
+            );
+
+            await bucket.put(filename, encryptedPayload.ciphertext, {
+              customMetadata: {
+                algorithm: encryptedPayload.envelope.algorithm,
+                encryptionVersion: encryptedPayload.envelope.encryptionVersion,
+                keyId: encryptedPayload.envelope.keyId,
+                dataIv: encryptedPayload.envelope.dataIv,
+                wrappedKey: encryptedPayload.envelope.wrappedKey
+              }
+            });
+          } catch (error) {
+            console.error('Data-at-rest encryption failed:', error);
+            return createResponse({ error: 'Failed to encrypt data for storage' }, 500);
+          }
+
           return createResponse({ success: true });
         }
 
