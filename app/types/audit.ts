@@ -44,7 +44,7 @@ export interface ValidationAuditEntry {
  * Detailed information for each audit entry
  * Contains action-specific data and metadata
  */
-export interface AuditDetails {
+interface AuditDetails {
   // Core identification
   fileName?: string;
   fileType?: AuditFileType;
@@ -194,9 +194,10 @@ export interface AuditQueryParams {
 /**
  * Case management specific audit details
  */
-export interface CaseAuditDetails {
+interface CaseAuditDetails {
   oldCaseName?: string;
   newCaseName?: string;
+  createdByRename?: boolean;
   totalFiles?: number;
   totalAnnotations?: number;
   confirmedFileNames?: string[];
@@ -210,7 +211,7 @@ export interface CaseAuditDetails {
 /**
  * File operation specific audit details
  */
-export interface FileAuditDetails {
+interface FileAuditDetails {
   fileId?: string;
   originalFileName?: string;
   fileSize: number;
@@ -225,7 +226,7 @@ export interface FileAuditDetails {
 /**
  * Annotation operation specific audit details
  */
-export interface AnnotationAuditDetails {
+interface AnnotationAuditDetails {
   annotationId?: string;
   annotationType?: 'measurement' | 'identification' | 'comparison' | 'note' | 'region';
   annotationData?: unknown; // The actual annotation data structure
@@ -238,7 +239,7 @@ export interface AnnotationAuditDetails {
 /**
  * User session specific audit details
  */
-export interface SessionAuditDetails {
+interface SessionAuditDetails {
   sessionId?: string;
   userAgent?: string;
   sessionDuration?: number;
@@ -249,7 +250,7 @@ export interface SessionAuditDetails {
 /**
  * Security incident specific audit details
  */
-export interface SecurityAuditDetails {
+interface SecurityAuditDetails {
   incidentType?: 'unauthorized-access' | 'data-breach' | 'malware' | 'injection' | 'brute-force' | 'privilege-escalation';
   severity?: 'low' | 'medium' | 'high' | 'critical';
   targetResource?: string;
@@ -272,7 +273,7 @@ export interface SecurityAuditDetails {
 /**
  * User profile and authentication specific audit details
  */
-export interface UserProfileAuditDetails {
+interface UserProfileAuditDetails {
   profileField?: 'displayName' | 'email' | 'organization' | 'role' | 'preferences' | 'avatar' | 'badgeId';
   oldValue?: string;
   newValue?: string;

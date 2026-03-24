@@ -8,7 +8,7 @@ import { type AuditExportContext, signAuditExport } from './audit-export-signing
  * Audit Export Service
  * Handles exporting audit trails to various formats for compliance and forensic analysis
  */
-export class AuditExportService {
+class AuditExportService {
   private static instance: AuditExportService;
 
   private constructor() {}

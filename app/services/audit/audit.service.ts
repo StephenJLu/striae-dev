@@ -2,7 +2,6 @@ import type { User } from 'firebase/auth';
 import type {
   ValidationAuditEntry, 
   CreateAuditEntryParams, 
-  AuditTrail, 
   AuditQueryParams,
   WorkflowPhase,
   AuditAction,
@@ -18,7 +17,6 @@ import {
 import {
   applyAuditEntryFilters,
   applyAuditPagination,
-  generateAuditSummary,
   sortAuditEntriesNewestFirst
 } from './audit-query-helpers';
 import { logAuditEntryToConsole } from './audit-console-logger';
@@ -58,7 +56,7 @@ import {
  * Audit Service for ValidationAuditEntry system
  * Provides comprehensive audit logging throughout the confirmation workflow
  */
-export class AuditService {
+class AuditService {
   private static instance: AuditService;
   private auditBuffer: ValidationAuditEntry[] = [];
   private workflowId: string | null = null;
@@ -383,13 +381,15 @@ export class AuditService {
   public async logCaseCreation(
     user: User,
     caseNumber: string,
-    caseName: string
+    caseName: string,
+    renamedFromCaseNumber?: string
   ): Promise<void> {
     await this.logEventForUser(user,
       buildCaseCreationAuditParams({
         user,
         caseNumber,
-        caseName
+        caseName,
+        renamedFromCaseNumber
       })
     );
   }
@@ -722,37 +722,6 @@ export class AuditService {
   }
 
   /**
-   * Log user account deletion event
-   */
-  public async logAccountDeletion(
-    user: User,
-    result: AuditResult,
-    deletionReason: 'user-requested' | 'admin-initiated' | 'policy-violation' | 'inactive-account' = 'user-requested',
-    confirmationMethod: 'uid-email' | 'password' | 'admin-override' = 'uid-email',
-    casesCount?: number,
-    filesCount?: number,
-    dataRetentionPeriod?: number,
-    emailNotificationSent?: boolean,
-    sessionId?: string,
-    errors: string[] = []
-  ): Promise<void> {
-    // Wrapper that extracts user data and calls the simplified version
-    return this.logAccountDeletionSimple(
-      user.uid,
-      user.email || '',
-      result,
-      deletionReason,
-      confirmationMethod,
-      casesCount,
-      filesCount,
-      dataRetentionPeriod,
-      emailNotificationSent,
-      sessionId,
-      errors
-    );
-  }
-
-  /**
    * Log user account deletion event with simplified user data
    */
   public async logAccountDeletionSimple(
@@ -1012,32 +981,6 @@ export class AuditService {
   }
 
   /**
-   * Get audit trail for a case
-   */
-  public async getAuditTrail(caseNumber: string): Promise<AuditTrail | null> {
-    try {
-      // Implement retrieval from storage
-      const entries = await this.getAuditEntries({ caseNumber });
-      if (!entries || entries.length === 0) {
-        return null;
-      }
-
-      const summary = generateAuditSummary(entries);
-      const workflowId = this.workflowId || `${caseNumber}-archived`;
-
-      return {
-        caseNumber,
-        workflowId,
-        entries,
-        summary
-      };
-    } catch (error) {
-      console.error('🚨 Audit: Failed to get audit trail:', error);
-      return null;
-    }
-  }
-
-  /**
    * Get audit entries based on query parameters
    */
   private applyDateRangeFilter(
@@ -1143,19 +1086,6 @@ export class AuditService {
     }
   }
 
-  /**
-   * Clear audit buffer (for testing)
-   */
-  public clearBuffer(): void {
-    this.auditBuffer = [];
-  }
-
-  /**
-   * Get current buffer size (for monitoring)
-   */
-  public getBufferSize(): number {
-    return this.auditBuffer.length;
-  }
 }
 
 // Export singleton instance

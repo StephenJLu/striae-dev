@@ -1,6 +1,6 @@
 import { type ValidationAuditEntry } from '~/types';
 
-export const getAuditSecurityIssuesForConsole = (
+const getAuditSecurityIssuesForConsole = (
   entry: ValidationAuditEntry
 ): string[] => {
   const checks = entry.details.securityChecks;

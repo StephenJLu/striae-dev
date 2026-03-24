@@ -22,14 +22,14 @@ interface SignAuditExportInput {
   hash: string;
 }
 
-export interface AuditExportSignature {
+interface AuditExportSignature {
   algorithm: string;
   keyId: string;
   signedAt: string;
   value: string;
 }
 
-export interface SignedAuditExportPayload {
+interface SignedAuditExportPayload {
   signatureMetadata: AuditExportSigningPayload;
   signature: AuditExportSignature;
 }
