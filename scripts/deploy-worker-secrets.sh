@@ -220,7 +220,10 @@ elif [ $workers_configured -lt $total_workers ]; then
 fi
 
 # Audit Worker
-mapfile -t audit_worker_secrets < <(build_audit_worker_secret_list)
+audit_worker_secrets=()
+while IFS= read -r secret; do
+    audit_worker_secrets+=("$secret")
+done < <(build_audit_worker_secret_list)
 
 if ! set_worker_secrets "Audit Worker" "workers/audit-worker" "${audit_worker_secrets[@]}"; then
     echo -e "${YELLOW}⚠️  Skipping Audit Worker (not configured)${NC}"
@@ -239,7 +242,10 @@ if ! set_worker_secrets "User Worker" "workers/user-worker" \
 fi
 
 # Data Worker
-mapfile -t data_worker_secrets < <(build_data_worker_secret_list)
+data_worker_secrets=()
+while IFS= read -r secret; do
+    data_worker_secrets+=("$secret")
+done < <(build_data_worker_secret_list)
 
 if ! set_worker_secrets "Data Worker" "workers/data-worker" "${data_worker_secrets[@]}"; then
     echo -e "${YELLOW}⚠️  Skipping Data Worker (not configured)${NC}"

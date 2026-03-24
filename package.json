@@ -106,9 +106,7 @@
     "deploy-workers:image": "cd workers/image-worker && npm run deploy",
     "deploy-workers:keys": "cd workers/keys-worker && npm run deploy",
     "deploy-workers:pdf": "cd workers/pdf-worker && npm run deploy",
-    "deploy-workers:user": "cd workers/user-worker && npm run deploy",
-    "test:workers:image": "cd workers/image-worker && npm run test",
-    "validate:image-worker": "npm run typecheck && npm run lint && npm run test:workers:image"
+    "deploy-workers:user": "cd workers/user-worker && npm run deploy"    
   },
   "dependencies": {
     "@react-router/cloudflare": "^7.13.2",
