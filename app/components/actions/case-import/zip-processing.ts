@@ -365,6 +365,10 @@ export async function parseImportZip(zipFile: File, currentUser: User): Promise<
   metadata?: Record<string, unknown>;
   cleanedContent?: string; // Add cleaned content for hash validation
   verificationPublicKeyPem?: string;
+  encryptionManifest?: Record<string, unknown>; // Optional: decryption metadata
+  encryptedDataBase64?: string; // Optional: encrypted data file content (base64url)
+  encryptedImages?: { [filename: string]: string }; // Optional: encrypted image files (filename -> base64url)
+  isEncrypted?: boolean;
 }> {
   // Dynamic import of JSZip to avoid bundle size issues
   const JSZip = (await import('jszip')).default;
@@ -389,41 +393,98 @@ export async function parseImportZip(zipFile: File, currentUser: User): Promise<
     const dataFileName = dataFiles[0];
     const isJsonFormat = dataFileName.endsWith('.json');
     
-    // Extract and parse case data
+    // Check for encryption manifest first
+    const encryptionManifestFile = zip.file('ENCRYPTION_MANIFEST.json');
+    let encryptionManifest: Record<string, unknown> | undefined;
+    let encryptedDataBase64: string | undefined;
+    const encryptedImages: { [filename: string]: string } = {};
+    let isEncrypted = false;
+
+    // Initialize variables before if-else to ensure scope
     let caseData: CaseExportData;
     let parsedCaseData: unknown;
     let cleanedContent: string = '';
-    if (isJsonFormat) {
-      const dataContent = await zip.file(dataFileName)?.async('text');
-      if (!dataContent) {
-        throw new Error('Failed to read data file from ZIP');
+
+    if (encryptionManifestFile) {
+      try {
+        const manifestContent = await encryptionManifestFile.async('text');
+        encryptionManifest = JSON.parse(manifestContent) as Record<string, unknown>;
+        isEncrypted = true;
+
+        // Extract the encrypted data file
+        const dataContent = await zip.file(dataFileName)?.async('uint8array');
+        if (!dataContent) {
+          throw new Error('Failed to read encrypted data file from ZIP');
+        }
+        // Convert to base64url for transmission to worker
+        encryptedDataBase64 = btoa(String.fromCharCode(...dataContent))
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=/g, '');
+
+        // Extract encrypted images
+        const imagesFolder = zip.folder('images');
+        if (imagesFolder) {
+          for (const [path, file] of Object.entries(imagesFolder.files)) {
+            if (!path.startsWith('images/') || path.endsWith('/') || file.dir) {
+              continue;
+            }
+            const filename = path.replace('images/', '');
+            const encryptedBlob = await file.async('uint8array');
+            // Convert to base64url
+            encryptedImages[filename] = btoa(String.fromCharCode(...encryptedBlob))
+              .replace(/\+/g, '-')
+              .replace(/\//g, '_')
+              .replace(/=/g, '');
+          }
+        }
+
+        // For encrypted exports, data file will be processed after decryption
+        // Set placeholder values that will be replaced after decryption
+        caseData = { metadata: { caseNumber: 'ENCRYPTED' } } as CaseExportData;
+        parsedCaseData = caseData;
+        cleanedContent = '';
+
+      } catch (error) {
+        throw new Error(`Failed to process encrypted export: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
-      
-      // Handle forensic protection warnings in JSON
-      cleanedContent = removeForensicWarning(dataContent);
-      parsedCaseData = JSON.parse(cleanedContent) as unknown;
-      caseData = parsedCaseData as CaseExportData;
     } else {
-      throw new Error('CSV import not yet supported. Please use JSON format.');
+      // Standard unencrypted extract and parse case data
+      if (isJsonFormat) {
+        const dataContent = await zip.file(dataFileName)?.async('text');
+        if (!dataContent) {
+          throw new Error('Failed to read data file from ZIP');
+        }
+        
+        // Handle forensic protection warnings in JSON
+        cleanedContent = removeForensicWarning(dataContent);
+        parsedCaseData = JSON.parse(cleanedContent) as unknown;
+        caseData = parsedCaseData as CaseExportData;
+      } else {
+        throw new Error('CSV import not yet supported. Please use JSON format.');
+      }
     }
     
-    // Validate case data structure
-    if (!caseData.metadata?.caseNumber) {
-      throw new Error('Invalid case data: missing case number');
-    }
-    
-    if (!validateCaseNumber(caseData.metadata.caseNumber)) {
-      throw new Error(`Invalid case number format: ${caseData.metadata.caseNumber}`);
+    // Validate case data structure only for unencrypted exports
+    // (encrypted exports will be validated after decryption in orchestrator)
+    if (!isEncrypted) {
+      if (!caseData.metadata?.caseNumber) {
+        throw new Error('Invalid case data: missing case number');
+      }
+
+      if (!validateCaseNumber(caseData.metadata.caseNumber)) {
+        throw new Error(`Invalid case number format: ${caseData.metadata.caseNumber}`);
+      }
     }
     
     const isArchivedExport = await allowSelfImportForArchivedCase(
       currentUser,
-      caseData.metadata.caseNumber,
+      caseData.metadata.caseNumber || 'ENCRYPTED',
       parsedCaseData
     );
 
-    // Validate exporter UID exists in user database and is not current user
-    if (caseData.metadata.exportedByUid) {
+    // Validate exporter UID exists in user database and is not current user (skip for encrypted)
+    if (!isEncrypted && caseData.metadata.exportedByUid) {
       const validation = await validateExporterUid(caseData.metadata.exportedByUid, currentUser);
       
       if (!validation.exists) {
@@ -433,7 +494,7 @@ export async function parseImportZip(zipFile: File, currentUser: User): Promise<
       if (validation.isSelf && !isArchivedExport) {
         throw new Error(`You cannot import a case that you originally exported. Original analysts cannot review their own cases.`);
       }
-    } else {
+    } else if (!isEncrypted) {
       throw new Error('Case export missing exporter UID information. This case cannot be imported.');
     }
     
@@ -482,7 +543,11 @@ export async function parseImportZip(zipFile: File, currentUser: User): Promise<
       },
       metadata,
       cleanedContent,
-      verificationPublicKeyPem
+      verificationPublicKeyPem,
+      encryptionManifest,
+      encryptedDataBase64,
+      encryptedImages: Object.keys(encryptedImages).length > 0 ? encryptedImages : undefined,
+      isEncrypted
     };
     
   } catch (error) {

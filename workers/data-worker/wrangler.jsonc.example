@@ -1,5 +1,6 @@
 {
   // Required secrets: R2_KEY_SECRET, MANIFEST_SIGNING_PRIVATE_KEY, MANIFEST_SIGNING_KEY_ID
+  // Optional secrets (for export encryption): EXPORT_ENCRYPTION_PRIVATE_KEY, EXPORT_ENCRYPTION_KEY_ID
   "name": "DATA_WORKER_NAME",
   "account_id": "ACCOUNT_ID",
   "main": "src/data-worker.ts",

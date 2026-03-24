@@ -6,6 +6,11 @@
   "manifest_signing_public_keys": {
     "MANIFEST_SIGNING_KEY_ID": "MANIFEST_SIGNING_PUBLIC_KEY"
   },
+  "export_encryption_key_id": "EXPORT_ENCRYPTION_KEY_ID",
+  "export_encryption_public_key": "EXPORT_ENCRYPTION_PUBLIC_KEY",
+  "export_encryption_public_keys": {
+    "EXPORT_ENCRYPTION_KEY_ID": "EXPORT_ENCRYPTION_PUBLIC_KEY"
+  },
   "max_cases_review": 0,
   "max_files_per_case_review": 0
 }

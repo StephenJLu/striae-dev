@@ -5,11 +5,13 @@ import {
   type ReadOnlyCaseMetadata,
   type FileData,
   type BundledAuditTrailData,
-  type ValidationAuditEntry
+  type ValidationAuditEntry,
+  type CaseExportData
 } from '~/types';
-import { checkExistingCase } from '../case-manage';
+import { checkExistingCase, validateCaseNumber } from '../case-manage';
 import {
   type SignedForensicManifest,
+  type EncryptionManifest,
   verifyCasePackageIntegrity
 } from '~/utils/forensics';
 import { deleteFile } from '../image-manage';
@@ -25,6 +27,7 @@ import {
 import { uploadImageBlob } from './image-operations';
 import { importAnnotations } from './annotation-import';
 import { auditService } from '~/services/audit';
+import { decryptExportBatch } from '~/utils/data/operations/signing-operations';
 
 /**
  * Track the state of an import operation for cleanup purposes
@@ -44,6 +47,22 @@ interface BundledAuditTrailFile {
   auditTrail?: {
     entries?: ValidationAuditEntry[];
   };
+}
+
+function isEncryptionManifest(value: unknown): value is EncryptionManifest {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Partial<EncryptionManifest>;
+  return (
+    typeof candidate.encryptionVersion === 'string' &&
+    typeof candidate.algorithm === 'string' &&
+    typeof candidate.keyId === 'string' &&
+    typeof candidate.wrappedKey === 'string' &&
+    typeof candidate.iv === 'string' &&
+    Array.isArray(candidate.encryptedImages)
+  );
 }
 
 function extractBundledAuditTrailData(
@@ -185,15 +204,67 @@ export async function importCaseForReview(
     
     // Step 1: Parse ZIP file
     const {
-      caseData,
-      imageFiles,
+      caseData: initialCaseData,
+      imageFiles: initialImageFiles,
       imageIdMapping,
       isArchivedExport,
       bundledAuditFiles,
       metadata,
-      cleanedContent,
-      verificationPublicKeyPem
+      cleanedContent: initialCleanedContent,
+      verificationPublicKeyPem,
+      encryptionManifest,
+      encryptedDataBase64,
+      encryptedImages,
+      isEncrypted
     } = await parseImportZip(zipFile, user);
+
+    // Step 1.2: Handle decryption if export is encrypted
+    let caseData = initialCaseData;
+    let cleanedContent = initialCleanedContent || '';
+    let imageFiles = initialImageFiles;
+    let decryptedImageBlobMap: { [filename: string]: Blob } | undefined;
+
+    if (isEncrypted && isEncryptionManifest(encryptionManifest) && encryptedDataBase64 && encryptedImages) {
+      onProgress?.('Decrypting export', 11, 'Decrypting case data and images...');
+      
+      try {
+        // Call decrypt endpoint on data-worker
+        const decryptResult = await decryptExportBatch(
+          user,
+          encryptionManifest,
+          encryptedDataBase64,
+          encryptedImages
+        );
+
+        // Decrypted data is plaintext JSON
+        cleanedContent = decryptResult.plaintext;
+        const parsedCaseData = JSON.parse(cleanedContent) as unknown;
+        caseData = parsedCaseData as CaseExportData;
+
+        // Store decrypted image blobs for restoration
+        decryptedImageBlobMap = decryptResult.decryptedImages;
+
+        // Update imageFiles with decrypted images
+        imageFiles = { ...imageFiles, ...decryptedImageBlobMap };
+
+        onProgress?.('Decryption successful', 13, `Decrypted case data and ${Object.keys(decryptedImageBlobMap).length} images`);
+      } catch (decryptError) {
+        throw new Error(
+          `Failed to decrypt export: ${decryptError instanceof Error ? decryptError.message : 'Unknown error'}. ` +
+          'Ensure your Striae instance has export encryption configured.'
+        );
+      }
+    }
+
+    // Now validate case number and format
+    if (!caseData.metadata?.caseNumber) {
+      throw new Error('Invalid case data: missing case number');
+    }
+
+    if (!validateCaseNumber(caseData.metadata.caseNumber)) {
+      throw new Error(`Invalid case number format: ${caseData.metadata.caseNumber}`);
+    }
+
     parsedForensicManifest = metadata?.forensicManifest as SignedForensicManifest | undefined;
     result.caseNumber = caseData.metadata.caseNumber;
     importState.caseNumber = result.caseNumber;

@@ -41,4 +41,5 @@ firebase-debug.log
 *.toml
 *.jsonc
 app/config
+rsa-key-pair/
 primershear.emails

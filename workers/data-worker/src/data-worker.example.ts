@@ -1,4 +1,5 @@
 import { signPayload as signWithWorkerKey } from './signature-utils';
+import { decryptExportData, decryptImageBlob } from './encryption-utils';
 import {
   AUDIT_EXPORT_SIGNATURE_VERSION,
   CONFIRMATION_SIGNATURE_VERSION,
@@ -20,6 +21,8 @@ interface Env {
   STRIAE_DATA: R2Bucket;
   MANIFEST_SIGNING_PRIVATE_KEY: string;
   MANIFEST_SIGNING_KEY_ID: string;
+  EXPORT_ENCRYPTION_PRIVATE_KEY?: string;
+  EXPORT_ENCRYPTION_KEY_ID?: string;
 }
 
 interface SuccessResponse {
@@ -50,6 +53,7 @@ const hasValidHeader = (request: Request, env: Env): boolean =>
 const SIGN_MANIFEST_PATH = '/api/forensic/sign-manifest';
 const SIGN_CONFIRMATION_PATH = '/api/forensic/sign-confirmation';
 const SIGN_AUDIT_EXPORT_PATH = '/api/forensic/sign-audit-export';
+const DECRYPT_EXPORT_PATH = '/api/forensic/decrypt-export';
 
 async function signPayloadWithWorkerKey(payload: string, env: Env): Promise<{
   algorithm: string;
@@ -196,6 +200,117 @@ async function handleSignAuditExport(request: Request, env: Env): Promise<Respon
   }
 }
 
+async function handleDecryptExport(request: Request, env: Env): Promise<Response> {
+  try {
+    // Check if encryption is configured
+    if (!env.EXPORT_ENCRYPTION_PRIVATE_KEY || !env.EXPORT_ENCRYPTION_KEY_ID) {
+      return createResponse(
+        { error: 'Export decryption is not configured on this server' },
+        400
+      );
+    }
+
+    const requestBody = await request.json() as {
+      wrappedKey?: string;
+      iv?: string;
+      encryptedData?: string;
+      encryptedImages?: Array<{ filename: string; encryptedData: string }>;
+      keyId?: string;
+    };
+
+    const { wrappedKey, iv, encryptedData, encryptedImages, keyId } = requestBody;
+
+    // Validate required fields
+    if (
+      !wrappedKey ||
+      typeof wrappedKey !== 'string' ||
+      !iv ||
+      typeof iv !== 'string' ||
+      !encryptedData ||
+      typeof encryptedData !== 'string' ||
+      !keyId ||
+      typeof keyId !== 'string'
+    ) {
+      return createResponse(
+        { error: 'Missing or invalid required fields: wrappedKey, iv, encryptedData, keyId' },
+        400
+      );
+    }
+
+    // Validate keyId matches configured key
+    if (keyId !== env.EXPORT_ENCRYPTION_KEY_ID) {
+      return createResponse(
+        { error: `Key ID mismatch: expected ${env.EXPORT_ENCRYPTION_KEY_ID}, got ${keyId}` },
+        400
+      );
+    }
+
+    // Decrypt data file
+    let plaintextData: string;
+    try {
+      plaintextData = await decryptExportData(
+        encryptedData,
+        wrappedKey,
+        iv,
+        env.EXPORT_ENCRYPTION_PRIVATE_KEY
+      );
+    } catch (error) {
+      console.error('Data file decryption failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Decryption failed';
+      return createResponse(
+        { error: `Failed to decrypt data file: ${errorMessage}` },
+        500
+      );
+    }
+
+    // Decrypt images if provided
+    const decryptedImages: Array<{ filename: string; data: string }> = [];
+    if (Array.isArray(encryptedImages) && encryptedImages.length > 0) {
+      for (const imageEntry of encryptedImages) {
+        try {
+          const imageBlob = await decryptImageBlob(
+            imageEntry.encryptedData,
+            wrappedKey,
+            iv,
+            env.EXPORT_ENCRYPTION_PRIVATE_KEY
+          );
+
+          // Convert blob to base64 for transport
+          const arrayBuffer = await imageBlob.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuffer);
+          let binary = '';
+          for (const byte of bytes) {
+            binary += String.fromCharCode(byte);
+          }
+          const base64Data = btoa(binary);
+
+          decryptedImages.push({
+            filename: imageEntry.filename,
+            data: base64Data
+          });
+        } catch (error) {
+          console.error(`Image decryption failed for ${imageEntry.filename}:`, error);
+          const errorMessage = error instanceof Error ? error.message : 'Decryption failed';
+          return createResponse(
+            { error: `Failed to decrypt image ${imageEntry.filename}: ${errorMessage}` },
+            500
+          );
+        }
+      }
+    }
+
+    return createResponse({
+      success: true,
+      plaintext: plaintextData,
+      decryptedImages
+    });
+  } catch (error) {
+    console.error('Export decryption request failed:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return createResponse({ error: errorMessage }, 500);
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method === 'OPTIONS') {
@@ -221,6 +336,10 @@ export default {
 
       if (request.method === 'POST' && pathname === SIGN_AUDIT_EXPORT_PATH) {
         return await handleSignAuditExport(request, env);
+      }
+
+      if (request.method === 'POST' && pathname === DECRYPT_EXPORT_PATH) {
+        return await handleDecryptExport(request, env);
       }
 
       const filename = pathname.slice(1) || 'data.json';
