@@ -126,11 +126,7 @@ function hasDataAtRestMetadata(metadata: Record<string, string> | undefined): bo
 }
 
 function clampBackfillBatchSize(size: number | undefined): number {
-  if (!Number.isFinite(size)) {
-    return 100;
-  }
-
-  if (size === undefined) {
+  if (typeof size !== 'number' || !Number.isFinite(size)) {
     return 100;
   }
 
