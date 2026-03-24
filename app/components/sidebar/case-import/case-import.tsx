@@ -452,7 +452,7 @@ export const CaseImport = ({
                   importState.isClearing || 
                   importState.isLoadingPreview ||
                   (importState.importType === 'case' && isArchivedRegularCaseImportBlocked) ||
-                  (importState.importType === 'case' && (!casePreview || casePreview.hashValid !== true))
+                  (importState.importType === 'case' && (!casePreview || casePreview.hashValid === false))
                 }
               >
                 {importState.isImporting ? 'Importing...' : 
