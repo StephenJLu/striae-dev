@@ -62,6 +62,13 @@ npm run deploy:all
 
 ## 📋 Changelog
 
+## [2026-03-23] - *[Patch Release v4.3.4](https://github.com/striae-org/striae/releases/tag/v4.3.4)*
+
+- **🔁 Rename Audit Provenance Expansion** - Captured both sides of case renames by logging original-case rename-to events and destination-case creation-through-rename events.
+- **🧭 Rename-Origin Metadata** - Added explicit rename-derived creation metadata (`createdByRename`) and source-case linkage for cleaner filtering and report interpretation.
+- **🧹 Audit Surface Cleanup (No Behavior Change)** - Removed unused audit service methods and trimmed dead/publicly exported audit symbols while preserving active runtime paths.
+- **🛠️ Audit Entry Reliability and Release-Window Maintenance** - Included related archive-case and annotation/confirmation audit detail follow-up fixes, plus React Router dependency alignment and duplicate import cleanup completed in the same patch window.
+
 ## [2026-03-23] - *[Patch Release v4.3.3](https://github.com/striae-org/striae/releases/tag/v4.3.3)*
 
 - **🗂️ Case Management Workflow Refinements** - Refined cases modal behavior and related case-management handling to better align active-case workflows with updated state filtering.
