@@ -192,7 +192,16 @@ async function handleDataAtRestBackfill(request: Request, env: Env): Promise<Res
       continue;
     }
 
-    if (hasDataAtRestMetadata(object.customMetadata)) {
+    const objectHead = await bucket.head(key);
+    if (!objectHead) {
+      failed += 1;
+      if (failures.length < 20) {
+        failures.push({ key, error: 'Object not found during metadata check' });
+      }
+      continue;
+    }
+
+    if (hasDataAtRestMetadata(objectHead.customMetadata)) {
       skippedEncrypted += 1;
       continue;
     }
