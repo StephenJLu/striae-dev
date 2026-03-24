@@ -62,8 +62,14 @@ npm run deploy:all
 
 ## 📋 Changelog
 
-## [2026-03-24] - *[Major Release v5.0.0](https://github.com/striae-org/striae/releases/tag/v5.0.0)*
+## [2026-03-24] - *[Minor Release v5.1.0](https://github.com/striae-org/striae/releases/tag/v5.1.0)*
 
+- **🔐 Data-at-Rest Encryption Rollout** - Extended encryption work into storage/runtime pathways (including audit/image surfaces), with migration/backfill tooling and environment example updates for encrypted data handling.
+- **🧭 Import Guardrail Hardening** - Refined archive/import gate behavior, fixed import blocking edge cases, and clarified enforcement messaging in import UI flows.
+- **⚙️ Deploy and Secret Wiring Alignment** - Updated deploy-config workflows for new encryption-related secrets, removed duplicate image token configuration, and refreshed worker type outputs.
+- **🧪 Reliability and Maintenance Window** - Added root/image test updates, fixed PDF image GET handling reliability, and included dependency maintenance updates in the same release window.
+
+## [2026-03-24] - *[Major Release v5.0.0](https://github.com/striae-org/striae/releases/tag/v5.0.0)*
 - **🔐 Encrypted Forensic Package Workflow Rollout** - Added encryption support for case, confirmation, and archive package export paths with `ENCRYPTION_MANIFEST.json` metadata and import-time decryption flow integration.
 - **🛡️ Import Decryption + Validation Hardening** - Introduced encrypted preview/import handling improvements and post-decrypt validation reliability fixes while preserving fail-closed signature/hash checks.
 - **🧹 Verification Surface Simplification** - Removed legacy standalone public signing key verification utility UI surface and consolidated validation behavior into shared workflow paths.
