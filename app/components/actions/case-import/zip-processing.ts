@@ -139,6 +139,55 @@ export async function previewCaseImport(zipFile: File, currentUser: User): Promi
     const zip = await JSZip.loadAsync(zipFile);
     const verificationPublicKeyPem = await extractVerificationPublicKeyFromZip(zip);
     
+    // Check if export is encrypted
+    const encryptionManifestFile = zip.file('ENCRYPTION_MANIFEST.json');
+    if (encryptionManifestFile) {
+      // For encrypted exports, we can't read the plaintext data to extract case info
+      // Return an encrypted preview that requires decryption during import
+      try {
+        const manifestContent = await encryptionManifestFile.async('text');
+        JSON.parse(manifestContent); // Validate it's valid JSON
+        
+        // Count image files
+        let totalFiles = 0;
+        const imagesFolder = zip.folder('images');
+        if (imagesFolder) {
+          for (const [, file] of Object.entries(imagesFolder.files)) {
+            if (!file.dir && file.name.includes('/')) {
+              totalFiles++;
+            }
+          }
+        }
+        
+        return {
+          caseNumber: 'ENCRYPTED',
+          archived: false,
+          exportedBy: null,
+          exportedByName: null,
+          exportedByCompany: null,
+          exportedByBadgeId: null,
+          exportDate: new Date().toISOString(),
+          totalFiles,
+          hasAnnotations: false,
+          validationSummary: 'Export is encrypted. Case information will be decrypted during import.',
+          hashValid: undefined,
+          hashError: undefined,
+          validationDetails: {
+            hasForensicManifest: true,
+            dataValid: undefined,
+            manifestValid: true,
+            signatureValid: undefined,
+            validationSummary: 'Encrypted export - validation deferred to import stage',
+            integrityErrors: []
+          }
+        };
+      } catch (error) {
+        throw new Error(
+          `Encrypted export detected but encryption manifest is invalid: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+    }
+    
     // First, validate hash if forensic metadata exists
     let hashValid: boolean | undefined = undefined;
     let hashError: string | undefined = undefined;
