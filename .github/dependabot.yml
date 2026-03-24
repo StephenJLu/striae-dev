@@ -13,6 +13,13 @@ updates:
       - dependency-name: "eslint"
         versions: [">= 10"]
 
+      # TypeScript 6.x blocked: current peer ranges still require TS < 6.
+      # Blockers: @typescript-eslint/{parser,eslint-plugin} (>=4.8.4 <6.0.0),
+      #           @react-router/{cloudflare,dev,fs-routes} (^5.1.0).
+      # Remove this ignore once both ecosystems publish TS 6-compatible peer declarations.
+      - dependency-name: "typescript"
+        versions: [">= 6"]
+
     groups:
       # Group all ESLint-ecosystem packages together.
       # When the blocked plugins above update and declare ^10 support,
