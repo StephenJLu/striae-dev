@@ -95,6 +95,30 @@ load_required_admin_service_credentials() {
 
 load_required_admin_service_credentials
 
+build_audit_worker_secret_list() {
+    local secrets=(
+        "R2_KEY_SECRET"
+    )
+
+    if [ -n "${DATA_AT_REST_ENCRYPTION_ENABLED:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_ENABLED")
+    fi
+
+    if [ -n "${DATA_AT_REST_ENCRYPTION_PRIVATE_KEY:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_PRIVATE_KEY")
+    fi
+
+    if [ -n "${DATA_AT_REST_ENCRYPTION_PUBLIC_KEY:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_PUBLIC_KEY")
+    fi
+
+    if [ -n "${DATA_AT_REST_ENCRYPTION_KEY_ID:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_KEY_ID")
+    fi
+
+    printf '%s\n' "${secrets[@]}"
+}
+
 # Function to set worker secrets
 set_worker_secrets() {
     local worker_name=$1
@@ -196,8 +220,9 @@ elif [ $workers_configured -lt $total_workers ]; then
 fi
 
 # Audit Worker
-if ! set_worker_secrets "Audit Worker" "workers/audit-worker" \
-    "R2_KEY_SECRET"; then
+mapfile -t audit_worker_secrets < <(build_audit_worker_secret_list)
+
+if ! set_worker_secrets "Audit Worker" "workers/audit-worker" "${audit_worker_secrets[@]}"; then
     echo -e "${YELLOW}⚠️  Skipping Audit Worker (not configured)${NC}"
 fi
 
