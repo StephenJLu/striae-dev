@@ -1,9 +1,7 @@
 import { type CaseImportPreview } from '~/types';
 import {
   ARCHIVED_REGULAR_CASE_BLOCK_MESSAGE,
-  ARCHIVED_SELF_IMPORT_NOTE,
-  DATA_INTEGRITY_VALIDATION_PASSED,
-  DATA_INTEGRITY_VALIDATION_FAILED
+  ARCHIVED_SELF_IMPORT_NOTE
 } from '~/utils/ui';
 import styles from '../case-import.module.css';
 
@@ -31,38 +29,21 @@ export const CasePreviewSection = ({
   if (!casePreview) return null;
 
   return (
-    <>
-      <div className={styles.previewSection}>
-        <h3 className={styles.previewTitle}>Case Import Preview</h3>
-        <p className={styles.previewMessage}>
-          Case package detected. Export metadata and file listings are hidden in preview for encrypted imports.
-        </p>
-        {casePreview.archived && (
-          <div className={styles.archivedImportNote}>
-            {ARCHIVED_SELF_IMPORT_NOTE}
-          </div>
-        )}
-        {isArchivedRegularCaseImportBlocked && (
-          <div className={styles.archivedRegularCaseRiskNote}>
-            {ARCHIVED_REGULAR_CASE_BLOCK_MESSAGE}
-          </div>
-        )}
-      </div>
-
-      {casePreview.hashValid !== undefined && (
-        <div className={`${styles.validationSection} ${casePreview.hashValid ? styles.validationSectionValid : styles.validationSectionInvalid}`}>
-          <h3 className={styles.validationTitle}>Data Integrity Validation</h3>
-          <div className={styles.validationItem}>            
-            <span className={`${styles.validationValue} ${casePreview.hashValid ? styles.validationSuccess : styles.validationError}`}>
-              {casePreview.hashValid ? (
-                <>{DATA_INTEGRITY_VALIDATION_PASSED}</>
-              ) : (
-                <>{DATA_INTEGRITY_VALIDATION_FAILED}</>
-              )}
-            </span>
-          </div>
+    <div className={styles.previewSection}>
+      <h3 className={styles.previewTitle}>Case Import Preview</h3>
+      <p className={styles.previewMessage}>
+        Case package detected. Export metadata and file listings are hidden in preview for encrypted imports.
+      </p>
+      {casePreview.archived && (
+        <div className={styles.archivedImportNote}>
+          {ARCHIVED_SELF_IMPORT_NOTE}
         </div>
       )}
-    </>
+      {isArchivedRegularCaseImportBlocked && (
+        <div className={styles.archivedRegularCaseRiskNote}>
+          {ARCHIVED_REGULAR_CASE_BLOCK_MESSAGE}
+        </div>
+      )}
+    </div>
   );
 };

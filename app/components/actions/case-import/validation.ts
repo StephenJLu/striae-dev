@@ -5,19 +5,79 @@ import { type ManifestSignatureVerificationResult, verifyConfirmationSignature }
 import { checkExistingCase } from '../case-manage';
 export { removeForensicWarning, validateConfirmationHash } from '~/utils/forensics';
 
+const REDACTED_UID_VALUES = new Set([
+  '[user info excluded]',
+  'n/a',
+  'na',
+  'unknown',
+  'null',
+  'undefined'
+]);
+
+function toNonEmptyString(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeExporterUid(value: unknown): string | null {
+  const candidate = toNonEmptyString(value);
+  if (!candidate) {
+    return null;
+  }
+
+  if (REDACTED_UID_VALUES.has(candidate.toLowerCase())) {
+    return null;
+  }
+
+  return candidate;
+}
+
+function resolveExporterUid(caseData: CaseExportData, parsedData: unknown): string | null {
+  const root = (parsedData && typeof parsedData === 'object')
+    ? (parsedData as Record<string, unknown>)
+    : {};
+  const metadata = (root.metadata && typeof root.metadata === 'object')
+    ? (root.metadata as Record<string, unknown>)
+    : {};
+
+  const candidates: unknown[] = [
+    caseData.metadata.exportedByUid,
+    metadata.exportedByUid,
+    metadata.exportedByUID,
+    metadata.exporterUid,
+    metadata.exporterUID,
+    metadata.userUid,
+    metadata.userUID,
+    root.exportedByUid,
+    root.exportedByUID,
+    root.exporterUid,
+    root.exporterUID,
+    root.userUid,
+    root.userUID
+  ];
+
+  for (const candidate of candidates) {
+    const resolved = normalizeExporterUid(candidate);
+    if (resolved) {
+      return resolved;
+    }
+  }
+
+  return null;
+}
+
 /**
  * Validate that a user exists in the database by UID and is not the current user
  */
 export async function validateExporterUid(exporterUid: string, currentUser: User): Promise<{ exists: boolean; isSelf: boolean }> {
-  try {
-    const exists = await checkUserExistsApi(currentUser, exporterUid);
-    const isSelf = exporterUid === currentUser.uid;
-    
-    return { exists, isSelf };
-  } catch (error) {
-    console.error('Error validating exporter UID:', error);
-    return { exists: false, isSelf: false };
-  }
+  const exists = await checkUserExistsApi(currentUser, exporterUid);
+  const isSelf = exporterUid === currentUser.uid;
+
+  return { exists, isSelf };
 }
 
 export function isArchivedExportData(parsedData: unknown): boolean {
@@ -63,13 +123,22 @@ export async function validateCaseExporterUidForImport(
   isArchivedExport: boolean;
   allowArchivedSelfImport: boolean;
 }> {
-  const exportedByUid = caseData.metadata.exportedByUid?.trim();
+  const exportedByUid = resolveExporterUid(caseData, parsedData);
 
   if (!exportedByUid) {
-    throw new Error('Case export missing exporter UID information. This case cannot be imported.');
+    throw new Error(
+      'Case export is missing usable exporter UID information. This case cannot be imported.'
+    );
   }
 
-  const validation = await validateExporterUid(exportedByUid, currentUser);
+  let validation: { exists: boolean; isSelf: boolean };
+  try {
+    validation = await validateExporterUid(exportedByUid, currentUser);
+  } catch {
+    throw new Error(
+      'Unable to validate exporter identity right now. Please retry the import.'
+    );
+  }
 
   if (!validation.exists) {
     throw new Error('The original exporter is not a valid Striae user. This case cannot be imported.');

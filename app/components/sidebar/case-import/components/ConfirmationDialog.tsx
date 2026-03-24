@@ -1,9 +1,7 @@
 import { type CaseImportPreview } from '~/types';
 import {
   ARCHIVED_REGULAR_CASE_BLOCK_MESSAGE,
-  ARCHIVED_SELF_IMPORT_NOTE,
-  DATA_INTEGRITY_VALIDATION_PASSED,
-  DATA_INTEGRITY_VALIDATION_FAILED
+  ARCHIVED_SELF_IMPORT_NOTE
 } from '~/utils/ui';
 import styles from '../case-import.module.css';
 
@@ -26,6 +24,8 @@ export const ConfirmationDialog = ({
 }: ConfirmationDialogProps) => {
   if (!showConfirmation || !casePreview) return null;
 
+  const hasDetails = casePreview.archived || isArchivedRegularCaseImportBlocked;
+
   return (
     <div className={styles.confirmationOverlay}>
       <div className={styles.confirmationModal}>
@@ -37,27 +37,21 @@ export const ConfirmationDialog = ({
           <p className={styles.confirmationText}>
             Export metadata and file listings are hidden for encrypted imports. Integrity validation will still be enforced.
           </p>
-          
-          <div className={styles.confirmationDetails}>
-            {casePreview.archived && (
-              <div className={styles.archivedImportNote}>
-                {ARCHIVED_SELF_IMPORT_NOTE}
-              </div>
-            )}
-            {isArchivedRegularCaseImportBlocked && (
-              <div className={styles.archivedRegularCaseRiskNote}>
-                {archivedRegularCaseBlockMessage}
-              </div>
-            )}
-            {casePreview.hashValid !== undefined && (
-              <div className={`${styles.confirmationItem} ${casePreview.hashValid ? styles.confirmationItemValid : styles.confirmationItemInvalid}`}>
-                <strong>Data Integrity:</strong> 
-                <span className={casePreview.hashValid ? styles.confirmationSuccess : styles.confirmationError}>
-                  {casePreview.hashValid ? DATA_INTEGRITY_VALIDATION_PASSED : DATA_INTEGRITY_VALIDATION_FAILED}
-                </span>
-              </div>
-            )}
-          </div>
+
+          {hasDetails && (
+            <div className={styles.confirmationDetails}>
+              {casePreview.archived && (
+                <div className={styles.archivedImportNote}>
+                  {ARCHIVED_SELF_IMPORT_NOTE}
+                </div>
+              )}
+              {isArchivedRegularCaseImportBlocked && (
+                <div className={styles.archivedRegularCaseRiskNote}>
+                  {archivedRegularCaseBlockMessage}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className={styles.confirmationButtons}>
             <button
