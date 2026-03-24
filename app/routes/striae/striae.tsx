@@ -1,5 +1,5 @@
 import type { User } from 'firebase/auth';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SidebarContainer } from '~/components/sidebar/sidebar-container';
 import { Navbar } from '~/components/navbar/navbar';
 import { RenameCaseModal } from '~/components/navbar/case-modals/rename-case-modal';
@@ -47,6 +47,7 @@ export const Striae = ({ user }: StriaePage) => {
   const [imageId, setImageId] = useState<string>();
   const [error, setError] = useState<string>();
   const [imageLoaded, setImageLoaded] = useState(false);
+  const currentRevokeRef = useRef<(() => void) | null>(null);
 
   // User states
   const [userCompany, setUserCompany] = useState<string>('');
@@ -119,6 +120,7 @@ export const Striae = ({ user }: StriaePage) => {
     setShowNotes,
     setIsAuditTrailOpen,
     setIsRenameCaseModalOpen,
+    onRevokeImage: () => { currentRevokeRef.current?.(); currentRevokeRef.current = null; },
   });
 
 
@@ -574,6 +576,8 @@ export const Striae = ({ user }: StriaePage) => {
   useEffect(() => {
     // Cleanup function to clear image when component unmounts
     return () => {
+      currentRevokeRef.current?.();
+      currentRevokeRef.current = null;
       setSelectedImage(undefined);
       setSelectedFilename(undefined);
       setError(undefined);
@@ -645,14 +649,16 @@ export const Striae = ({ user }: StriaePage) => {
 
   try {
       setError(undefined);
+      currentRevokeRef.current?.();
+      currentRevokeRef.current = null;
       setSelectedImage(undefined);
       setSelectedFilename(undefined);
       setImageLoaded(false);
     
-    const signedUrl = await getImageUrl(user, file, currentCase);
-    if (!signedUrl) throw new Error('No URL returned');
+    const { url, revoke } = await getImageUrl(user, file, currentCase);
+    currentRevokeRef.current = revoke;
 
-    setSelectedImage(signedUrl);
+    setSelectedImage(url);
       setSelectedFilename(file.originalFilename);
       setImageId(file.id); 
       setImageLoaded(true);

@@ -60,11 +60,13 @@ function hasValidToken(request: Request, env: Env): boolean {
   return authHeader === expectedToken;
 }
 
-function requireEncryptionConfig(env: Env): void {
+function requireEncryptionUploadConfig(env: Env): void {
   if (!env.DATA_AT_REST_ENCRYPTION_PUBLIC_KEY || !env.DATA_AT_REST_ENCRYPTION_KEY_ID) {
     throw new Error('Data-at-rest encryption is not configured for image uploads');
   }
+}
 
+function requireEncryptionRetrievalConfig(env: Env): void {
   if (!env.DATA_AT_REST_ENCRYPTION_PRIVATE_KEY) {
     throw new Error('Data-at-rest decryption is not configured for image retrieval');
   }
@@ -129,7 +131,7 @@ async function handleImageUpload(request: Request, env: Env): Promise<Response> 
     return createJsonResponse({ error: 'Unauthorized' }, 403);
   }
 
-  requireEncryptionConfig(env);
+  requireEncryptionUploadConfig(env);
 
   const formData = await request.formData();
   const fileValue = formData.get('file');
@@ -203,7 +205,7 @@ async function handleImageServing(request: Request, env: Env): Promise<Response>
     return createJsonResponse({ error: 'Unauthorized' }, 403);
   }
 
-  requireEncryptionConfig(env);
+  requireEncryptionRetrievalConfig(env);
 
   const fileId = parseFileId(new URL(request.url).pathname);
   if (!fileId) {

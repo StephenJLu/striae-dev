@@ -681,18 +681,13 @@ const getVerificationPublicSigningKey = (preferredKeyId?: string): { keyId: stri
 
 const fetchImageAsBlob = async (user: User, fileData: FileData, caseNumber: string): Promise<Blob | null> => {
   try {
-    const imageUrl = await getImageUrl(user, fileData, caseNumber, 'Archive Package');
+    const { blob, revoke } = await getImageUrl(user, fileData, caseNumber, 'Archive Package');
 
-    if (!imageUrl) {
-      return null;
+    try {
+      return blob;
+    } finally {
+      revoke();
     }
-
-    const response = await fetch(imageUrl);
-    if (!response.ok) {
-      return null;
-    }
-
-    return await response.blob();
   } catch (error) {
     console.error('Failed to fetch image for archive package:', error);
     return null;

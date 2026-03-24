@@ -255,7 +255,7 @@ export const deleteFile = async (
   }
 };
 
-export const getImageUrl = async (user: User, fileData: FileData, caseNumber: string, accessReason?: string): Promise<string> => {
+export const getImageUrl = async (user: User, fileData: FileData, caseNumber: string, accessReason?: string): Promise<{ blob: Blob; url: string; revoke: () => void }> => {
   const startTime = Date.now();
   const defaultAccessReason = accessReason || 'Image viewer access';
   
@@ -299,7 +299,7 @@ export const getImageUrl = async (user: User, fileData: FileData, caseNumber: st
       fileData.originalFilename
     );
     
-    return objectUrl;
+    return { blob, url: objectUrl, revoke: () => URL.revokeObjectURL(objectUrl) };
   } catch (error) {
     // Log any unexpected errors if not already logged
     if (!(error instanceof Error && error.message.includes('Failed to retrieve image'))) {
