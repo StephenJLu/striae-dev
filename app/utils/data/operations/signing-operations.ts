@@ -240,11 +240,15 @@ export const decryptExportBatch = async (
       throw new Error(`Session validation failed: ${sessionValidation.reason}`);
     }
 
-    // Convert encryptedImageMap to array format expected by worker
-    const encryptedImages = Object.entries(encryptedImageMap).map(([filename, encryptedData]) => ({
-      filename,
-      encryptedData
-    }));
+    // Convert encryptedImageMap to array format expected by worker, including per-image IV from manifest
+    const encryptedImages = Object.entries(encryptedImageMap).map(([filename, encryptedData]) => {
+      const manifestEntry = encryptionManifest.encryptedImages.find(e => e.filename === filename);
+      return {
+        filename,
+        encryptedData,
+        iv: manifestEntry?.iv
+      };
+    });
 
     const response = await fetchDataApi(user, '/api/forensic/decrypt-export', {
       method: 'POST',
@@ -254,7 +258,7 @@ export const decryptExportBatch = async (
       body: JSON.stringify({
         userId: user.uid,
         wrappedKey: encryptionManifest.wrappedKey,
-        iv: encryptionManifest.iv,
+        dataIv: encryptionManifest.dataIv,
         encryptedData: encryptedDataBase64,
         encryptedImages,
         keyId: encryptionManifest.keyId

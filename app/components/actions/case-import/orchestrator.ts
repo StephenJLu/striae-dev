@@ -61,7 +61,7 @@ function isEncryptionManifest(value: unknown): value is EncryptionManifest {
     typeof candidate.algorithm === 'string' &&
     typeof candidate.keyId === 'string' &&
     typeof candidate.wrappedKey === 'string' &&
-    typeof candidate.iv === 'string' &&
+    typeof candidate.dataIv === 'string' &&
     Array.isArray(candidate.encryptedImages)
   );
 }

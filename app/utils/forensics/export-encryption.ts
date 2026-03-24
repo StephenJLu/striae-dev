@@ -6,6 +6,7 @@ export const EXPORT_ENCRYPTION_ALGORITHM = 'RSA-OAEP-AES-256-GCM';
 export interface EncryptedImageEntry {
   filename: string;
   encryptedHash: string; // SHA256 of encrypted bytes (lowercase hex)
+  iv: string; // base64url — per-image nonce
 }
 
 export interface EncryptionManifest {
@@ -13,7 +14,7 @@ export interface EncryptionManifest {
   algorithm: string;
   keyId: string;
   wrappedKey: string; // base64url
-  iv: string; // base64url
+  dataIv: string; // base64url — nonce for the data file
   encryptedImages: EncryptedImageEntry[];
 }
 
@@ -259,32 +260,36 @@ export async function encryptExportDataWithAllImages(
   // Generate shared AES-256 key
   const sharedAesKey = await generateSharedAesKey();
 
-  // Generate 96-bit IV
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ivBase64 = base64UrlEncode(iv);
+  // Generate a unique 96-bit IV for the data file
+  const dataIv = crypto.getRandomValues(new Uint8Array(12));
+  const dataIvBase64 = base64UrlEncode(dataIv);
 
-  // Encrypt data file
+  // Encrypt data file with its own IV
   const dataCiphertext = await encryptDataWithSharedKey(
     plaintextString,
     sharedAesKey,
-    iv
+    dataIv
   );
 
-  // Encrypt all images
+  // Encrypt all images — each with its own unique IV
   const encryptedImages: Uint8Array[] = [];
   const encryptedImageEntries: EncryptedImageEntry[] = [];
 
   for (const { filename, blob } of imageBlobs) {
+    const imageIv = crypto.getRandomValues(new Uint8Array(12));
+    const imageIvBase64 = base64UrlEncode(imageIv);
+
     const { ciphertext, hash } = await encryptImageWithSharedKey(
       blob,
       sharedAesKey,
-      iv
+      imageIv
     );
 
     encryptedImages.push(ciphertext);
     encryptedImageEntries.push({
       filename,
-      encryptedHash: hash
+      encryptedHash: hash,
+      iv: imageIvBase64
     });
   }
 
@@ -299,7 +304,7 @@ export async function encryptExportDataWithAllImages(
     algorithm: EXPORT_ENCRYPTION_ALGORITHM,
     keyId,
     wrappedKey: wrappedKeyBase64,
-    iv: ivBase64,
+    dataIv: dataIvBase64,
     encryptedImages: encryptedImageEntries
   };
 

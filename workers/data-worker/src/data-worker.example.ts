@@ -212,27 +212,27 @@ async function handleDecryptExport(request: Request, env: Env): Promise<Response
 
     const requestBody = await request.json() as {
       wrappedKey?: string;
-      iv?: string;
+      dataIv?: string;
       encryptedData?: string;
-      encryptedImages?: Array<{ filename: string; encryptedData: string }>;
+      encryptedImages?: Array<{ filename: string; encryptedData: string; iv?: string }>;
       keyId?: string;
     };
 
-    const { wrappedKey, iv, encryptedData, encryptedImages, keyId } = requestBody;
+    const { wrappedKey, dataIv, encryptedData, encryptedImages, keyId } = requestBody;
 
     // Validate required fields
     if (
       !wrappedKey ||
       typeof wrappedKey !== 'string' ||
-      !iv ||
-      typeof iv !== 'string' ||
+      !dataIv ||
+      typeof dataIv !== 'string' ||
       !encryptedData ||
       typeof encryptedData !== 'string' ||
       !keyId ||
       typeof keyId !== 'string'
     ) {
       return createResponse(
-        { error: 'Missing or invalid required fields: wrappedKey, iv, encryptedData, keyId' },
+        { error: 'Missing or invalid required fields: wrappedKey, dataIv, encryptedData, keyId' },
         400
       );
     }
@@ -251,7 +251,7 @@ async function handleDecryptExport(request: Request, env: Env): Promise<Response
       plaintextData = await decryptExportData(
         encryptedData,
         wrappedKey,
-        iv,
+        dataIv,
         env.EXPORT_ENCRYPTION_PRIVATE_KEY
       );
     } catch (error) {
@@ -268,10 +268,17 @@ async function handleDecryptExport(request: Request, env: Env): Promise<Response
     if (Array.isArray(encryptedImages) && encryptedImages.length > 0) {
       for (const imageEntry of encryptedImages) {
         try {
+          if (!imageEntry.iv || typeof imageEntry.iv !== 'string') {
+            return createResponse(
+              { error: `Missing IV for image ${imageEntry.filename}` },
+              400
+            );
+          }
+
           const imageBlob = await decryptImageBlob(
             imageEntry.encryptedData,
             wrappedKey,
-            iv,
+            imageEntry.iv,
             env.EXPORT_ENCRYPTION_PRIVATE_KEY
           );
 
