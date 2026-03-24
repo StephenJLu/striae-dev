@@ -14,7 +14,7 @@ import {
   signForensicManifest,
   removeCaseConfirmationSummary
 } from '~/utils/data';
-import { type CaseData, type ReadOnlyCaseData, type FileData, type AuditTrail, type CaseExportData } from '~/types';
+import { type CaseData, type ReadOnlyCaseData, type FileData, type AuditTrail, type CaseExportData, type ValidationAuditEntry } from '~/types';
 import { auditService } from '~/services/audit';
 import { fetchImageApi } from '~/utils/api';
 import { exportCaseData, formatDateForFilename } from '~/components/actions/case-export';
@@ -27,7 +27,7 @@ import {
   getVerificationPublicKey,
 } from '~/utils/forensics';
 import { signAuditExport } from '~/services/audit/audit-export-signing';
-import { generateAuditSummary } from '~/services/audit/audit-query-helpers';
+import { generateAuditSummary, sortAuditEntriesNewestFirst } from '~/services/audit/audit-query-helpers';
 
 /**
  * Delete a file without individual audit logging (for bulk operations)
@@ -808,11 +808,43 @@ export const archiveCase = async (
       startDate: caseData.createdAt,
       endDate: archivedAt,
     });
+
+    // Ensure the bundled archive trail includes the archival event itself.
+    const archiveAuditEntry: ValidationAuditEntry = {
+      timestamp: archivedAt,
+      userId: user.uid,
+      userEmail: user.email || '',
+      action: 'case-archive',
+      result: 'success',
+      details: {
+        fileName: `${caseNumber}.case`,
+        fileType: 'case-package',
+        validationErrors: [],
+        caseNumber,
+        workflowPhase: 'casework',
+        caseDetails: {
+          newCaseName: caseNumber,
+          archiveReason: archiveReason?.trim() || 'No reason provided',
+          totalFiles: archiveData.files?.length || 0,
+          lastModified: archivedAt,
+        },
+        performanceMetrics: {
+          processingTimeMs: Date.now() - startTime,
+          fileSizeBytes: 0,
+        },
+      },
+    };
+
+    const auditEntriesWithArchive = sortAuditEntriesNewestFirst([
+      ...auditEntries,
+      archiveAuditEntry,
+    ]);
+
     const auditTrail: AuditTrail = {
       caseNumber,
       workflowId: `${caseNumber}-archive-${Date.now()}`,
-      entries: auditEntries,
-      summary: generateAuditSummary(auditEntries),
+      entries: auditEntriesWithArchive,
+      summary: generateAuditSummary(auditEntriesWithArchive),
     };
 
     const auditTrailPayload = {
