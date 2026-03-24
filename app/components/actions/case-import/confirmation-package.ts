@@ -2,6 +2,24 @@ import { type ConfirmationImportData } from '~/types';
 
 const CONFIRMATION_EXPORT_FILE_REGEX = /^confirmation-data-.*\.json$/i;
 
+function uint8ArrayToBase64Url(data: Uint8Array): string {
+  const chunkSize = 8192;
+  let binaryString = '';
+
+  for (let index = 0; index < data.length; index += chunkSize) {
+    const chunk = data.subarray(index, Math.min(index + chunkSize, data.length));
+
+    for (let chunkIndex = 0; chunkIndex < chunk.length; chunkIndex += 1) {
+      binaryString += String.fromCharCode(chunk[chunkIndex]);
+    }
+  }
+
+  return btoa(binaryString)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
 export interface ConfirmationImportPackage {
   confirmationData: ConfirmationImportData;
   confirmationJsonContent: string;
@@ -72,12 +90,12 @@ async function extractConfirmationPackageFromZip(file: File): Promise<Confirmati
     }
 
     const confirmationPath = confirmationPaths[0];
-    const encryptedContent = await zip.file(confirmationPath)?.async('text');
+    const encryptedContent = await zip.file(confirmationPath)?.async('uint8array');
     if (!encryptedContent) {
       throw new Error('Failed to read encrypted confirmation data from ZIP package.');
     }
 
-    encryptedDataBase64 = encryptedContent;
+    encryptedDataBase64 = uint8ArrayToBase64Url(encryptedContent);
     confirmationFileName = getLeafFileName(confirmationPath);
 
     // For encrypted data, return placeholder confirmationData for now
@@ -86,7 +104,7 @@ async function extractConfirmationPackageFromZip(file: File): Promise<Confirmati
       metadata: {},
       confirmations: {}
     } as ConfirmationImportData;
-    confirmationJsonContent = encryptedContent;
+    confirmationJsonContent = encryptedDataBase64;
   } else {
     // Handle unencrypted confirmation export (original behavior)
     const confirmationPaths = fileEntries.filter((path) =>
