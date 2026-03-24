@@ -177,7 +177,7 @@ export const CaseImport = ({
     clearMessages();
 
     if (!isValidImportFile(file)) {
-      setError('Only Striae case ZIP files, confirmation ZIP files, or confirmation JSON files are allowed.');
+      setError(IMPORT_FILE_TYPE_NOT_ALLOWED);
       clearImportData();
       return;
     }
@@ -480,7 +480,7 @@ export const CaseImport = ({
               <br />
               <h3 className={styles.instructionsTitle}>Confirmation Import Instructions:</h3>
               <ul className={styles.instructionsList}>
-                <li>Confirmation imports accept either confirmation JSON files or confirmation ZIP packages exported from Striae</li>
+                <li>Confirmation imports accept only encrypted confirmation ZIP packages exported from Striae</li>
                 <li>Only one confirmation file can be imported at a time</li>
                 <li>Confirmed images will become read-only and cannot be modified</li>
                 <li>If an image has a pre-existing confirmation, it will be skipped</li>

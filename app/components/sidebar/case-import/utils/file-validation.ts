@@ -3,6 +3,7 @@ import { isConfirmationDataFile } from '~/components/actions/case-review';
 const CASE_EXPORT_DATA_FILE_REGEX = /_data\.(json|csv)$/i;
 const CONFIRMATION_EXPORT_FILE_REGEX = /^confirmation-data-.*\.json$/i;
 const FORENSIC_MANIFEST_FILE_NAME = 'forensic_manifest.json';
+const ENCRYPTION_MANIFEST_FILE_NAME = 'encryption_manifest.json';
 
 function getLeafFileName(path: string): string {
   const segments = path.split('/').filter(Boolean);
@@ -29,10 +30,10 @@ export const isValidConfirmationFile = (file: File): boolean => {
 };
 
 /**
- * Check if a file is valid for import (either ZIP or confirmation JSON)
+ * Check if a file is valid for import (ZIP packages only)
  */
 export const isValidImportFile = (file: File): boolean => {
-  return isValidZipFile(file) || isValidConfirmationFile(file);
+  return isValidZipFile(file);
 };
 
 /**
@@ -40,7 +41,6 @@ export const isValidImportFile = (file: File): boolean => {
  */
 export const getImportType = (file: File): 'case' | 'confirmation' | null => {
   if (isValidZipFile(file)) return 'case';
-  if (isValidConfirmationFile(file)) return 'confirmation';
   return null;
 };
 
@@ -50,10 +50,6 @@ export const getImportType = (file: File): 'case' | 'confirmation' | null => {
  * Confirmation ZIPs are identified by confirmation-data-*.json.
  */
 export const resolveImportType = async (file: File): Promise<'case' | 'confirmation' | null> => {
-  if (isValidConfirmationFile(file)) {
-    return 'confirmation';
-  }
-
   if (!isValidZipFile(file)) {
     return null;
   }
@@ -78,7 +74,11 @@ export const resolveImportType = async (file: File): Promise<'case' | 'confirmat
       CONFIRMATION_EXPORT_FILE_REGEX.test(getLeafFileName(path))
     );
 
-    if (hasConfirmationData) {
+    const hasEncryptionManifest = fileEntries.some(
+      (path) => getLeafFileName(path).toLowerCase() === ENCRYPTION_MANIFEST_FILE_NAME
+    );
+
+    if (hasConfirmationData && hasEncryptionManifest) {
       return 'confirmation';
     }
 

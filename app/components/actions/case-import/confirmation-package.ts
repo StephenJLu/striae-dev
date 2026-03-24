@@ -1,6 +1,7 @@
 import { type ConfirmationImportData } from '~/types';
 
 const CONFIRMATION_EXPORT_FILE_REGEX = /^confirmation-data-.*\.json$/i;
+const ENCRYPTION_MANIFEST_FILE_NAME = 'encryption_manifest.json';
 
 function uint8ArrayToBase64Url(data: Uint8Array): string {
   const chunkSize = 8192;
@@ -55,7 +56,7 @@ async function extractConfirmationPackageFromZip(file: File): Promise<Confirmati
 
   // Check for encryption manifest first
   const hasEncryptionManifest = fileEntries.some((path) =>
-    getLeafFileName(path).toLowerCase() === 'encryption_manifest.json'
+    getLeafFileName(path).toLowerCase() === ENCRYPTION_MANIFEST_FILE_NAME
   );
 
   let confirmationData: ConfirmationImportData;
@@ -71,7 +72,7 @@ async function extractConfirmationPackageFromZip(file: File): Promise<Confirmati
 
     // Read encryption manifest
     const manifestPath = fileEntries.find((path) =>
-      getLeafFileName(path).toLowerCase() === 'encryption_manifest.json'
+      getLeafFileName(path).toLowerCase() === ENCRYPTION_MANIFEST_FILE_NAME
     );
     if (manifestPath) {
       const manifestContent = await zip.file(manifestPath)?.async('text');
@@ -106,24 +107,10 @@ async function extractConfirmationPackageFromZip(file: File): Promise<Confirmati
     } as ConfirmationImportData;
     confirmationJsonContent = encryptedDataBase64;
   } else {
-    // Handle unencrypted confirmation export (original behavior)
-    const confirmationPaths = fileEntries.filter((path) =>
-      CONFIRMATION_EXPORT_FILE_REGEX.test(getLeafFileName(path))
+    throw new Error(
+      'Confirmation imports now require an encrypted confirmation ZIP package exported from Striae. ' +
+      'Legacy plaintext confirmation ZIP packages are no longer supported.'
     );
-
-    if (confirmationPaths.length !== 1) {
-      throw new Error('Confirmation ZIP must contain exactly one confirmation-data JSON file.');
-    }
-
-    const confirmationPath = confirmationPaths[0];
-    const confirmationJsonContentTemp = await zip.file(confirmationPath)?.async('text');
-    if (!confirmationJsonContentTemp) {
-      throw new Error('Failed to read confirmation JSON from ZIP package.');
-    }
-
-    confirmationData = JSON.parse(confirmationJsonContentTemp) as ConfirmationImportData;
-    confirmationJsonContent = confirmationJsonContentTemp;
-    confirmationFileName = getLeafFileName(confirmationPath);
   }
 
   const pemPaths = fileEntries.filter((path) => getLeafFileName(path).toLowerCase().endsWith('.pem'));
@@ -149,19 +136,15 @@ export async function extractConfirmationImportPackage(file: File): Promise<Conf
   const lowerName = file.name.toLowerCase();
 
   if (lowerName.endsWith('.json')) {
-    const confirmationJsonContent = await file.text();
-    const confirmationData = JSON.parse(confirmationJsonContent) as ConfirmationImportData;
-
-    return {
-      confirmationData,
-      confirmationJsonContent,
-      confirmationFileName: file.name
-    };
+    throw new Error(
+      'Confirmation imports now require an encrypted confirmation ZIP package exported from Striae. ' +
+      'Plaintext confirmation JSON files are no longer supported.'
+    );
   }
 
   if (lowerName.endsWith('.zip')) {
     return extractConfirmationPackageFromZip(file);
   }
 
-  throw new Error('Unsupported confirmation import file type. Use a confirmation JSON or confirmation ZIP file.');
+  throw new Error('Unsupported confirmation import file type. Use an encrypted confirmation ZIP package exported from Striae.');
 }

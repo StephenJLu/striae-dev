@@ -320,39 +320,35 @@ export async function exportConfirmationData(
     const zip = new JSZip();
     const normalizedPem = publicKeyPem.endsWith('\n') ? publicKeyPem : `${publicKeyPem}\n`;
 
-    // Determine if encryption is available and enabled
     const encKeyDetails = getCurrentEncryptionPublicKeyDetails();
-    let isEncrypted = false;
-    let encryptedConfirmationContent: string | Uint8Array = finalJsonString;
-    let encryptionManifestJson: string | undefined;
-
-    if (encKeyDetails?.publicKeyPem && encKeyDetails.keyId) {
-      try {
-        isEncrypted = true;
-        // Encrypt confirmation data (no separate images for confirmations, so empty array)
-        const encryptionResult = await encryptExportDataWithAllImages(
-          finalJsonString,
-          [], // No image files for confirmation exports
-          encKeyDetails.publicKeyPem,
-          encKeyDetails.keyId
-        );
-
-        encryptedConfirmationContent = encryptionResult.ciphertext;
-        encryptionManifestJson = JSON.stringify(encryptionResult.encryptionManifest, null, 2);
-      } catch (error) {
-        console.error('Confirmation export encryption failed:', error);
-        throw new Error(`Failed to encrypt confirmation export: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
+    if (!encKeyDetails.publicKeyPem || !encKeyDetails.keyId) {
+      throw new Error(
+        'Confirmation export encryption is mandatory. Your Striae instance does not have a configured encryption public key. ' +
+        'Please contact your administrator to set up export encryption.'
+      );
     }
 
-    // Add encrypted or plaintext confirmation data
+    let encryptedConfirmationContent: string | Uint8Array;
+    let encryptionManifestJson: string;
+
+    try {
+      const encryptionResult = await encryptExportDataWithAllImages(
+        finalJsonString,
+        [],
+        encKeyDetails.publicKeyPem,
+        encKeyDetails.keyId
+      );
+
+      encryptedConfirmationContent = encryptionResult.ciphertext;
+      encryptionManifestJson = JSON.stringify(encryptionResult.encryptionManifest, null, 2);
+    } catch (error) {
+      console.error('Confirmation export encryption failed:', error);
+      throw new Error(`Failed to encrypt confirmation export: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
     zip.file(confirmationFileName, encryptedConfirmationContent);
     zip.file(publicKeyFileName, normalizedPem);
-
-    // Add encryption manifest if encrypted
-    if (isEncrypted && encryptionManifestJson) {
-      zip.file('ENCRYPTION_MANIFEST.json', encryptionManifestJson);
-    }
+    zip.file('ENCRYPTION_MANIFEST.json', encryptionManifestJson);
 
     const zipBlob = await zip.generateAsync({
       type: 'blob',
@@ -360,8 +356,7 @@ export async function exportConfirmationData(
       compressionOptions: { level: 6 }
     });
 
-    const encryptedSuffix = isEncrypted ? '-encrypted' : '';
-    const exportFileName = `confirmation-export-${caseNumber}-${timestampString}${encryptedSuffix}.zip`;
+    const exportFileName = `confirmation-export-${caseNumber}-${timestampString}-encrypted.zip`;
 
     // Create download
     const url = URL.createObjectURL(zipBlob);

@@ -5,10 +5,10 @@
 
 // Import validation messages
 export const IMPORT_FILE_TYPE_NOT_ALLOWED =
-  'Only Striae case ZIP files, confirmation ZIP files, or confirmation JSON files are allowed.';
+  'Only Striae case ZIP files and encrypted confirmation ZIP packages exported from Striae are allowed.';
 
 export const IMPORT_FILE_TYPE_NOT_SUPPORTED =
-  'The selected file is not a supported Striae case or confirmation import package.';
+  'The selected file is not a supported Striae case ZIP or encrypted confirmation package.';
 
 // Import blocking messages
 export const ARCHIVED_REGULAR_CASE_BLOCK_MESSAGE =
