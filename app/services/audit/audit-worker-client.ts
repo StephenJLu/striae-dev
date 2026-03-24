@@ -18,7 +18,7 @@ interface PersistAuditEntryResponse {
   filename: string;
 }
 
-export type PersistAuditEntryResult =
+type PersistAuditEntryResult =
   | {
       ok: true;
       entryCount: number;

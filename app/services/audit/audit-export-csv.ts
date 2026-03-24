@@ -42,7 +42,7 @@ export const AUDIT_CSV_ENTRY_HEADERS = [
   'Confirmed Files'
 ];
 
-export const formatForCSV = (value?: string | number | null): string => {
+const formatForCSV = (value?: string | number | null): string => {
   if (value === undefined || value === null) return '';
   const str = String(value);
   if (str.includes(',') || str.includes('"') || str.includes('\n')) {
