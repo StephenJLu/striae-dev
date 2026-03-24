@@ -4,8 +4,7 @@ import { useOverlayDismiss } from '~/hooks/useOverlayDismiss';
 import {
   ARCHIVED_REGULAR_CASE_BLOCK_MESSAGE,
   IMPORT_FILE_TYPE_NOT_ALLOWED,
-  IMPORT_FILE_TYPE_NOT_SUPPORTED,
-  DATA_INTEGRITY_BLOCKED_TAMPERING
+  IMPORT_FILE_TYPE_NOT_SUPPORTED
 } from '~/utils/ui';
 import { 
   listReadOnlyCases, 
@@ -177,14 +176,14 @@ export const CaseImport = ({
     clearMessages();
 
     if (!isValidImportFile(file)) {
-      setError('Only Striae case ZIP files, confirmation ZIP files, or confirmation JSON files are allowed.');
+      setError(IMPORT_FILE_TYPE_NOT_ALLOWED);
       clearImportData();
       return;
     }
 
     const importType = await resolveImportType(file);
     if (!importType) {
-      setError('The selected file is not a supported Striae case or confirmation import package.');
+      setError(IMPORT_FILE_TYPE_NOT_SUPPORTED);
       clearImportData();
       return;
     }
@@ -415,13 +414,6 @@ export const CaseImport = ({
             {/* Import progress */}
             <ProgressSection importProgress={importProgress} />
 
-            {/* Hash validation warning */}
-            {casePreview?.hashValid === false && (
-              <div className={styles.hashWarning}>
-                <strong>⚠️ Import Blocked:</strong> {DATA_INTEGRITY_BLOCKED_TAMPERING}
-              </div>
-            )}
-
             {isArchivedRegularCaseImportBlocked && (
               <div className={styles.error}>{ARCHIVED_REGULAR_CASE_BLOCK_MESSAGE}</div>
             )}
@@ -452,7 +444,7 @@ export const CaseImport = ({
                   importState.isClearing || 
                   importState.isLoadingPreview ||
                   (importState.importType === 'case' && isArchivedRegularCaseImportBlocked) ||
-                  (importState.importType === 'case' && (!casePreview || casePreview.hashValid !== true))
+                  (importState.importType === 'case' && (!casePreview || casePreview.hashValid === false))
                 }
               >
                 {importState.isImporting ? 'Importing...' : 
@@ -472,15 +464,16 @@ export const CaseImport = ({
             <div className={styles.instructions}>
               <h3 className={styles.instructionsTitle}>Case Review Instructions:</h3>
               <ul className={styles.instructionsList}>
-                <li>Only ZIP files (.zip) exported with the JSON data format from Striae are accepted</li>
+                <li>Only case ZIP packages exported from Striae are accepted</li>
                 <li>Only one case can be reviewed at a time</li>
                 <li>Imported cases are read-only and cannot be modified</li>
+                <li>Integrity and signature validation are enforced during import</li>
                 <li>Importing will automatically replace any existing review case</li>
               </ul>
               <br />
               <h3 className={styles.instructionsTitle}>Confirmation Import Instructions:</h3>
               <ul className={styles.instructionsList}>
-                <li>Confirmation imports accept either confirmation JSON files or confirmation ZIP packages exported from Striae</li>
+                <li>Confirmation imports accept only encrypted confirmation ZIP packages exported from Striae</li>
                 <li>Only one confirmation file can be imported at a time</li>
                 <li>Confirmed images will become read-only and cannot be modified</li>
                 <li>If an image has a pre-existing confirmation, it will be skipped</li>

@@ -22,7 +22,9 @@ import { getImageUrl } from './image-manage';
 import {
   calculateSHA256Secure,
   createPublicSigningKeyFileName,
+  encryptExportDataWithAllImages,
   generateForensicManifestSecure,
+  getCurrentEncryptionPublicKeyDetails,
   getCurrentPublicSigningKeyDetails,
   getVerificationPublicKey,
 } from '~/utils/forensics';
@@ -897,8 +899,64 @@ export const archiveCase = async (
       auditTrail,
     };
 
-    zip.file('audit/case-audit-trail.json', JSON.stringify(signedAuditTrail, null, 2));
-    zip.file('audit/case-audit-signature.json', JSON.stringify(signedAuditExportPayload, null, 2));
+    const auditTrailJson = JSON.stringify(signedAuditTrail, null, 2);
+    const auditSignatureJson = JSON.stringify(signedAuditExportPayload, null, 2);
+    zip.file('audit/case-audit-trail.json', auditTrailJson);
+    zip.file('audit/case-audit-signature.json', auditSignatureJson);
+
+    const encryptionKeyDetails = getCurrentEncryptionPublicKeyDetails();
+
+    if (!encryptionKeyDetails.publicKeyPem || !encryptionKeyDetails.keyId) {
+      throw new Error(
+        'Archive encryption is mandatory. Your Striae instance does not have a configured encryption public key. ' +
+        'Please contact your administrator to set up export encryption.'
+      );
+    }
+
+    try {
+      const filesToEncrypt: Array<{ filename: string; blob: Blob }> = [
+        ...Object.entries(imageBlobs).map(([filename, blob]) => ({
+          filename,
+          blob
+        })),
+        {
+          filename: 'audit/case-audit-trail.json',
+          blob: new Blob([auditTrailJson], { type: 'application/json' })
+        },
+        {
+          filename: 'audit/case-audit-signature.json',
+          blob: new Blob([auditSignatureJson], { type: 'application/json' })
+        }
+      ];
+
+      const encryptionResult = await encryptExportDataWithAllImages(
+        caseJsonContent,
+        filesToEncrypt,
+        encryptionKeyDetails.publicKeyPem,
+        encryptionKeyDetails.keyId
+      );
+
+      zip.file(`${caseNumber}_data.json`, encryptionResult.ciphertext);
+
+      for (let index = 0; index < filesToEncrypt.length; index += 1) {
+        const originalFilename = filesToEncrypt[index].filename;
+        const encryptedContent = encryptionResult.encryptedImages[index];
+
+        if (originalFilename.startsWith('audit/')) {
+          zip.file(originalFilename, encryptedContent);
+          continue;
+        }
+
+        if (imageFolder) {
+          imageFolder.file(originalFilename, encryptedContent);
+        }
+      }
+
+      zip.file('ENCRYPTION_MANIFEST.json', JSON.stringify(encryptionResult.encryptionManifest, null, 2));
+    } catch (error) {
+      console.error('Archive encryption failed:', error);
+      throw new Error(`Failed to encrypt archive package: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
 
     zip.file(
       'README.txt',
@@ -913,12 +971,14 @@ export const archiveCase = async (
         '',
         'Package Contents',
         '- Case data JSON export with all image references',
-        '- images/ folder with exported image files',
+        '- images/ folder with exported image files (encrypted)',
         '- Full case audit trail export and signed audit metadata',
         '- Forensic manifest with server-side signature',
+        '- ENCRYPTION_MANIFEST.json with encryption metadata and encrypted image hashes',
         `- ${publicKeyFileName} for verification`,
         '',
         'This package is intended for read-only review and verification workflows.',
+        'This package is encrypted. Only Striae can decrypt and re-import it.',
       ].join('\n')
     );
 
@@ -950,7 +1010,7 @@ export const archiveCase = async (
     );
 
     const downloadUrl = URL.createObjectURL(zipBlob);
-    const archiveFileName = `striae-case-${caseNumber}-archive-${formatDateForFilename(new Date())}.zip`;
+    const archiveFileName = `striae-case-${caseNumber}-archive-${formatDateForFilename(new Date())}-encrypted.zip`;
     const anchor = document.createElement('a');
     anchor.href = downloadUrl;
     anchor.download = archiveFileName;

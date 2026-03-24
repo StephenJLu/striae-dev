@@ -3,7 +3,9 @@ import {
   calculateSHA256Secure,
   createPublicSigningKeyFileName,
   getCurrentPublicSigningKeyDetails,
-  getVerificationPublicKey
+  getVerificationPublicKey,
+  getCurrentEncryptionPublicKeyDetails,
+  encryptExportDataWithAllImages
 } from '~/utils/forensics';
 import { getUserData, getCaseData, updateCaseData, signConfirmationData, upsertFileConfirmationSummary } from '~/utils/data';
 import { type AnnotationData, type ConfirmationData, type CaseConfirmations, type CaseDataWithConfirmations, type ConfirmationImportData } from '~/types';
@@ -318,8 +320,35 @@ export async function exportConfirmationData(
     const zip = new JSZip();
     const normalizedPem = publicKeyPem.endsWith('\n') ? publicKeyPem : `${publicKeyPem}\n`;
 
-    zip.file(confirmationFileName, finalJsonString);
+    const encKeyDetails = getCurrentEncryptionPublicKeyDetails();
+    if (!encKeyDetails.publicKeyPem || !encKeyDetails.keyId) {
+      throw new Error(
+        'Confirmation export encryption is mandatory. Your Striae instance does not have a configured encryption public key. ' +
+        'Please contact your administrator to set up export encryption.'
+      );
+    }
+
+    let encryptedConfirmationContent: string | Uint8Array;
+    let encryptionManifestJson: string;
+
+    try {
+      const encryptionResult = await encryptExportDataWithAllImages(
+        finalJsonString,
+        [],
+        encKeyDetails.publicKeyPem,
+        encKeyDetails.keyId
+      );
+
+      encryptedConfirmationContent = encryptionResult.ciphertext;
+      encryptionManifestJson = JSON.stringify(encryptionResult.encryptionManifest, null, 2);
+    } catch (error) {
+      console.error('Confirmation export encryption failed:', error);
+      throw new Error(`Failed to encrypt confirmation export: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    zip.file(confirmationFileName, encryptedConfirmationContent);
     zip.file(publicKeyFileName, normalizedPem);
+    zip.file('ENCRYPTION_MANIFEST.json', encryptionManifestJson);
 
     const zipBlob = await zip.generateAsync({
       type: 'blob',
@@ -327,7 +356,7 @@ export async function exportConfirmationData(
       compressionOptions: { level: 6 }
     });
 
-    const exportFileName = `confirmation-export-${caseNumber}-${timestampString}.zip`;
+    const exportFileName = `confirmation-export-${caseNumber}-${timestampString}-encrypted.zip`;
 
     // Create download
     const url = URL.createObjectURL(zipBlob);

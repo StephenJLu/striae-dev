@@ -39,4 +39,10 @@ export interface AuditExportSigningResponse {
   signature: ForensicManifestSignature;
 }
 
+export interface DecryptExportBatchResponse {
+  success: boolean;
+  plaintext: string;
+  decryptedImages: Array<{ filename: string; data: string }>;
+}
+
 export type DataOperation<T> = (user: User, ...args: unknown[]) => Promise<T>;

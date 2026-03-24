@@ -62,6 +62,13 @@ npm run deploy:all
 
 ## 📋 Changelog
 
+## [2026-03-24] - *[Major Release v5.0.0](https://github.com/striae-org/striae/releases/tag/v5.0.0)*
+
+- **🔐 Encrypted Forensic Package Workflow Rollout** - Added encryption support for case, confirmation, and archive package export paths with `ENCRYPTION_MANIFEST.json` metadata and import-time decryption flow integration.
+- **🛡️ Import Decryption + Validation Hardening** - Introduced encrypted preview/import handling improvements and post-decrypt validation reliability fixes while preserving fail-closed signature/hash checks.
+- **🧹 Verification Surface Simplification** - Removed legacy standalone public signing key verification utility UI surface and consolidated validation behavior into shared workflow paths.
+- **⚙️ Guardrails and Deploy-Config Alignment** - Added mandatory encryption enforcement and related archive/read-only guardrails, with release-window deploy/config script updates to support encryption key lifecycle setup.
+
 ## [2026-03-23] - *[Patch Release v4.3.4](https://github.com/striae-org/striae/releases/tag/v4.3.4)*
 
 - **🔁 Rename Audit Provenance Expansion** - Captured both sides of case renames by logging original-case rename-to events and destination-case creation-through-rename events.

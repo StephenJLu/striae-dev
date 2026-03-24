@@ -13,6 +13,7 @@ import {
   type ForensicManifestSignature,
   FORENSIC_MANIFEST_VERSION
 } from '../../forensics/SHA256';
+import type { EncryptionManifest } from '../../forensics/export-encryption';
 import { canAccessCase, validateUserSession } from '../permissions';
 import type {
   AuditExportSigningResponse,
@@ -220,6 +221,98 @@ export const signAuditExportData = async (
     };
   } catch (error) {
     console.error('Error signing audit export data:', error);
+    throw error;
+  }
+};
+
+/**
+ * Request batch decryption of export data file and images from the data worker
+ */
+export const decryptExportBatch = async (
+  user: User,
+  encryptionManifest: EncryptionManifest,
+  encryptedDataBase64: string,
+  encryptedImageMap: Record<string, string>
+): Promise<{ plaintext: string; decryptedImages: Record<string, Blob> }> => {
+  try {
+    const sessionValidation = await validateUserSession(user);
+    if (!sessionValidation.valid) {
+      throw new Error(`Session validation failed: ${sessionValidation.reason}`);
+    }
+
+    // Convert encryptedImageMap to array format expected by worker, including per-image IV from manifest
+    const encryptedImages = Object.entries(encryptedImageMap).map(([filename, encryptedData]) => {
+      const manifestEntry = encryptionManifest.encryptedImages.find(e => e.filename === filename);
+      return {
+        filename,
+        encryptedData,
+        iv: manifestEntry?.iv
+      };
+    });
+
+    const response = await fetchDataApi(user, '/api/forensic/decrypt-export', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId: user.uid,
+        wrappedKey: encryptionManifest.wrappedKey,
+        dataIv: encryptionManifest.dataIv,
+        encryptedData: encryptedDataBase64,
+        encryptedImages,
+        keyId: encryptionManifest.keyId
+      })
+    });
+
+    const responseData = await response.json().catch(() => null) as {
+      success?: boolean;
+      error?: string;
+      plaintext?: string;
+      decryptedImages?: Array<{ filename: string; data: string }>;
+    } | null;
+
+    if (!response.ok) {
+      const errorMessage = responseData?.error || `Failed to decrypt export: ${response.status} ${response.statusText}`;
+      
+      // Special handling for encrypted exports without configured key
+      if (response.status === 400 && errorMessage.includes('not configured')) {
+        throw new Error(
+          'This export is encrypted. To import it, your Striae instance must have EXPORT_ENCRYPTION_PRIVATE_KEY configured.'
+        );
+      }
+
+      throw new Error(errorMessage);
+    }
+
+    if (!responseData?.success || !responseData.plaintext) {
+      throw new Error('Invalid decrypt response from data worker');
+    }
+
+    // Convert decrypted image base64 data back to Blobs
+    const decryptedImages: Record<string, Blob> = {};
+    if (Array.isArray(responseData.decryptedImages)) {
+      for (const imageEntry of responseData.decryptedImages) {
+        try {
+          const binaryString = atob(imageEntry.data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          decryptedImages[imageEntry.filename] = new Blob([bytes]);
+        } catch (error) {
+          console.error(`Failed to convert decrypted image ${imageEntry.filename}:`, error);
+          throw new Error(`Failed to convert decrypted image: ${imageEntry.filename}`);
+        }
+      }
+    }
+
+    return {
+      plaintext: responseData.plaintext,
+      decryptedImages
+    };
+  } catch (error) {
+    console.error('Error decrypting export batch:', error);
     throw error;
   }
 };

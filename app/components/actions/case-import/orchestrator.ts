@@ -5,13 +5,15 @@ import {
   type ReadOnlyCaseMetadata,
   type FileData,
   type BundledAuditTrailData,
-  type ValidationAuditEntry
+  type ValidationAuditEntry,
+  type CaseExportData
 } from '~/types';
-import { checkExistingCase } from '../case-manage';
+import { checkExistingCase, validateCaseNumber } from '../case-manage';
 import {
   type SignedForensicManifest,
   verifyCasePackageIntegrity
 } from '~/utils/forensics';
+import type { EncryptionManifest } from '~/utils/forensics/export-encryption';
 import { deleteFile } from '../image-manage';
 import { parseImportZip } from './zip-processing';
 import { 
@@ -25,6 +27,8 @@ import {
 import { uploadImageBlob } from './image-operations';
 import { importAnnotations } from './annotation-import';
 import { auditService } from '~/services/audit';
+import { decryptExportBatch } from '~/utils/data/operations/signing-operations';
+import { validateCaseExporterUidForImport } from './validation';
 
 /**
  * Track the state of an import operation for cleanup purposes
@@ -44,6 +48,22 @@ interface BundledAuditTrailFile {
   auditTrail?: {
     entries?: ValidationAuditEntry[];
   };
+}
+
+function isEncryptionManifest(value: unknown): value is EncryptionManifest {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Partial<EncryptionManifest>;
+  return (
+    typeof candidate.encryptionVersion === 'string' &&
+    typeof candidate.algorithm === 'string' &&
+    typeof candidate.keyId === 'string' &&
+    typeof candidate.wrappedKey === 'string' &&
+    typeof candidate.dataIv === 'string' &&
+    Array.isArray(candidate.encryptedImages)
+  );
 }
 
 function extractBundledAuditTrailData(
@@ -179,21 +199,104 @@ export async function importCaseForReview(
   let signatureValidationPassed = false;
   let signatureKeyId: string | undefined;
   let parsedForensicManifest: SignedForensicManifest | undefined;
+  let exporterUidValidationPassed = false;
   
   try {
     onProgress?.('Parsing ZIP file', 10, 'Extracting archive contents...');
     
     // Step 1: Parse ZIP file
     const {
-      caseData,
-      imageFiles,
+      caseData: initialCaseData,
+      imageFiles: initialImageFiles,
       imageIdMapping,
       isArchivedExport,
       bundledAuditFiles,
       metadata,
-      cleanedContent,
-      verificationPublicKeyPem
+      cleanedContent: initialCleanedContent,
+      verificationPublicKeyPem,
+      encryptionManifest,
+      encryptedDataBase64,
+      encryptedImages,
+      isEncrypted
     } = await parseImportZip(zipFile, user);
+
+    // Step 1.2: Handle decryption if export is encrypted
+    let caseData = initialCaseData;
+    let cleanedContent = initialCleanedContent || '';
+    let imageFiles = initialImageFiles;
+    let resolvedBundledAuditFiles = bundledAuditFiles;
+    let decryptedImageBlobMap: { [filename: string]: Blob } | undefined;
+
+    if (isEncrypted && isEncryptionManifest(encryptionManifest) && encryptedDataBase64) {
+      onProgress?.('Decrypting export', 11, 'Decrypting case data and images...');
+      
+      try {
+        // Call decrypt endpoint on data-worker
+        const decryptResult = await decryptExportBatch(
+          user,
+          encryptionManifest,
+          encryptedDataBase64,
+          encryptedImages ?? {}
+        );
+
+        // Decrypted data is plaintext JSON
+        cleanedContent = decryptResult.plaintext;
+        const parsedCaseData = JSON.parse(cleanedContent) as unknown;
+        caseData = parsedCaseData as CaseExportData;
+
+        const decryptedFiles = decryptResult.decryptedImages;
+        const decryptedAuditTrailBlob = decryptedFiles['audit/case-audit-trail.json'];
+        const decryptedAuditSignatureBlob = decryptedFiles['audit/case-audit-signature.json'];
+
+        if (decryptedAuditTrailBlob || decryptedAuditSignatureBlob) {
+          resolvedBundledAuditFiles = {
+            ...(resolvedBundledAuditFiles ?? {}),
+            auditTrailContent: decryptedAuditTrailBlob
+              ? await decryptedAuditTrailBlob.text()
+              : resolvedBundledAuditFiles?.auditTrailContent,
+            auditSignatureContent: decryptedAuditSignatureBlob
+              ? await decryptedAuditSignatureBlob.text()
+              : resolvedBundledAuditFiles?.auditSignatureContent
+          };
+        }
+
+        decryptedImageBlobMap = Object.fromEntries(
+          Object.entries(decryptedFiles).filter(([filename]) => !filename.startsWith('audit/'))
+        );
+
+        // Update imageFiles with decrypted images only
+        imageFiles = { ...imageFiles, ...decryptedImageBlobMap };
+
+        onProgress?.('Decryption successful', 13, `Decrypted case data and ${Object.keys(decryptedImageBlobMap).length} images`);
+      } catch (decryptError) {
+        throw new Error(
+          `Failed to decrypt export: ${decryptError instanceof Error ? decryptError.message : 'Unknown error'}. ` +
+          'Ensure your Striae instance has export encryption configured.'
+        );
+      }
+    }
+
+    if (isEncrypted) {
+      await validateCaseExporterUidForImport(caseData, user);
+      exporterUidValidationPassed = true;
+    } else {
+      exporterUidValidationPassed = true;
+    }
+
+    // Now validate case number and format
+    if (!caseData.metadata?.caseNumber) {
+      throw new Error('Invalid case data: missing case number');
+    }
+
+    if (!validateCaseNumber(caseData.metadata.caseNumber)) {
+      throw new Error(`Invalid case number format: ${caseData.metadata.caseNumber}`);
+    }
+
+    const resolvedIsArchivedExport =
+      isArchivedExport ||
+      caseData.metadata.archived === true ||
+      (typeof caseData.metadata.archivedAt === 'string' && caseData.metadata.archivedAt.trim().length > 0);
+
     parsedForensicManifest = metadata?.forensicManifest as SignedForensicManifest | undefined;
     result.caseNumber = caseData.metadata.caseNumber;
     importState.caseNumber = result.caseNumber;
@@ -240,7 +343,7 @@ export async function importCaseForReview(
         imageFiles: imageBlobs,
         forensicManifest: parsedForensicManifest,
         verificationPublicKeyPem,
-        bundledAuditFiles
+        bundledAuditFiles: resolvedBundledAuditFiles
       });
 
       signatureValidationPassed = casePackageResult.signatureResult.isValid;
@@ -283,10 +386,10 @@ export async function importCaseForReview(
     
     // Step 2a: Check if case already exists in user's regular cases (original analyst)
     const existingRegularCase = await checkExistingCase(user, result.caseNumber);
-    if (existingRegularCase && !isArchivedExport) {
+    if (existingRegularCase && !resolvedIsArchivedExport) {
       throw new Error(`Case "${result.caseNumber}" already exists in your case list. You cannot import a case for review if you were the original analyst.`);
     }
-    if (existingRegularCase && isArchivedExport) {
+    if (existingRegularCase && resolvedIsArchivedExport) {
       throw new Error(`Cannot import this archived case because "${result.caseNumber}" already exists in your regular case list. Delete the regular case before importing this archive.`);
     }
     
@@ -366,8 +469,8 @@ export async function importCaseForReview(
       importedFiles,
       originalImageIdMapping,
       parsedForensicManifest,
-      isArchivedExport,
-      isArchivedExport ? extractBundledAuditTrailData(bundledAuditFiles) : undefined
+      resolvedIsArchivedExport,
+      resolvedIsArchivedExport ? extractBundledAuditTrailData(resolvedBundledAuditFiles) : undefined
     );
     importState.caseDataStored = true;
     
@@ -414,7 +517,7 @@ export async function importCaseForReview(
         validationStepsCompleted: result.filesImported + result.annotationsImported,
         validationStepsFailed: 0
       },
-      true, // Exporter UID was validated during zip parsing
+      exporterUidValidationPassed,
       {
         present: !!parsedForensicManifest,
         valid: signatureValidationPassed,
@@ -445,7 +548,7 @@ export async function importCaseForReview(
         processingTimeMs: endTime - startTime,
         fileSizeBytes: zipFile.size
       },
-      false, // If import failed, exporter UID validation may not have completed
+      exporterUidValidationPassed,
       {
         present: !!parsedForensicManifest,
         valid: signatureValidationPassed,

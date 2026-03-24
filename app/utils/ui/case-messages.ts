@@ -5,14 +5,17 @@
 
 // Import validation messages
 export const IMPORT_FILE_TYPE_NOT_ALLOWED =
-  'Only Striae case ZIP files, confirmation ZIP files, or confirmation JSON files are allowed.';
+  'Only Striae case ZIP files and encrypted confirmation ZIP packages exported from Striae are allowed.';
 
 export const IMPORT_FILE_TYPE_NOT_SUPPORTED =
-  'The selected file is not a supported Striae case or confirmation import package.';
+  'The selected file is not a supported Striae case ZIP or encrypted confirmation package.';
 
 // Import blocking messages
 export const ARCHIVED_REGULAR_CASE_BLOCK_MESSAGE =
   'This archived case cannot be imported because the case already exists in your regular case list. Delete the regular case before importing this archive.';
+
+export const ARCHIVED_SELF_IMPORT_NOTE =
+  'Archived export detected. Original exporter imports are only allowed after the case has been deleted from your regular case list.';
 
 // Read-only case operations
 export const CREATE_READ_ONLY_CASE_EXISTS_ERROR = (caseNumber: string): string =>

@@ -1,62 +1,15 @@
 import type { User } from 'firebase/auth';
 import { type CaseExportData, type CaseImportPreview } from '~/types';
-import { getCaseData } from '~/utils/data';
 import { validateCaseNumber } from '../case-manage';
 import {
   type SignedForensicManifest,
   verifyCasePackageIntegrity
 } from '~/utils/forensics';
-import { validateExporterUid, removeForensicWarning } from './validation';
-
-function isArchivedExportData(parsedData: unknown): boolean {
-  if (!parsedData || typeof parsedData !== 'object') {
-    return false;
-  }
-
-  const root = parsedData as Record<string, unknown>;
-
-  if (root.archived === true) {
-    return true;
-  }
-
-  if (typeof root.archivedAt === 'string' && root.archivedAt.trim().length > 0) {
-    return true;
-  }
-
-  const metadata = root.metadata;
-  if (!metadata || typeof metadata !== 'object') {
-    return false;
-  }
-
-  const metadataRecord = metadata as Record<string, unknown>;
-
-  if (metadataRecord.archived === true) {
-    return true;
-  }
-
-  if (typeof metadataRecord.archivedAt === 'string' && metadataRecord.archivedAt.trim().length > 0) {
-    return true;
-  }
-
-  return false;
-}
-
-async function allowSelfImportForArchivedCase(
-  currentUser: User,
-  caseNumber: string,
-  parsedData: unknown
-): Promise<boolean> {
-  if (isArchivedExportData(parsedData)) {
-    return true;
-  }
-
-  try {
-    const existingCase = await getCaseData(currentUser, caseNumber);
-    return existingCase?.archived === true;
-  } catch {
-    return false;
-  }
-}
+import {
+  isArchivedExportData,
+  removeForensicWarning,
+  validateCaseExporterUidForImport
+} from './validation';
 
 function getLeafFileName(path: string): string {
   const segments = path.split('/').filter(Boolean);
@@ -91,6 +44,27 @@ async function extractVerificationPublicKeyFromZip(
   }
 
   return zip.file(preferredPemPath)?.async('text');
+}
+
+/**
+ * Safe conversion of Uint8Array to base64url without spread operator stack overflow
+ * For large arrays, uses chunking approach to avoid "Maximum call stack size exceeded"
+ */
+function uint8ArrayToBase64Url(data: Uint8Array): string {
+  const chunkSize = 8192;
+  let binaryString = '';
+
+  for (let i = 0; i < data.length; i += chunkSize) {
+    const chunk = data.subarray(i, Math.min(i + chunkSize, data.length));
+    for (let j = 0; j < chunk.length; j += 1) {
+      binaryString += String.fromCharCode(chunk[j]);
+    }
+  }
+
+  return btoa(binaryString)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
 }
 
 /**
@@ -138,6 +112,57 @@ export async function previewCaseImport(zipFile: File, currentUser: User): Promi
   try {
     const zip = await JSZip.loadAsync(zipFile);
     const verificationPublicKeyPem = await extractVerificationPublicKeyFromZip(zip);
+    
+    // Check if export is encrypted
+    const encryptionManifestFile = zip.file('ENCRYPTION_MANIFEST.json');
+    if (encryptionManifestFile) {
+      // For encrypted exports, we can't read the plaintext data to extract case info
+      // Return an encrypted preview that requires decryption during import
+      try {
+        const manifestContent = await encryptionManifestFile.async('text');
+        JSON.parse(manifestContent); // Validate it's valid JSON
+        
+        // Count image files
+        let totalFiles = 0;
+        const imagesFolder = zip.folder('images');
+        if (imagesFolder) {
+          for (const [, file] of Object.entries(imagesFolder.files)) {
+            if (!file.dir && file.name.includes('/')) {
+              totalFiles++;
+            }
+          }
+        }
+        
+        const hasForensicManifest = zip.file('FORENSIC_MANIFEST.json') !== null;
+
+        return {
+          caseNumber: 'ENCRYPTED',
+          archived: false,
+          exportedBy: null,
+          exportedByName: null,
+          exportedByCompany: null,
+          exportedByBadgeId: null,
+          exportDate: new Date().toISOString(),
+          totalFiles,
+          hasAnnotations: false,
+          validationSummary: 'Export is encrypted. Integrity validation will occur during import.',
+          hashValid: undefined,
+          hashError: undefined,
+          validationDetails: {
+            hasForensicManifest,
+            dataValid: undefined,
+            manifestValid: undefined,
+            signatureValid: undefined,
+            validationSummary: 'Encrypted export — integrity validation deferred to import stage',
+            integrityErrors: []
+          }
+        };
+      } catch (error) {
+        throw new Error(
+          `Encrypted export detected but encryption manifest is invalid: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+    }
     
     // First, validate hash if forensic metadata exists
     let hashValid: boolean | undefined = undefined;
@@ -295,26 +320,9 @@ export async function previewCaseImport(zipFile: File, currentUser: User): Promi
       throw new Error(`Invalid case number format: ${caseData.metadata.caseNumber}`);
     }
     
-    const isArchivedExport = await allowSelfImportForArchivedCase(
-      currentUser,
-      caseData.metadata.caseNumber,
-      parsedCaseData
-    );
+    const isArchivedExport = isArchivedExportData(parsedCaseData);
 
-    // Validate exporter UID exists in user database and is not current user
-    if (caseData.metadata.exportedByUid) {
-      const validation = await validateExporterUid(caseData.metadata.exportedByUid, currentUser);
-      
-      if (!validation.exists) {
-        throw new Error(`The original exporter is not a valid Striae user. This case cannot be imported.`);
-      }
-      
-      if (validation.isSelf && !isArchivedExport) {
-        throw new Error(`You cannot import a case that you originally exported. Original analysts cannot review their own cases.`);
-      }
-    } else {
-      throw new Error('Case export missing exporter UID information. This case cannot be imported.');
-    }
+    await validateCaseExporterUidForImport(caseData, currentUser, parsedCaseData);
     
     // Count image files
     let totalFiles = 0;
@@ -365,6 +373,10 @@ export async function parseImportZip(zipFile: File, currentUser: User): Promise<
   metadata?: Record<string, unknown>;
   cleanedContent?: string; // Add cleaned content for hash validation
   verificationPublicKeyPem?: string;
+  encryptionManifest?: Record<string, unknown>; // Optional: decryption metadata
+  encryptedDataBase64?: string; // Optional: encrypted data file content (base64url)
+  encryptedImages?: { [filename: string]: string }; // Optional: encrypted image files (filename -> base64url)
+  isEncrypted?: boolean;
 }> {
   // Dynamic import of JSZip to avoid bundle size issues
   const JSZip = (await import('jszip')).default;
@@ -389,82 +401,163 @@ export async function parseImportZip(zipFile: File, currentUser: User): Promise<
     const dataFileName = dataFiles[0];
     const isJsonFormat = dataFileName.endsWith('.json');
     
-    // Extract and parse case data
+    // Check for encryption manifest first
+    const encryptionManifestFile = zip.file('ENCRYPTION_MANIFEST.json');
+    let encryptionManifest: Record<string, unknown> | undefined;
+    let encryptedDataBase64: string | undefined;
+    const encryptedImages: { [filename: string]: string } = {};
+    let isEncrypted = false;
+
+    // Initialize variables before if-else to ensure scope
     let caseData: CaseExportData;
     let parsedCaseData: unknown;
     let cleanedContent: string = '';
-    if (isJsonFormat) {
-      const dataContent = await zip.file(dataFileName)?.async('text');
-      if (!dataContent) {
-        throw new Error('Failed to read data file from ZIP');
-      }
-      
-      // Handle forensic protection warnings in JSON
-      cleanedContent = removeForensicWarning(dataContent);
-      parsedCaseData = JSON.parse(cleanedContent) as unknown;
-      caseData = parsedCaseData as CaseExportData;
-    } else {
-      throw new Error('CSV import not yet supported. Please use JSON format.');
-    }
-    
-    // Validate case data structure
-    if (!caseData.metadata?.caseNumber) {
-      throw new Error('Invalid case data: missing case number');
-    }
-    
-    if (!validateCaseNumber(caseData.metadata.caseNumber)) {
-      throw new Error(`Invalid case number format: ${caseData.metadata.caseNumber}`);
-    }
-    
-    const isArchivedExport = await allowSelfImportForArchivedCase(
-      currentUser,
-      caseData.metadata.caseNumber,
-      parsedCaseData
-    );
 
-    // Validate exporter UID exists in user database and is not current user
-    if (caseData.metadata.exportedByUid) {
-      const validation = await validateExporterUid(caseData.metadata.exportedByUid, currentUser);
-      
-      if (!validation.exists) {
-        throw new Error(`The original exporter is not a valid Striae user. This case cannot be imported.`);
-      }
-      
-      if (validation.isSelf && !isArchivedExport) {
-        throw new Error(`You cannot import a case that you originally exported. Original analysts cannot review their own cases.`);
+    if (encryptionManifestFile) {
+      try {
+        const manifestContent = await encryptionManifestFile.async('text');
+        encryptionManifest = JSON.parse(manifestContent) as Record<string, unknown>;
+        isEncrypted = true;
+
+        // Extract the encrypted data file
+        const dataContent = await zip.file(dataFileName)?.async('uint8array');
+        if (!dataContent) {
+          throw new Error('Failed to read encrypted data file from ZIP');
+        }
+        // Convert to base64url for transmission to worker (chunked to avoid stack overflow)
+        encryptedDataBase64 = uint8ArrayToBase64Url(dataContent);
+
+        // Extract encrypted files referenced by encrypted export payloads
+        const encryptedImagePromises: Promise<[string, string]>[] = [];
+        
+        const fileList = Object.keys(zip.files);
+        for (const filePath of fileList) {
+          const isImageFile = filePath.startsWith('images/') && filePath !== 'images/';
+          const isBundledAuditFile =
+            filePath === 'audit/case-audit-trail.json' ||
+            filePath === 'audit/case-audit-signature.json';
+
+          if ((!isImageFile && !isBundledAuditFile) || filePath.endsWith('/')) {
+            continue;
+          }
+          
+          const file = zip.files[filePath];
+          if (!file || file.dir) {
+            continue;
+          }
+          
+          const filename = isImageFile ? filePath.replace(/^images\//, '') : filePath;
+          
+          encryptedImagePromises.push((async () => {
+            try {
+              const encryptedBlob = await file.async('uint8array');
+              // Convert to base64url (chunked to avoid stack overflow)
+              const encryptedBase64Url = uint8ArrayToBase64Url(encryptedBlob);
+              return [filename, encryptedBase64Url] as [string, string];
+            } catch (err) {
+              throw new Error(`Failed to extract encrypted image ${filename}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+            }
+          })());
+        }
+        
+        // Wait for all image conversions
+        const encryptedImageResults = await Promise.all(encryptedImagePromises);
+        for (const [filename, data] of encryptedImageResults) {
+          encryptedImages[filename] = data;
+        }
+
+        // For encrypted exports, data file will be processed after decryption
+        // Set placeholder values that will be replaced after decryption
+        caseData = { metadata: { caseNumber: 'ENCRYPTED' } } as CaseExportData;
+        parsedCaseData = caseData;
+        cleanedContent = '';
+
+      } catch (error) {
+        throw new Error(`Failed to process encrypted export: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     } else {
-      throw new Error('Case export missing exporter UID information. This case cannot be imported.');
+      // Standard unencrypted extract and parse case data
+      if (isJsonFormat) {
+        const dataContent = await zip.file(dataFileName)?.async('text');
+        if (!dataContent) {
+          throw new Error('Failed to read data file from ZIP');
+        }
+        
+        // Handle forensic protection warnings in JSON
+        cleanedContent = removeForensicWarning(dataContent);
+        parsedCaseData = JSON.parse(cleanedContent) as unknown;
+        caseData = parsedCaseData as CaseExportData;
+      } else {
+        throw new Error('CSV import not yet supported. Please use JSON format.');
+      }
     }
     
-    // Extract image files and create ID mapping
+    // Validate case data structure only for unencrypted exports
+    // (encrypted exports will be validated after decryption in orchestrator)
+    if (!isEncrypted) {
+      if (!caseData.metadata?.caseNumber) {
+        throw new Error('Invalid case data: missing case number');
+      }
+
+      if (!validateCaseNumber(caseData.metadata.caseNumber)) {
+        throw new Error(`Invalid case number format: ${caseData.metadata.caseNumber}`);
+      }
+    }
+    
+    const isArchivedExport = isArchivedExportData(parsedCaseData);
+
+    // Validate exporter UID exists in user database and is not current user (skip for encrypted)
+    if (!isEncrypted) {
+      await validateCaseExporterUidForImport(caseData, currentUser, parsedCaseData);
+    }
+    
+    // Extract image files and create ID mapping - iterate through zip.files directly
     const imageFiles: { [filename: string]: Blob } = {};
     const imageIdMapping: { [exportFilename: string]: string } = {};
-    const imagesFolder = zip.folder('images');
     
-    if (imagesFolder) {
-      for (const [path, file] of Object.entries(imagesFolder.files)) {
-        if (!path.startsWith('images/') || path.endsWith('/') || file.dir) {
-          continue;
-        }
-
-        const exportFilename = path.replace('images/', '');
-        const blob = await file.async('blob');
-        imageFiles[exportFilename] = blob;
-
-        // Extract original image ID from filename
-        const originalImageId = extractImageIdFromFilename(exportFilename);
-        if (originalImageId) {
-          imageIdMapping[exportFilename] = originalImageId;
-        }
+    const imageExtractionPromises: Promise<void>[] = [];
+    
+    const fileListForImages = Object.keys(zip.files);
+    for (const filePath of fileListForImages) {
+      // Only process files in the images folder
+      if (!filePath.startsWith('images/') || filePath === 'images/' || filePath.endsWith('/')) {
+        continue;
       }
+      
+      const file = zip.files[filePath];
+      if (!file || file.dir) {
+        continue;
+      }
+      
+      imageExtractionPromises.push((async () => {
+        try {
+          const exportFilename = filePath.replace(/^images\//, '');
+          const blob = await file.async('blob');
+          imageFiles[exportFilename] = blob;
+
+          // Extract original image ID from filename
+          const originalImageId = extractImageIdFromFilename(exportFilename);
+          if (originalImageId) {
+            imageIdMapping[exportFilename] = originalImageId;
+          }
+        } catch (err) {
+          console.error(`Failed to extract image ${filePath}:`, err);
+        }
+      })());
     }
+    
+    // Wait for all image extractions to complete
+    await Promise.all(imageExtractionPromises);
     
     // Extract forensic manifest if present
     let metadata: Record<string, unknown> | undefined;
     const manifestFile = zip.file('FORENSIC_MANIFEST.json');
-    const auditTrailContent = await zip.file('audit/case-audit-trail.json')?.async('text');
-    const auditSignatureContent = await zip.file('audit/case-audit-signature.json')?.async('text');
+    const auditTrailContent = isEncrypted
+      ? undefined
+      : await zip.file('audit/case-audit-trail.json')?.async('text');
+    const auditSignatureContent = isEncrypted
+      ? undefined
+      : await zip.file('audit/case-audit-signature.json')?.async('text');
     
     if (manifestFile) {
       const manifestContent = await manifestFile.async('text');
@@ -482,7 +575,11 @@ export async function parseImportZip(zipFile: File, currentUser: User): Promise<
       },
       metadata,
       cleanedContent,
-      verificationPublicKeyPem
+      verificationPublicKeyPem,
+      encryptionManifest,
+      encryptedDataBase64,
+      encryptedImages: Object.keys(encryptedImages).length > 0 ? encryptedImages : undefined,
+      isEncrypted
     };
     
   } catch (error) {

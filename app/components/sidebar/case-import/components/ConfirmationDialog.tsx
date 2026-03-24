@@ -1,5 +1,8 @@
 import { type CaseImportPreview } from '~/types';
-import { ARCHIVED_REGULAR_CASE_BLOCK_MESSAGE, DATA_INTEGRITY_VALIDATION_PASSED, DATA_INTEGRITY_VALIDATION_FAILED } from '~/utils/ui';
+import {
+  ARCHIVED_REGULAR_CASE_BLOCK_MESSAGE,
+  ARCHIVED_SELF_IMPORT_NOTE
+} from '~/utils/ui';
 import styles from '../case-import.module.css';
 
 interface ConfirmationDialogProps {
@@ -21,6 +24,8 @@ export const ConfirmationDialog = ({
 }: ConfirmationDialogProps) => {
   if (!showConfirmation || !casePreview) return null;
 
+  const hasDetails = casePreview.archived || isArchivedRegularCaseImportBlocked;
+
   return (
     <div className={styles.confirmationOverlay}>
       <div className={styles.confirmationModal}>
@@ -29,45 +34,24 @@ export const ConfirmationDialog = ({
           <p className={styles.confirmationText}>
             Are you sure you want to import this case for review?
           </p>
-          
-          <div className={styles.confirmationDetails}>
-            <div className={styles.confirmationItem}>
-              <strong>Case Number:</strong> {casePreview.caseNumber}
+          <p className={styles.confirmationText}>
+            Package details stay hidden until verification completes.
+          </p>
+
+          {hasDetails && (
+            <div className={styles.confirmationDetails}>
+              {casePreview.archived && (
+                <div className={styles.archivedImportNote}>
+                  {ARCHIVED_SELF_IMPORT_NOTE}
+                </div>
+              )}
+              {isArchivedRegularCaseImportBlocked && (
+                <div className={styles.archivedRegularCaseRiskNote}>
+                  {archivedRegularCaseBlockMessage}
+                </div>
+              )}
             </div>
-            <div className={styles.confirmationItem}>
-              <strong>Exported by:</strong> {casePreview.exportedByName || casePreview.exportedBy || 'N/A'}
-            </div>
-            <div className={styles.confirmationItem}>
-              <strong>Lab/Company:</strong> {casePreview.exportedByCompany || 'N/A'}
-            </div>
-            <div className={styles.confirmationItem}>
-              <strong>Export Date:</strong> {new Date(casePreview.exportDate).toLocaleDateString()}
-            </div>
-            <div className={styles.confirmationItem}>
-              <strong>Total Images:</strong> {casePreview.totalFiles}
-            </div>
-            <div className={styles.confirmationItem}>
-              <strong>Archived Export:</strong> {casePreview.archived ? 'Yes' : 'No'}
-            </div>
-            {casePreview.archived && (
-              <div className={styles.archivedImportNote}>
-                Archived export detected. Original exporter imports are allowed for archived cases.
-              </div>
-            )}
-            {isArchivedRegularCaseImportBlocked && (
-              <div className={styles.archivedRegularCaseRiskNote}>
-                {archivedRegularCaseBlockMessage}
-              </div>
-            )}
-            {casePreview.hashValid !== undefined && (
-              <div className={`${styles.confirmationItem} ${casePreview.hashValid ? styles.confirmationItemValid : styles.confirmationItemInvalid}`}>
-                <strong>Data Integrity:</strong> 
-                <span className={casePreview.hashValid ? styles.confirmationSuccess : styles.confirmationError}>
-                  {casePreview.hashValid ? DATA_INTEGRITY_VALIDATION_PASSED : DATA_INTEGRITY_VALIDATION_FAILED}
-                </span>
-              </div>
-            )}
-          </div>
+          )}
 
           <div className={styles.confirmationButtons}>
             <button

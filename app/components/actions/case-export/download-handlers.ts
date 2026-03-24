@@ -7,7 +7,9 @@ import {
   calculateSHA256Secure,
   createPublicSigningKeyFileName,
   getCurrentPublicSigningKeyDetails,
-  getVerificationPublicKey
+  getVerificationPublicKey,
+  getCurrentEncryptionPublicKeyDetails,
+  encryptExportDataWithAllImages
 } from '~/utils/forensics';
 import { signForensicManifest } from '~/utils/data';
 import { type ExportFormat, formatDateForFilename, CSV_HEADERS } from './types-constants';
@@ -717,6 +719,56 @@ export async function downloadCaseAsZip(
       // Add dedicated forensic manifest file for validation
       zip.file('FORENSIC_MANIFEST.json', JSON.stringify(signedForensicManifest, null, 2));
       
+      // Export encryption is mandatory
+      const encKeyDetails = getCurrentEncryptionPublicKeyDetails();
+      
+      if (!encKeyDetails.publicKeyPem || !encKeyDetails.keyId) {
+        throw new Error(
+          'Export encryption is mandatory. Your Striae instance does not have a configured encryption public key. ' +
+          'Please contact your administrator to set up export encryption.'
+        );
+      }
+      
+      let encryptionManifestJson: string | null = null;
+      const isEncrypted = true;
+      
+      try {
+        // Build image blobs array from the collected imageFiles
+        const imagesToEncrypt = Object.entries(imageFiles).map(([filename, blob]) => ({
+          filename,
+          blob
+        }));
+
+        // Encrypt data file and all images with shared AES key
+        const encryptionResult = await encryptExportDataWithAllImages(
+          contentForHash,
+          imagesToEncrypt,
+          encKeyDetails.publicKeyPem,
+          encKeyDetails.keyId
+        );
+
+        // Replace data file with encrypted ciphertext
+        zip.file(`${caseNumber}_data.${format}`, encryptionResult.ciphertext);
+
+        // Replace images in the ZIP with encrypted versions
+        if (imageFolder && encryptionResult.encryptedImages.length > 0) {
+          for (let i = 0; i < imagesToEncrypt.length; i++) {
+            const originalFilename = imagesToEncrypt[i].filename;
+            // Remove the original file and add encrypted version
+            imageFolder.file(originalFilename, encryptionResult.encryptedImages[i]);
+          }
+        }
+
+        // Add encryption manifest
+        encryptionManifestJson = JSON.stringify(encryptionResult.encryptionManifest, null, 2);
+        zip.file('ENCRYPTION_MANIFEST.json', encryptionManifestJson);
+
+        onProgress?.(80);
+      } catch (error) {
+        console.error('Export encryption failed:', error);
+        throw new Error(`Failed to encrypt export: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+      
       // Add read-only instruction file
       const instructionContent = `EVIDENCE ARCHIVE - READ ONLY
 
@@ -727,11 +779,13 @@ IMPORTANT WARNINGS:
 - Do not modify, rename, or delete any files in this archive
 - Any modifications may compromise evidence integrity
 - Maintain proper chain of custody procedures
+${isEncrypted ? '- This archive is encrypted. Only Striae can decrypt and re-import it.\n' : ''}
 
 Archive Contents:
-- ${caseNumber}_data.${format}: Complete case data in ${format.toUpperCase()} format
-- images/: Original image files with annotations
+- ${caseNumber}_data.${format}: Complete case data in ${format.toUpperCase()} format${isEncrypted ? ' (encrypted)' : ''}
+- images/: Image files with annotations${isEncrypted ? ' (encrypted)' : ''}
 - FORENSIC_MANIFEST.json: File integrity validation manifest
+${isEncrypted ? '- ENCRYPTION_MANIFEST.json: Encryption metadata and encrypted file hashes\n' : ''}
 - ${publicKeyFileName}: Public signing key PEM for verification
 - README.txt: General information about this export
 
@@ -743,6 +797,7 @@ Case Information:
 - Total Annotations: ${(exportData.summary?.filesWithAnnotations || 0) + (exportData.summary?.totalBoxAnnotations || 0)}
 - Total Confirmations: ${exportData.summary?.filesWithConfirmations || 0}
 - Confirmations Requested: ${exportData.summary?.filesWithConfirmationsRequested || 0}
+${isEncrypted ? `- Encryption Status: ENCRYPTED (key ID: ${encKeyDetails.keyId})\n` : ''}
 
 For questions about this export, contact your Striae system administrator.
 `;
@@ -769,7 +824,8 @@ For questions about this export, contact your Striae system administrator.
       // Download
       const url = URL.createObjectURL(zipBlob);
       const protectionSuffix = options.protectForensicData ? '-protected' : '';
-      const exportFileName = `striae-case-${caseNumber}-export${protectionSuffix}-${formatDateForFilename(new Date())}.zip`;
+      const encryptedSuffix = isEncrypted ? '-encrypted' : '';
+      const exportFileName = `striae-case-${caseNumber}-export${protectionSuffix}${encryptedSuffix}-${formatDateForFilename(new Date())}.zip`;
       
       const linkElement = document.createElement('a');
       linkElement.href = url;

@@ -334,7 +334,7 @@ write_env_var() {
     var_value=$(strip_carriage_returns "$var_value")
     env_file_value="$var_value"
 
-    if [ "$var_name" = "FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY" ] || [ "$var_name" = "MANIFEST_SIGNING_PRIVATE_KEY" ] || [ "$var_name" = "MANIFEST_SIGNING_PUBLIC_KEY" ]; then
+    if [ "$var_name" = "FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY" ] || [ "$var_name" = "MANIFEST_SIGNING_PRIVATE_KEY" ] || [ "$var_name" = "MANIFEST_SIGNING_PUBLIC_KEY" ] || [ "$var_name" = "EXPORT_ENCRYPTION_PRIVATE_KEY" ] || [ "$var_name" = "EXPORT_ENCRYPTION_PUBLIC_KEY" ]; then
         # Store as a quoted string so sourced .env preserves escaped newline markers (\n)
         env_file_value=${env_file_value//\"/\\\"}
         env_file_value="\"$env_file_value\""
@@ -508,6 +508,88 @@ configure_manifest_signing_credentials() {
     echo ""
 }
 
+generate_export_encryption_key_pair() {
+    local private_key_file
+    local public_key_file
+    private_key_file=$(mktemp)
+    public_key_file=$(mktemp)
+
+    if ! node -e "const { generateKeyPairSync } = require('crypto'); const fs = require('fs'); const pair = generateKeyPairSync('rsa', { modulusLength: 2048, publicKeyEncoding: { type: 'spki', format: 'pem' }, privateKeyEncoding: { type: 'pkcs8', format: 'pem' } }); fs.writeFileSync(process.argv[1], pair.privateKey, 'utf8'); fs.writeFileSync(process.argv[2], pair.publicKey, 'utf8');" "$private_key_file" "$public_key_file"; then
+        rm -f "$private_key_file" "$public_key_file"
+        return 1
+    fi
+
+    local private_key_pem
+    local public_key_pem
+    private_key_pem=$(cat "$private_key_file")
+    public_key_pem=$(cat "$public_key_file")
+    rm -f "$private_key_file" "$public_key_file"
+
+    private_key_pem="${private_key_pem//$'\r'/}"
+    public_key_pem="${public_key_pem//$'\r'/}"
+
+    EXPORT_ENCRYPTION_PRIVATE_KEY="${private_key_pem//$'\n'/\\n}"
+    EXPORT_ENCRYPTION_PUBLIC_KEY="${public_key_pem//$'\n'/\\n}"
+
+    export EXPORT_ENCRYPTION_PRIVATE_KEY
+    export EXPORT_ENCRYPTION_PUBLIC_KEY
+
+    write_env_var "EXPORT_ENCRYPTION_PRIVATE_KEY" "$EXPORT_ENCRYPTION_PRIVATE_KEY"
+    write_env_var "EXPORT_ENCRYPTION_PUBLIC_KEY" "$EXPORT_ENCRYPTION_PUBLIC_KEY"
+
+    return 0
+}
+
+configure_export_encryption_credentials() {
+    echo -e "${BLUE}🔐 EXPORT ENCRYPTION CONFIGURATION${NC}"
+    echo "================================="
+
+    local should_generate="false"
+    local regenerate_choice=""
+
+    if [ "$update_env" = "true" ]; then
+        should_generate="true"
+    elif [ -z "$EXPORT_ENCRYPTION_PRIVATE_KEY" ] || is_placeholder "$EXPORT_ENCRYPTION_PRIVATE_KEY" || [ -z "$EXPORT_ENCRYPTION_PUBLIC_KEY" ] || is_placeholder "$EXPORT_ENCRYPTION_PUBLIC_KEY"; then
+        should_generate="true"
+    else
+        echo -e "${GREEN}Current export encryption key pair: [HIDDEN]${NC}"
+        read -p "Generate new export encryption key pair? (press Enter to keep current, or type 'y' to regenerate): " regenerate_choice
+        regenerate_choice=$(strip_carriage_returns "$regenerate_choice")
+        if [ "$regenerate_choice" = "y" ] || [ "$regenerate_choice" = "Y" ]; then
+            should_generate="true"
+        fi
+    fi
+
+    if [ "$should_generate" = "true" ]; then
+        echo -e "${YELLOW}Generating export encryption RSA key pair...${NC}"
+        if generate_export_encryption_key_pair; then
+            echo -e "${GREEN}✅ Export encryption key pair generated${NC}"
+        else
+            echo -e "${RED}❌ Error: Failed to generate export encryption key pair${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${GREEN}✅ Keeping current export encryption key pair${NC}"
+    fi
+
+    if [ -z "$EXPORT_ENCRYPTION_KEY_ID" ] || is_placeholder "$EXPORT_ENCRYPTION_KEY_ID" || [ "$should_generate" = "true" ]; then
+        local generated_key_id
+        generated_key_id=$(generate_worker_subdomain_label)
+        if [ -z "$generated_key_id" ] || [ ${#generated_key_id} -ne 10 ]; then
+            echo -e "${RED}❌ Error: Failed to generate EXPORT_ENCRYPTION_KEY_ID${NC}"
+            exit 1
+        fi
+        EXPORT_ENCRYPTION_KEY_ID="$generated_key_id"
+        export EXPORT_ENCRYPTION_KEY_ID
+        write_env_var "EXPORT_ENCRYPTION_KEY_ID" "$EXPORT_ENCRYPTION_KEY_ID"
+        echo -e "${GREEN}✅ EXPORT_ENCRYPTION_KEY_ID generated: $EXPORT_ENCRYPTION_KEY_ID${NC}"
+    else
+        echo -e "${GREEN}✅ EXPORT_ENCRYPTION_KEY_ID: $EXPORT_ENCRYPTION_KEY_ID${NC}"
+    fi
+
+    echo ""
+}
+
 # Validate required variables
 required_vars=(
     # Core Cloudflare Configuration
@@ -564,6 +646,9 @@ required_vars=(
     "MANIFEST_SIGNING_PRIVATE_KEY"
     "MANIFEST_SIGNING_KEY_ID"
     "MANIFEST_SIGNING_PUBLIC_KEY"
+    "EXPORT_ENCRYPTION_PRIVATE_KEY"
+    "EXPORT_ENCRYPTION_KEY_ID"
+    "EXPORT_ENCRYPTION_PUBLIC_KEY"
 )
 
 validate_required_vars() {
@@ -591,7 +676,7 @@ assert_contains_literal() {
     local literal=$2
     local description=$3
 
-    if ! grep -Fq "$literal" "$file_path"; then
+    if ! grep -Fq -- "$literal" "$file_path"; then
         echo -e "${RED}❌ Error: ${description}${NC}"
         echo -e "${YELLOW}   Expected to find '$literal' in $file_path${NC}"
         exit 1
@@ -743,6 +828,8 @@ validate_generated_configs() {
 
     assert_contains_literal "app/config/config.json" "https://$PAGES_CUSTOM_DOMAIN" "PAGES_CUSTOM_DOMAIN missing in app/config/config.json"
     assert_contains_literal "app/config/config.json" "$ACCOUNT_HASH" "ACCOUNT_HASH missing in app/config/config.json"
+    assert_contains_literal "app/config/config.json" "$EXPORT_ENCRYPTION_KEY_ID" "EXPORT_ENCRYPTION_KEY_ID missing in app/config/config.json"
+    assert_contains_literal "app/config/config.json" "\"export_encryption_public_key\":" "export_encryption_public_key missing in app/config/config.json"
     assert_contains_literal "app/routes/auth/login.tsx" "const APP_CANONICAL_ORIGIN = 'https://$PAGES_CUSTOM_DOMAIN';" "PAGES_CUSTOM_DOMAIN missing in app/routes/auth/login.tsx canonical origin"
 
     assert_contains_literal "app/config/firebase.ts" "$API_KEY" "API_KEY missing in app/config/firebase.ts"
@@ -761,7 +848,7 @@ validate_generated_configs() {
     assert_contains_literal "workers/user-worker/src/user-worker.ts" "https://$PAGES_CUSTOM_DOMAIN" "PAGES_CUSTOM_DOMAIN missing in user-worker source"
 
     local placeholder_pattern
-    placeholder_pattern="(\"(ACCOUNT_ID|PAGES_PROJECT_NAME|PAGES_CUSTOM_DOMAIN|KEYS_WORKER_NAME|USER_WORKER_NAME|DATA_WORKER_NAME|AUDIT_WORKER_NAME|IMAGES_WORKER_NAME|PDF_WORKER_NAME|KEYS_WORKER_DOMAIN|USER_WORKER_DOMAIN|DATA_WORKER_DOMAIN|AUDIT_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN|PDF_WORKER_DOMAIN|DATA_BUCKET_NAME|AUDIT_BUCKET_NAME|KV_STORE_ID|ACCOUNT_HASH|MANIFEST_SIGNING_KEY_ID|MANIFEST_SIGNING_PUBLIC_KEY|YOUR_FIREBASE_API_KEY|YOUR_FIREBASE_AUTH_DOMAIN|YOUR_FIREBASE_PROJECT_ID|YOUR_FIREBASE_STORAGE_BUCKET|YOUR_FIREBASE_MESSAGING_SENDER_ID|YOUR_FIREBASE_APP_ID|YOUR_FIREBASE_MEASUREMENT_ID)\"|'(PAGES_CUSTOM_DOMAIN|DATA_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN)')"
+    placeholder_pattern="(\"(ACCOUNT_ID|PAGES_PROJECT_NAME|PAGES_CUSTOM_DOMAIN|KEYS_WORKER_NAME|USER_WORKER_NAME|DATA_WORKER_NAME|AUDIT_WORKER_NAME|IMAGES_WORKER_NAME|PDF_WORKER_NAME|KEYS_WORKER_DOMAIN|USER_WORKER_DOMAIN|DATA_WORKER_DOMAIN|AUDIT_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN|PDF_WORKER_DOMAIN|DATA_BUCKET_NAME|AUDIT_BUCKET_NAME|KV_STORE_ID|ACCOUNT_HASH|MANIFEST_SIGNING_KEY_ID|MANIFEST_SIGNING_PUBLIC_KEY|EXPORT_ENCRYPTION_KEY_ID|EXPORT_ENCRYPTION_PUBLIC_KEY|YOUR_FIREBASE_API_KEY|YOUR_FIREBASE_AUTH_DOMAIN|YOUR_FIREBASE_PROJECT_ID|YOUR_FIREBASE_STORAGE_BUCKET|YOUR_FIREBASE_MESSAGING_SENDER_ID|YOUR_FIREBASE_APP_ID|YOUR_FIREBASE_MEASUREMENT_ID)\"|'(PAGES_CUSTOM_DOMAIN|DATA_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN)')"
 
     local files_to_scan=(
         "wrangler.toml"
@@ -1310,6 +1397,7 @@ prompt_for_secrets() {
     prompt_for_var "HMAC_KEY" "Cloudflare Images HMAC signing key"
 
     configure_manifest_signing_credentials
+    configure_export_encryption_credentials
     
     # Reload the updated .env file
     source .env
@@ -1447,15 +1535,21 @@ update_wrangler_configs() {
         echo -e "${YELLOW}    Updating app/config/config.json...${NC}"
         local escaped_manifest_signing_key_id
         local escaped_manifest_signing_public_key
+        local escaped_export_encryption_key_id
+        local escaped_export_encryption_public_key
         local escaped_account_hash
         escaped_manifest_signing_key_id=$(escape_for_sed_replacement "$MANIFEST_SIGNING_KEY_ID")
         escaped_manifest_signing_public_key=$(escape_for_sed_replacement "$MANIFEST_SIGNING_PUBLIC_KEY")
+        escaped_export_encryption_key_id=$(escape_for_sed_replacement "$EXPORT_ENCRYPTION_KEY_ID")
+        escaped_export_encryption_public_key=$(escape_for_sed_replacement "$EXPORT_ENCRYPTION_PUBLIC_KEY")
         escaped_account_hash=$(escape_for_sed_replacement "$ACCOUNT_HASH")
 
         sed -i "s|\"url\": \"[^\"]*\"|\"url\": \"https://$escaped_pages_custom_domain\"|g" app/config/config.json
         sed -i "s|\"account_hash\": \"[^\"]*\"|\"account_hash\": \"$escaped_account_hash\"|g" app/config/config.json
         sed -i "s|\"MANIFEST_SIGNING_KEY_ID\"|\"$escaped_manifest_signing_key_id\"|g" app/config/config.json
         sed -i "s|\"MANIFEST_SIGNING_PUBLIC_KEY\"|\"$escaped_manifest_signing_public_key\"|g" app/config/config.json
+        sed -i "s|\"EXPORT_ENCRYPTION_KEY_ID\"|\"$escaped_export_encryption_key_id\"|g" app/config/config.json
+        sed -i "s|\"EXPORT_ENCRYPTION_PUBLIC_KEY\"|\"$escaped_export_encryption_public_key\"|g" app/config/config.json
         echo -e "${GREEN}      ✅ app config.json updated${NC}"
     fi
     

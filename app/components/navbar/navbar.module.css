@@ -374,16 +374,6 @@
   background: color-mix(in lab, #6c757d 21%, #ffffff);
 }
 
-.caseMenuItemKey {
-  background: color-mix(in lab, #0d9488 14%, #ffffff);
-  color: #0f766e;
-  border-color: color-mix(in lab, #0d9488 28%, transparent);
-}
-
-.caseMenuItemKey:hover {
-  background: color-mix(in lab, #0d9488 20%, #ffffff);
-}
-
 .caseMenuItemClearRO {
   background: color-mix(in lab, #fd7e14 16%, #ffffff);
   color: #7c3f00;
