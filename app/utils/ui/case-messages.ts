@@ -14,6 +14,9 @@ export const IMPORT_FILE_TYPE_NOT_SUPPORTED =
 export const ARCHIVED_REGULAR_CASE_BLOCK_MESSAGE =
   'This archived case cannot be imported because the case already exists in your regular case list. Delete the regular case before importing this archive.';
 
+export const ARCHIVED_SELF_IMPORT_NOTE =
+  'Archived export detected. Original exporter imports are only allowed after the case has been deleted from your regular case list.';
+
 // Read-only case operations
 export const CREATE_READ_ONLY_CASE_EXISTS_ERROR = (caseNumber: string): string =>
   `Case "${caseNumber}" already exists as a read-only review case.`;

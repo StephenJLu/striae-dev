@@ -1,5 +1,10 @@
 import { type CaseImportPreview } from '~/types';
-import { ARCHIVED_REGULAR_CASE_BLOCK_MESSAGE, DATA_INTEGRITY_VALIDATION_PASSED, DATA_INTEGRITY_VALIDATION_FAILED } from '~/utils/ui';
+import {
+  ARCHIVED_REGULAR_CASE_BLOCK_MESSAGE,
+  ARCHIVED_SELF_IMPORT_NOTE,
+  DATA_INTEGRITY_VALIDATION_PASSED,
+  DATA_INTEGRITY_VALIDATION_FAILED
+} from '~/utils/ui';
 import styles from '../case-import.module.css';
 
 interface ConfirmationDialogProps {
@@ -36,7 +41,7 @@ export const ConfirmationDialog = ({
           <div className={styles.confirmationDetails}>
             {casePreview.archived && (
               <div className={styles.archivedImportNote}>
-                Archived export detected. Original exporter imports are allowed for archived cases.
+                {ARCHIVED_SELF_IMPORT_NOTE}
               </div>
             )}
             {isArchivedRegularCaseImportBlocked && (

@@ -28,6 +28,7 @@ import { uploadImageBlob } from './image-operations';
 import { importAnnotations } from './annotation-import';
 import { auditService } from '~/services/audit';
 import { decryptExportBatch } from '~/utils/data/operations/signing-operations';
+import { validateCaseExporterUidForImport } from './validation';
 
 /**
  * Track the state of an import operation for cleanup purposes
@@ -198,6 +199,7 @@ export async function importCaseForReview(
   let signatureValidationPassed = false;
   let signatureKeyId: string | undefined;
   let parsedForensicManifest: SignedForensicManifest | undefined;
+  let exporterUidValidationPassed = false;
   
   try {
     onProgress?.('Parsing ZIP file', 10, 'Extracting archive contents...');
@@ -272,6 +274,13 @@ export async function importCaseForReview(
           'Ensure your Striae instance has export encryption configured.'
         );
       }
+    }
+
+    if (isEncrypted) {
+      await validateCaseExporterUidForImport(caseData, user);
+      exporterUidValidationPassed = true;
+    } else {
+      exporterUidValidationPassed = true;
     }
 
     // Now validate case number and format
@@ -508,7 +517,7 @@ export async function importCaseForReview(
         validationStepsCompleted: result.filesImported + result.annotationsImported,
         validationStepsFailed: 0
       },
-      true, // Exporter UID was validated during zip parsing
+      exporterUidValidationPassed,
       {
         present: !!parsedForensicManifest,
         valid: signatureValidationPassed,
@@ -539,7 +548,7 @@ export async function importCaseForReview(
         processingTimeMs: endTime - startTime,
         fileSizeBytes: zipFile.size
       },
-      false, // If import failed, exporter UID validation may not have completed
+      exporterUidValidationPassed,
       {
         present: !!parsedForensicManifest,
         valid: signatureValidationPassed,

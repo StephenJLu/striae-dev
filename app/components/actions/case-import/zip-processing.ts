@@ -1,62 +1,15 @@
 import type { User } from 'firebase/auth';
 import { type CaseExportData, type CaseImportPreview } from '~/types';
-import { getCaseData } from '~/utils/data';
 import { validateCaseNumber } from '../case-manage';
 import {
   type SignedForensicManifest,
   verifyCasePackageIntegrity
 } from '~/utils/forensics';
-import { validateExporterUid, removeForensicWarning } from './validation';
-
-function isArchivedExportData(parsedData: unknown): boolean {
-  if (!parsedData || typeof parsedData !== 'object') {
-    return false;
-  }
-
-  const root = parsedData as Record<string, unknown>;
-
-  if (root.archived === true) {
-    return true;
-  }
-
-  if (typeof root.archivedAt === 'string' && root.archivedAt.trim().length > 0) {
-    return true;
-  }
-
-  const metadata = root.metadata;
-  if (!metadata || typeof metadata !== 'object') {
-    return false;
-  }
-
-  const metadataRecord = metadata as Record<string, unknown>;
-
-  if (metadataRecord.archived === true) {
-    return true;
-  }
-
-  if (typeof metadataRecord.archivedAt === 'string' && metadataRecord.archivedAt.trim().length > 0) {
-    return true;
-  }
-
-  return false;
-}
-
-async function allowSelfImportForArchivedCase(
-  currentUser: User,
-  caseNumber: string,
-  parsedData: unknown
-): Promise<boolean> {
-  if (isArchivedExportData(parsedData)) {
-    return true;
-  }
-
-  try {
-    const existingCase = await getCaseData(currentUser, caseNumber);
-    return existingCase?.archived === true;
-  } catch {
-    return false;
-  }
-}
+import {
+  isArchivedExportData,
+  removeForensicWarning,
+  validateCaseExporterUidForImport
+} from './validation';
 
 function getLeafFileName(path: string): string {
   const segments = path.split('/').filter(Boolean);
@@ -365,26 +318,9 @@ export async function previewCaseImport(zipFile: File, currentUser: User): Promi
       throw new Error(`Invalid case number format: ${caseData.metadata.caseNumber}`);
     }
     
-    const isArchivedExport = await allowSelfImportForArchivedCase(
-      currentUser,
-      caseData.metadata.caseNumber,
-      parsedCaseData
-    );
+    const isArchivedExport = isArchivedExportData(parsedCaseData);
 
-    // Validate exporter UID exists in user database and is not current user
-    if (caseData.metadata.exportedByUid) {
-      const validation = await validateExporterUid(caseData.metadata.exportedByUid, currentUser);
-      
-      if (!validation.exists) {
-        throw new Error(`The original exporter is not a valid Striae user. This case cannot be imported.`);
-      }
-      
-      if (validation.isSelf && !isArchivedExport) {
-        throw new Error(`You cannot import a case that you originally exported. Original analysts cannot review their own cases.`);
-      }
-    } else {
-      throw new Error('Case export missing exporter UID information. This case cannot be imported.');
-    }
+    await validateCaseExporterUidForImport(caseData, currentUser, parsedCaseData);
     
     // Count image files
     let totalFiles = 0;
@@ -566,25 +502,11 @@ export async function parseImportZip(zipFile: File, currentUser: User): Promise<
       }
     }
     
-    const isArchivedExport = await allowSelfImportForArchivedCase(
-      currentUser,
-      caseData.metadata.caseNumber || 'ENCRYPTED',
-      parsedCaseData
-    );
+    const isArchivedExport = isArchivedExportData(parsedCaseData);
 
     // Validate exporter UID exists in user database and is not current user (skip for encrypted)
-    if (!isEncrypted && caseData.metadata.exportedByUid) {
-      const validation = await validateExporterUid(caseData.metadata.exportedByUid, currentUser);
-      
-      if (!validation.exists) {
-        throw new Error(`The original exporter is not a valid Striae user. This case cannot be imported.`);
-      }
-      
-      if (validation.isSelf && !isArchivedExport) {
-        throw new Error(`You cannot import a case that you originally exported. Original analysts cannot review their own cases.`);
-      }
-    } else if (!isEncrypted) {
-      throw new Error('Case export missing exporter UID information. This case cannot be imported.');
+    if (!isEncrypted) {
+      await validateCaseExporterUidForImport(caseData, currentUser, parsedCaseData);
     }
     
     // Extract image files and create ID mapping - iterate through zip.files directly
