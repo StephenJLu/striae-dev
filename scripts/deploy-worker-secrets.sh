@@ -264,6 +264,7 @@ echo "   - Copy wrangler.jsonc.example to wrangler.jsonc in each worker director
 echo "   - Configure KV namespace ID in workers/user-worker/wrangler.jsonc"
 echo "   - Configure R2 bucket name in workers/data-worker/wrangler.jsonc"
 echo "   - Configure R2 bucket name in workers/audit-worker/wrangler.jsonc"
+echo "   - Configure R2 bucket name in workers/image-worker/wrangler.jsonc"
 echo "   - Update ACCOUNT_ID and custom domains in all worker configurations"
 
 echo -e "\n${BLUE}📝 For manual deployment, use these commands:${NC}"
