@@ -35,7 +35,7 @@ export const ConfirmationDialog = ({
             Are you sure you want to import this case for review?
           </p>
           <p className={styles.confirmationText}>
-            Export metadata and file listings are hidden for encrypted imports. Integrity validation will still be enforced.
+            Package details stay hidden until verification completes.
           </p>
 
           {hasDetails && (

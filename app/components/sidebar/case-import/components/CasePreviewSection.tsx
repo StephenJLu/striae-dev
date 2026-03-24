@@ -32,7 +32,7 @@ export const CasePreviewSection = ({
     <div className={styles.previewSection}>
       <h3 className={styles.previewTitle}>Case Import Preview</h3>
       <p className={styles.previewMessage}>
-        Case package detected. Export metadata and file listings are hidden in preview for encrypted imports.
+        Case package detected. Details are hidden until import verification completes.
       </p>
       {casePreview.archived && (
         <div className={styles.archivedImportNote}>
