@@ -719,49 +719,54 @@ export async function downloadCaseAsZip(
       // Add dedicated forensic manifest file for validation
       zip.file('FORENSIC_MANIFEST.json', JSON.stringify(signedForensicManifest, null, 2));
       
-      // Check if export encryption is configured
-      let isEncrypted = false;
-      let encryptionManifestJson: string | null = null;
+      // Export encryption is mandatory
       const encKeyDetails = getCurrentEncryptionPublicKeyDetails();
       
-      if (encKeyDetails.publicKeyPem && encKeyDetails.keyId) {
-        try {
-          // Build image blobs array from the collected imageFiles
-          const imagesToEncrypt = Object.entries(imageFiles).map(([filename, blob]) => ({
-            filename,
-            blob
-          }));
+      if (!encKeyDetails.publicKeyPem || !encKeyDetails.keyId) {
+        throw new Error(
+          'Export encryption is mandatory. Your Striae instance does not have a configured encryption public key. ' +
+          'Please contact your administrator to set up export encryption.'
+        );
+      }
+      
+      let encryptionManifestJson: string | null = null;
+      const isEncrypted = true;
+      
+      try {
+        // Build image blobs array from the collected imageFiles
+        const imagesToEncrypt = Object.entries(imageFiles).map(([filename, blob]) => ({
+          filename,
+          blob
+        }));
 
-          // Encrypt data file and all images with shared AES key
-          const encryptionResult = await encryptExportDataWithAllImages(
-            contentForHash,
-            imagesToEncrypt,
-            encKeyDetails.publicKeyPem,
-            encKeyDetails.keyId
-          );
+        // Encrypt data file and all images with shared AES key
+        const encryptionResult = await encryptExportDataWithAllImages(
+          contentForHash,
+          imagesToEncrypt,
+          encKeyDetails.publicKeyPem,
+          encKeyDetails.keyId
+        );
 
-          // Replace data file with encrypted ciphertext
-          zip.file(`${caseNumber}_data.${format}`, encryptionResult.ciphertext);
+        // Replace data file with encrypted ciphertext
+        zip.file(`${caseNumber}_data.${format}`, encryptionResult.ciphertext);
 
-          // Replace images in the ZIP with encrypted versions
-          if (imageFolder && encryptionResult.encryptedImages.length > 0) {
-            for (let i = 0; i < imagesToEncrypt.length; i++) {
-              const originalFilename = imagesToEncrypt[i].filename;
-              // Remove the original file and add encrypted version
-              imageFolder.file(originalFilename, encryptionResult.encryptedImages[i]);
-            }
+        // Replace images in the ZIP with encrypted versions
+        if (imageFolder && encryptionResult.encryptedImages.length > 0) {
+          for (let i = 0; i < imagesToEncrypt.length; i++) {
+            const originalFilename = imagesToEncrypt[i].filename;
+            // Remove the original file and add encrypted version
+            imageFolder.file(originalFilename, encryptionResult.encryptedImages[i]);
           }
-
-          // Add encryption manifest
-          encryptionManifestJson = JSON.stringify(encryptionResult.encryptionManifest, null, 2);
-          zip.file('ENCRYPTION_MANIFEST.json', encryptionManifestJson);
-          isEncrypted = true;
-
-          onProgress?.(80);
-        } catch (error) {
-          console.error('Export encryption failed:', error);
-          throw new Error(`Failed to encrypt export: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
+
+        // Add encryption manifest
+        encryptionManifestJson = JSON.stringify(encryptionResult.encryptionManifest, null, 2);
+        zip.file('ENCRYPTION_MANIFEST.json', encryptionManifestJson);
+
+        onProgress?.(80);
+      } catch (error) {
+        console.error('Export encryption failed:', error);
+        throw new Error(`Failed to encrypt export: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
       
       // Add read-only instruction file

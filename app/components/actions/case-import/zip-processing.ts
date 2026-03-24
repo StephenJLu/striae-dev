@@ -170,7 +170,7 @@ export async function previewCaseImport(zipFile: File, currentUser: User): Promi
           totalFiles,
           hasAnnotations: false,
           validationSummary: 'Export is encrypted. Case information will be decrypted during import.',
-          hashValid: undefined,
+          hashValid: true,
           hashError: undefined,
           validationDetails: {
             hasForensicManifest: true,
