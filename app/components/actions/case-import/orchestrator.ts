@@ -283,6 +283,11 @@ export async function importCaseForReview(
       throw new Error(`Invalid case number format: ${caseData.metadata.caseNumber}`);
     }
 
+    const resolvedIsArchivedExport =
+      isArchivedExport ||
+      caseData.metadata.archived === true ||
+      (typeof caseData.metadata.archivedAt === 'string' && caseData.metadata.archivedAt.trim().length > 0);
+
     parsedForensicManifest = metadata?.forensicManifest as SignedForensicManifest | undefined;
     result.caseNumber = caseData.metadata.caseNumber;
     importState.caseNumber = result.caseNumber;
@@ -372,10 +377,10 @@ export async function importCaseForReview(
     
     // Step 2a: Check if case already exists in user's regular cases (original analyst)
     const existingRegularCase = await checkExistingCase(user, result.caseNumber);
-    if (existingRegularCase && !isArchivedExport) {
+    if (existingRegularCase && !resolvedIsArchivedExport) {
       throw new Error(`Case "${result.caseNumber}" already exists in your case list. You cannot import a case for review if you were the original analyst.`);
     }
-    if (existingRegularCase && isArchivedExport) {
+    if (existingRegularCase && resolvedIsArchivedExport) {
       throw new Error(`Cannot import this archived case because "${result.caseNumber}" already exists in your regular case list. Delete the regular case before importing this archive.`);
     }
     
@@ -455,8 +460,8 @@ export async function importCaseForReview(
       importedFiles,
       originalImageIdMapping,
       parsedForensicManifest,
-      isArchivedExport,
-      isArchivedExport ? extractBundledAuditTrailData(resolvedBundledAuditFiles) : undefined
+      resolvedIsArchivedExport,
+      resolvedIsArchivedExport ? extractBundledAuditTrailData(resolvedBundledAuditFiles) : undefined
     );
     importState.caseDataStored = true;
     
