@@ -489,13 +489,17 @@ export async function parseImportZip(zipFile: File, currentUser: User): Promise<
         // Convert to base64url for transmission to worker (chunked to avoid stack overflow)
         encryptedDataBase64 = uint8ArrayToBase64Url(dataContent);
 
-        // Extract encrypted images - iterate through zip.files directly to avoid JSZip folder recursion
+        // Extract encrypted files referenced by encrypted export payloads
         const encryptedImagePromises: Promise<[string, string]>[] = [];
         
         const fileList = Object.keys(zip.files);
         for (const filePath of fileList) {
-          // Only process files in the images folder
-          if (!filePath.startsWith('images/') || filePath === 'images/' || filePath.endsWith('/')) {
+          const isImageFile = filePath.startsWith('images/') && filePath !== 'images/';
+          const isBundledAuditFile =
+            filePath === 'audit/case-audit-trail.json' ||
+            filePath === 'audit/case-audit-signature.json';
+
+          if ((!isImageFile && !isBundledAuditFile) || filePath.endsWith('/')) {
             continue;
           }
           
@@ -504,7 +508,7 @@ export async function parseImportZip(zipFile: File, currentUser: User): Promise<
             continue;
           }
           
-          const filename = filePath.replace(/^images\//, '');
+          const filename = isImageFile ? filePath.replace(/^images\//, '') : filePath;
           
           encryptedImagePromises.push((async () => {
             try {
@@ -624,8 +628,12 @@ export async function parseImportZip(zipFile: File, currentUser: User): Promise<
     // Extract forensic manifest if present
     let metadata: Record<string, unknown> | undefined;
     const manifestFile = zip.file('FORENSIC_MANIFEST.json');
-    const auditTrailContent = await zip.file('audit/case-audit-trail.json')?.async('text');
-    const auditSignatureContent = await zip.file('audit/case-audit-signature.json')?.async('text');
+    const auditTrailContent = isEncrypted
+      ? undefined
+      : await zip.file('audit/case-audit-trail.json')?.async('text');
+    const auditSignatureContent = isEncrypted
+      ? undefined
+      : await zip.file('audit/case-audit-signature.json')?.async('text');
     
     if (manifestFile) {
       const manifestContent = await manifestFile.async('text');

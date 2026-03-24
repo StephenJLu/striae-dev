@@ -222,6 +222,7 @@ export async function importCaseForReview(
     let caseData = initialCaseData;
     let cleanedContent = initialCleanedContent || '';
     let imageFiles = initialImageFiles;
+    let resolvedBundledAuditFiles = bundledAuditFiles;
     let decryptedImageBlobMap: { [filename: string]: Blob } | undefined;
 
     if (isEncrypted && isEncryptionManifest(encryptionManifest) && encryptedDataBase64 && encryptedImages) {
@@ -241,10 +242,27 @@ export async function importCaseForReview(
         const parsedCaseData = JSON.parse(cleanedContent) as unknown;
         caseData = parsedCaseData as CaseExportData;
 
-        // Store decrypted image blobs for restoration
-        decryptedImageBlobMap = decryptResult.decryptedImages;
+        const decryptedFiles = decryptResult.decryptedImages;
+        const decryptedAuditTrailBlob = decryptedFiles['audit/case-audit-trail.json'];
+        const decryptedAuditSignatureBlob = decryptedFiles['audit/case-audit-signature.json'];
 
-        // Update imageFiles with decrypted images
+        if (decryptedAuditTrailBlob || decryptedAuditSignatureBlob) {
+          resolvedBundledAuditFiles = {
+            ...(resolvedBundledAuditFiles ?? {}),
+            auditTrailContent: decryptedAuditTrailBlob
+              ? await decryptedAuditTrailBlob.text()
+              : resolvedBundledAuditFiles?.auditTrailContent,
+            auditSignatureContent: decryptedAuditSignatureBlob
+              ? await decryptedAuditSignatureBlob.text()
+              : resolvedBundledAuditFiles?.auditSignatureContent
+          };
+        }
+
+        decryptedImageBlobMap = Object.fromEntries(
+          Object.entries(decryptedFiles).filter(([filename]) => !filename.startsWith('audit/'))
+        );
+
+        // Update imageFiles with decrypted images only
         imageFiles = { ...imageFiles, ...decryptedImageBlobMap };
 
         onProgress?.('Decryption successful', 13, `Decrypted case data and ${Object.keys(decryptedImageBlobMap).length} images`);
@@ -311,7 +329,7 @@ export async function importCaseForReview(
         imageFiles: imageBlobs,
         forensicManifest: parsedForensicManifest,
         verificationPublicKeyPem,
-        bundledAuditFiles
+        bundledAuditFiles: resolvedBundledAuditFiles
       });
 
       signatureValidationPassed = casePackageResult.signatureResult.isValid;
@@ -438,7 +456,7 @@ export async function importCaseForReview(
       originalImageIdMapping,
       parsedForensicManifest,
       isArchivedExport,
-      isArchivedExport ? extractBundledAuditTrailData(bundledAuditFiles) : undefined
+      isArchivedExport ? extractBundledAuditTrailData(resolvedBundledAuditFiles) : undefined
     );
     importState.caseDataStored = true;
     
