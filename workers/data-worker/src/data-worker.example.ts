@@ -278,10 +278,13 @@ async function handleDecryptExport(request: Request, env: Env): Promise<Response
           // Convert blob to base64 for transport
           const arrayBuffer = await imageBlob.arrayBuffer();
           const bytes = new Uint8Array(arrayBuffer);
+          const decoder = new TextDecoder('latin1');
+          const chunkSize = 65536;
           let binary = '';
-          for (const byte of bytes) {
-            binary += String.fromCharCode(byte);
+          for (let i = 0; i < bytes.length; i += chunkSize) {
+            binary += decoder.decode(bytes.subarray(i, i + chunkSize), { stream: true });
           }
+          binary += decoder.decode();
           const base64Data = btoa(binary);
 
           decryptedImages.push({
