@@ -30,6 +30,8 @@ v4.3.4 is a targeted patch release focused on audit trail clarity and maintainab
 - Reduced unused exported surface in audit modules by internalizing helper symbols and interfaces that were only used within their defining files.
 - Simplified audit barrel exports to publish only singleton service instances currently consumed by the app.
 - Kept live event/builder paths and runtime behavior intact while reducing maintenance overhead and API noise.
+- **Internal type cleanup:** Several audit detail interfaces (`AuditDetails`, `CaseAuditDetails`, and related variants) are now module-private. These were internal implementation types not intended for external use. `npm run typecheck` confirms no call sites rely on them. No public-facing behavior is affected.
+- **Service class encapsulation:** `AuditService` and `AuditExportService` class constructors are no longer exported from `app/services/audit`. Only the singleton instances are exposed. Consumers should use the provided singletons rather than instantiating their own copies. No internal consumers relied on direct class imports.
 
 ### Audit/Route Alignment and Follow-up Cleanup
 
