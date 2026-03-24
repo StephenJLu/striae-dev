@@ -21,6 +21,46 @@ interface GeneratePDFParams {
   setToastDuration?: (duration: number) => void;
 }
 
+const CLEAR_IMAGE_SENTINEL = '/clear.jpg';
+
+const blobToDataUrl = async (blob: Blob): Promise<string> => {
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+        return;
+      }
+
+      reject(new Error('Failed to read image blob as data URL'));
+    };
+    reader.onerror = () => reject(new Error('Failed to convert image for PDF rendering'));
+    reader.readAsDataURL(blob);
+  });
+};
+
+const resolvePdfImageUrl = async (selectedImage: string | undefined): Promise<string | undefined> => {
+  if (!selectedImage || selectedImage === CLEAR_IMAGE_SENTINEL) {
+    return selectedImage;
+  }
+
+  if (selectedImage.startsWith('data:')) {
+    return selectedImage;
+  }
+
+  if (selectedImage.startsWith('blob:')) {
+    const imageResponse = await fetch(selectedImage);
+    if (!imageResponse.ok) {
+      throw new Error('Failed to load selected image for PDF generation');
+    }
+
+    const imageBlob = await imageResponse.blob();
+    return await blobToDataUrl(imageBlob);
+  }
+
+  return selectedImage;
+};
+
 export const generatePDF = async ({
   user,
   selectedImage,
@@ -61,8 +101,10 @@ export const generatePDF = async ({
       notesUpdatedFormatted = `${(updatedDate.getMonth() + 1).toString().padStart(2, '0')}/${updatedDate.getDate().toString().padStart(2, '0')}/${updatedDate.getFullYear()}`;
     }
 
+    const resolvedImageUrl = await resolvePdfImageUrl(selectedImage);
+
     const pdfData = {
-      imageUrl: selectedImage,
+      imageUrl: resolvedImageUrl,
       filename: selectedFilename,
       userCompany: userCompany,
       firstName: userFirstName,
