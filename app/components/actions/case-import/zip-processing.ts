@@ -51,17 +51,16 @@ async function extractVerificationPublicKeyFromZip(
  * For large arrays, uses chunking approach to avoid "Maximum call stack size exceeded"
  */
 function uint8ArrayToBase64Url(data: Uint8Array): string {
-  const CHUNK_SIZE = 8192;
-  let binaryString = '';
-  
-  for (let i = 0; i < data.length; i += CHUNK_SIZE) {
-    const chunk = data.subarray(i, Math.min(i + CHUNK_SIZE, data.length));
-    for (let j = 0; j < chunk.length; j++) {
-      binaryString += String.fromCharCode(chunk[j]);
-    }
+  const decoder = new TextDecoder('latin1');
+  const chunkSize = 65536;
+  const chunks: string[] = [];
+
+  for (let i = 0; i < data.length; i += chunkSize) {
+    chunks.push(decoder.decode(data.subarray(i, i + chunkSize), { stream: true }));
   }
-  
-  return btoa(binaryString)
+  chunks.push(decoder.decode()); // flush
+
+  return btoa(chunks.join(''))
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=/g, '');
