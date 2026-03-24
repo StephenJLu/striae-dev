@@ -1,7 +1,6 @@
 import styles from '../case-import.module.css';
 
-export interface ConfirmationPreview {
-}
+export type ConfirmationPreview = Record<string, never>;
 
 interface ConfirmationPreviewSectionProps {
   confirmationPreview: ConfirmationPreview | null;
