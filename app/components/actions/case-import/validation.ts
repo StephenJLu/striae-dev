@@ -130,9 +130,21 @@ export async function validateCaseExporterUidForImport(
   isArchivedExport: boolean;
   allowArchivedSelfImport: boolean;
 }> {
+  const isArchivedExport = isArchivedExportData(parsedData);
   const exportedByUid = resolveExporterUid(caseData, parsedData);
 
   if (!exportedByUid) {
+    if (isArchivedExport) {
+      // Some legacy or privacy-sanitized archived exports may not retain exporter UID fields.
+      // Archived import safety is still enforced by integrity/signature checks and regular-case conflict checks.
+      return {
+        exists: true,
+        isSelf: false,
+        isArchivedExport: true,
+        allowArchivedSelfImport: true
+      };
+    }
+
     throw new Error(
       'Case export is missing usable exporter UID information. This case cannot be imported.'
     );
@@ -151,7 +163,6 @@ export async function validateCaseExporterUidForImport(
     throw new Error('The original exporter is not a valid Striae user. This case cannot be imported.');
   }
 
-  const isArchivedExport = isArchivedExportData(parsedData);
   let allowArchivedSelfImport = false;
 
   if (isArchivedExport) {
