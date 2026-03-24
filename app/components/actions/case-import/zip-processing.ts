@@ -472,20 +472,29 @@ export async function parseImportZip(zipFile: File, currentUser: User): Promise<
           .replace(/=/g, '');
 
         // Extract encrypted images
-        const imagesFolder = zip.folder('images');
-        if (imagesFolder) {
-          for (const [path, file] of Object.entries(imagesFolder.files)) {
-            if (!path.startsWith('images/') || path.endsWith('/') || file.dir) {
-              continue;
-            }
-            const filename = path.replace('images/', '');
+        const encryptedImagePromises: Promise<[string, string]>[] = [];
+        
+        zip.folder('images')?.forEach((relativePath, file) => {
+          // Skip directories
+          if (file.dir || !relativePath) {
+            return;
+          }
+          
+          encryptedImagePromises.push((async () => {
             const encryptedBlob = await file.async('uint8array');
             // Convert to base64url
-            encryptedImages[filename] = btoa(String.fromCharCode(...encryptedBlob))
+            const encryptedBase64Url = btoa(String.fromCharCode(...encryptedBlob))
               .replace(/\+/g, '-')
               .replace(/\//g, '_')
               .replace(/=/g, '');
-          }
+            return [relativePath, encryptedBase64Url] as [string, string];
+          })());
+        });
+        
+        // Wait for all image conversions
+        const encryptedImageResults = await Promise.all(encryptedImagePromises);
+        for (const [filename, data] of encryptedImageResults) {
+          encryptedImages[filename] = data;
         }
 
         // For encrypted exports, data file will be processed after decryption
@@ -550,15 +559,17 @@ export async function parseImportZip(zipFile: File, currentUser: User): Promise<
     // Extract image files and create ID mapping
     const imageFiles: { [filename: string]: Blob } = {};
     const imageIdMapping: { [exportFilename: string]: string } = {};
-    const imagesFolder = zip.folder('images');
     
-    if (imagesFolder) {
-      for (const [path, file] of Object.entries(imagesFolder.files)) {
-        if (!path.startsWith('images/') || path.endsWith('/') || file.dir) {
-          continue;
-        }
-
-        const exportFilename = path.replace('images/', '');
+    const imageExtractionPromises: Promise<void>[] = [];
+    
+    zip.folder('images')?.forEach((relativePath, file) => {
+      // Skip directories
+      if (file.dir || !relativePath) {
+        return;
+      }
+      
+      imageExtractionPromises.push((async () => {
+        const exportFilename = relativePath;
         const blob = await file.async('blob');
         imageFiles[exportFilename] = blob;
 
@@ -567,8 +578,11 @@ export async function parseImportZip(zipFile: File, currentUser: User): Promise<
         if (originalImageId) {
           imageIdMapping[exportFilename] = originalImageId;
         }
-      }
-    }
+      })());
+    });
+    
+    // Wait for all image extractions to complete
+    await Promise.all(imageExtractionPromises);
     
     // Extract forensic manifest if present
     let metadata: Record<string, unknown> | undefined;
