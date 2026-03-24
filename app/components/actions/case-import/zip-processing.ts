@@ -94,6 +94,27 @@ async function extractVerificationPublicKeyFromZip(
 }
 
 /**
+ * Safe conversion of Uint8Array to base64url without spread operator stack overflow
+ * For large arrays, uses chunking approach to avoid "Maximum call stack size exceeded"
+ */
+function uint8ArrayToBase64Url(data: Uint8Array): string {
+  const CHUNK_SIZE = 8192;
+  let binaryString = '';
+  
+  for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+    const chunk = data.subarray(i, Math.min(i + CHUNK_SIZE, data.length));
+    for (let j = 0; j < chunk.length; j++) {
+      binaryString += String.fromCharCode(chunk[j]);
+    }
+  }
+  
+  return btoa(binaryString)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+}
+
+/**
  * Extract original image ID from export filename format
  * Format: {originalFilename}-{id}.{extension}
  * Example: "evidence-2b365c5e-0559-4d6a-564f-d40bf1770101.jpg" returns "2b365c5e-0559-4d6a-564f-d40bf1770101"
@@ -465,11 +486,8 @@ export async function parseImportZip(zipFile: File, currentUser: User): Promise<
         if (!dataContent) {
           throw new Error('Failed to read encrypted data file from ZIP');
         }
-        // Convert to base64url for transmission to worker
-        encryptedDataBase64 = btoa(String.fromCharCode(...dataContent))
-          .replace(/\+/g, '-')
-          .replace(/\//g, '_')
-          .replace(/=/g, '');
+        // Convert to base64url for transmission to worker (chunked to avoid stack overflow)
+        encryptedDataBase64 = uint8ArrayToBase64Url(dataContent);
 
         // Extract encrypted images - iterate through zip.files directly to avoid JSZip folder recursion
         const encryptedImagePromises: Promise<[string, string]>[] = [];
@@ -491,11 +509,8 @@ export async function parseImportZip(zipFile: File, currentUser: User): Promise<
           encryptedImagePromises.push((async () => {
             try {
               const encryptedBlob = await file.async('uint8array');
-              // Convert to base64url
-              const encryptedBase64Url = btoa(String.fromCharCode(...encryptedBlob))
-                .replace(/\+/g, '-')
-                .replace(/\//g, '_')
-                .replace(/=/g, '');
+              // Convert to base64url (chunked to avoid stack overflow)
+              const encryptedBase64Url = uint8ArrayToBase64Url(encryptedBlob);
               return [filename, encryptedBase64Url] as [string, string];
             } catch (err) {
               throw new Error(`Failed to extract encrypted image ${filename}: ${err instanceof Error ? err.message : 'Unknown error'}`);
