@@ -133,6 +133,8 @@ export async function previewCaseImport(zipFile: File, currentUser: User): Promi
           }
         }
         
+        const hasForensicManifest = zip.file('FORENSIC_MANIFEST.json') !== null;
+
         return {
           caseNumber: 'ENCRYPTED',
           archived: false,
@@ -143,15 +145,15 @@ export async function previewCaseImport(zipFile: File, currentUser: User): Promi
           exportDate: new Date().toISOString(),
           totalFiles,
           hasAnnotations: false,
-          validationSummary: 'Export is encrypted. Case information will be decrypted during import.',
-          hashValid: true,
+          validationSummary: 'Export is encrypted. Integrity validation will occur during import.',
+          hashValid: undefined,
           hashError: undefined,
           validationDetails: {
-            hasForensicManifest: true,
+            hasForensicManifest,
             dataValid: undefined,
-            manifestValid: true,
+            manifestValid: undefined,
             signatureValid: undefined,
-            validationSummary: 'Encrypted export - validation deferred to import stage',
+            validationSummary: 'Encrypted export — integrity validation deferred to import stage',
             integrityErrors: []
           }
         };
