@@ -227,7 +227,7 @@ export async function importCaseForReview(
     let resolvedBundledAuditFiles = bundledAuditFiles;
     let decryptedImageBlobMap: { [filename: string]: Blob } | undefined;
 
-    if (isEncrypted && isEncryptionManifest(encryptionManifest) && encryptedDataBase64 && encryptedImages) {
+    if (isEncrypted && isEncryptionManifest(encryptionManifest) && encryptedDataBase64) {
       onProgress?.('Decrypting export', 11, 'Decrypting case data and images...');
       
       try {
@@ -236,7 +236,7 @@ export async function importCaseForReview(
           user,
           encryptionManifest,
           encryptedDataBase64,
-          encryptedImages
+          encryptedImages ?? {}
         );
 
         // Decrypted data is plaintext JSON
