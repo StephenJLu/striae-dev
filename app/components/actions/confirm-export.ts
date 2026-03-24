@@ -3,7 +3,9 @@ import {
   calculateSHA256Secure,
   createPublicSigningKeyFileName,
   getCurrentPublicSigningKeyDetails,
-  getVerificationPublicKey
+  getVerificationPublicKey,
+  getCurrentEncryptionPublicKeyDetails,
+  encryptExportDataWithAllImages
 } from '~/utils/forensics';
 import { getUserData, getCaseData, updateCaseData, signConfirmationData, upsertFileConfirmationSummary } from '~/utils/data';
 import { type AnnotationData, type ConfirmationData, type CaseConfirmations, type CaseDataWithConfirmations, type ConfirmationImportData } from '~/types';
@@ -318,8 +320,39 @@ export async function exportConfirmationData(
     const zip = new JSZip();
     const normalizedPem = publicKeyPem.endsWith('\n') ? publicKeyPem : `${publicKeyPem}\n`;
 
-    zip.file(confirmationFileName, finalJsonString);
+    // Determine if encryption is available and enabled
+    const encKeyDetails = getCurrentEncryptionPublicKeyDetails();
+    let isEncrypted = false;
+    let encryptedConfirmationContent: string | Uint8Array = finalJsonString;
+    let encryptionManifestJson: string | undefined;
+
+    if (encKeyDetails?.publicKeyPem && encKeyDetails.keyId) {
+      try {
+        isEncrypted = true;
+        // Encrypt confirmation data (no separate images for confirmations, so empty array)
+        const encryptionResult = await encryptExportDataWithAllImages(
+          finalJsonString,
+          [], // No image files for confirmation exports
+          encKeyDetails.publicKeyPem,
+          encKeyDetails.keyId
+        );
+
+        encryptedConfirmationContent = encryptionResult.ciphertext;
+        encryptionManifestJson = JSON.stringify(encryptionResult.encryptionManifest, null, 2);
+      } catch (error) {
+        console.error('Confirmation export encryption failed:', error);
+        throw new Error(`Failed to encrypt confirmation export: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    // Add encrypted or plaintext confirmation data
+    zip.file(confirmationFileName, encryptedConfirmationContent);
     zip.file(publicKeyFileName, normalizedPem);
+
+    // Add encryption manifest if encrypted
+    if (isEncrypted && encryptionManifestJson) {
+      zip.file('ENCRYPTION_MANIFEST.json', encryptionManifestJson);
+    }
 
     const zipBlob = await zip.generateAsync({
       type: 'blob',
@@ -327,7 +360,8 @@ export async function exportConfirmationData(
       compressionOptions: { level: 6 }
     });
 
-    const exportFileName = `confirmation-export-${caseNumber}-${timestampString}.zip`;
+    const encryptedSuffix = isEncrypted ? '-encrypted' : '';
+    const exportFileName = `confirmation-export-${caseNumber}-${timestampString}${encryptedSuffix}.zip`;
 
     // Create download
     const url = URL.createObjectURL(zipBlob);

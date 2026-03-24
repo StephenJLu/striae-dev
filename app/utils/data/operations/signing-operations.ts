@@ -13,15 +13,12 @@ import {
   type ForensicManifestSignature,
   FORENSIC_MANIFEST_VERSION
 } from '../../forensics/SHA256';
-import {
-  type EncryptionManifest
-} from '../../forensics/export-encryption';
+import type { EncryptionManifest } from '../../forensics/export-encryption';
 import { canAccessCase, validateUserSession } from '../permissions';
 import type {
   AuditExportSigningResponse,
   ConfirmationSigningResponse,
-  ManifestSigningResponse,
-  DecryptExportBatchResponse
+  ManifestSigningResponse
 } from './types';
 
 /**

@@ -1,7 +1,8 @@
 import type { User } from 'firebase/auth';
 import { fetchDataApi } from '~/utils/api';
-import { upsertFileConfirmationSummary } from '~/utils/data';
+import { upsertFileConfirmationSummary, decryptExportBatch } from '~/utils/data';
 import { type AnnotationData, type ConfirmationImportResult, type ConfirmationImportData } from '~/types';
+import type { EncryptionManifest } from '~/utils/forensics/export-encryption';
 import { checkExistingCase } from '../case-manage';
 import { extractConfirmationImportPackage } from './confirmation-package';
 import { validateExporterUid, validateConfirmationHash, validateConfirmationSignatureFile } from './validation';
@@ -22,6 +23,21 @@ type AnnotationImportData = Record<string, unknown> & {
   confirmationData?: unknown;
   updatedAt?: string;
 };
+
+function isEncryptionManifest(value: unknown): value is EncryptionManifest {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Partial<EncryptionManifest>;
+  return (
+    typeof candidate.encryptionVersion === 'string' &&
+    typeof candidate.algorithm === 'string' &&
+    typeof candidate.keyId === 'string' &&
+    typeof candidate.wrappedKey === 'string' &&
+    typeof candidate.iv === 'string'
+  );
+}
 
 /**
  * Import confirmation data from JSON file
@@ -52,12 +68,39 @@ export async function importConfirmationData(
   try {
     onProgress?.('Reading confirmation file', 10, 'Loading confirmation package...');
 
-    const {
-      confirmationData,
-      confirmationJsonContent,
-      verificationPublicKeyPem,
-      confirmationFileName
-    } = await extractConfirmationImportPackage(confirmationFile);
+    const packageData = await extractConfirmationImportPackage(confirmationFile);
+
+    let confirmationData = packageData.confirmationData;
+    let confirmationJsonContent = packageData.confirmationJsonContent;
+    const verificationPublicKeyPem = packageData.verificationPublicKeyPem;
+    const confirmationFileName = packageData.confirmationFileName;
+
+    // Handle encrypted confirmation data
+    if (packageData.isEncrypted && packageData.encryptionManifest && packageData.encryptedDataBase64) {
+      onProgress?.('Decrypting confirmation data', 15, 'Decrypting exported confirmation...');
+
+      try {
+        if (!isEncryptionManifest(packageData.encryptionManifest)) {
+          throw new Error('Invalid encryption manifest format.');
+        }
+
+        const decryptResult = await decryptExportBatch(
+          user,
+          packageData.encryptionManifest,
+          packageData.encryptedDataBase64,
+          {} // No image hashes for confirmation-only exports
+        );
+
+        // Parse decrypted plaintext as confirmation data
+        const decryptedJsonString = decryptResult.plaintext;
+        confirmationData = JSON.parse(decryptedJsonString) as ConfirmationImportData;
+        confirmationJsonContent = decryptedJsonString;
+      } catch (error) {
+        throw new Error(
+          `Failed to decrypt confirmation data: ${error instanceof Error ? error.message : 'Unknown decryption error'}`
+        );
+      }
+    }
 
     confirmationDataForAudit = confirmationData;
     confirmationJsonFileNameForAudit = confirmationFileName;

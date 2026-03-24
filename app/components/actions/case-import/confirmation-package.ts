@@ -7,6 +7,9 @@ export interface ConfirmationImportPackage {
   confirmationJsonContent: string;
   verificationPublicKeyPem?: string;
   confirmationFileName: string;
+  isEncrypted?: boolean;
+  encryptionManifest?: unknown;
+  encryptedDataBase64?: string;
 }
 
 function getLeafFileName(path: string): string {
@@ -32,21 +35,78 @@ async function extractConfirmationPackageFromZip(file: File): Promise<Confirmati
   const zip = await JSZip.loadAsync(file);
   const fileEntries = Object.keys(zip.files).filter((path) => !zip.files[path].dir);
 
-  const confirmationPaths = fileEntries.filter((path) =>
-    CONFIRMATION_EXPORT_FILE_REGEX.test(getLeafFileName(path))
+  // Check for encryption manifest first
+  const hasEncryptionManifest = fileEntries.some((path) =>
+    getLeafFileName(path).toLowerCase() === 'encryption_manifest.json'
   );
 
-  if (confirmationPaths.length !== 1) {
-    throw new Error('Confirmation ZIP must contain exactly one confirmation-data JSON file.');
-  }
+  let confirmationData: ConfirmationImportData;
+  let confirmationJsonContent: string;
+  let confirmationFileName: string;
+  let isEncrypted = false;
+  let encryptionManifest: unknown;
+  let encryptedDataBase64: string | undefined;
 
-  const confirmationPath = confirmationPaths[0];
-  const confirmationJsonContent = await zip.file(confirmationPath)?.async('text');
-  if (!confirmationJsonContent) {
-    throw new Error('Failed to read confirmation JSON from ZIP package.');
-  }
+  if (hasEncryptionManifest) {
+    // Handle encrypted confirmation export
+    isEncrypted = true;
 
-  const confirmationData = JSON.parse(confirmationJsonContent) as ConfirmationImportData;
+    // Read encryption manifest
+    const manifestPath = fileEntries.find((path) =>
+      getLeafFileName(path).toLowerCase() === 'encryption_manifest.json'
+    );
+    if (manifestPath) {
+      const manifestContent = await zip.file(manifestPath)?.async('text');
+      if (manifestContent) {
+        encryptionManifest = JSON.parse(manifestContent);
+      }
+    }
+
+    // Find and read encrypted confirmation data file
+    const confirmationPaths = fileEntries.filter((path) =>
+      CONFIRMATION_EXPORT_FILE_REGEX.test(getLeafFileName(path))
+    );
+
+    if (confirmationPaths.length !== 1) {
+      throw new Error('Encrypted confirmation ZIP must contain exactly one confirmation-data file.');
+    }
+
+    const confirmationPath = confirmationPaths[0];
+    const encryptedContent = await zip.file(confirmationPath)?.async('text');
+    if (!encryptedContent) {
+      throw new Error('Failed to read encrypted confirmation data from ZIP package.');
+    }
+
+    encryptedDataBase64 = encryptedContent;
+    confirmationFileName = getLeafFileName(confirmationPath);
+
+    // For encrypted data, return placeholder confirmationData for now
+    // The actual decryption will happen in confirmation-import.ts
+    confirmationData = {
+      metadata: {},
+      confirmations: {}
+    } as ConfirmationImportData;
+    confirmationJsonContent = encryptedContent;
+  } else {
+    // Handle unencrypted confirmation export (original behavior)
+    const confirmationPaths = fileEntries.filter((path) =>
+      CONFIRMATION_EXPORT_FILE_REGEX.test(getLeafFileName(path))
+    );
+
+    if (confirmationPaths.length !== 1) {
+      throw new Error('Confirmation ZIP must contain exactly one confirmation-data JSON file.');
+    }
+
+    const confirmationPath = confirmationPaths[0];
+    const confirmationJsonContentTemp = await zip.file(confirmationPath)?.async('text');
+    if (!confirmationJsonContentTemp) {
+      throw new Error('Failed to read confirmation JSON from ZIP package.');
+    }
+
+    confirmationData = JSON.parse(confirmationJsonContentTemp) as ConfirmationImportData;
+    confirmationJsonContent = confirmationJsonContentTemp;
+    confirmationFileName = getLeafFileName(confirmationPath);
+  }
 
   const pemPaths = fileEntries.filter((path) => getLeafFileName(path).toLowerCase().endsWith('.pem'));
   const preferredPemPath = selectPreferredPemPath(pemPaths);
@@ -60,7 +120,10 @@ async function extractConfirmationPackageFromZip(file: File): Promise<Confirmati
     confirmationData,
     confirmationJsonContent,
     verificationPublicKeyPem,
-    confirmationFileName: getLeafFileName(confirmationPath)
+    confirmationFileName,
+    isEncrypted,
+    encryptionManifest,
+    encryptedDataBase64
   };
 }
 

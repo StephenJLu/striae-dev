@@ -11,9 +11,9 @@ import {
 import { checkExistingCase, validateCaseNumber } from '../case-manage';
 import {
   type SignedForensicManifest,
-  type EncryptionManifest,
   verifyCasePackageIntegrity
 } from '~/utils/forensics';
+import type { EncryptionManifest } from '~/utils/forensics/export-encryption';
 import { deleteFile } from '../image-manage';
 import { parseImportZip } from './zip-processing';
 import { 
