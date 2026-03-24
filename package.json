@@ -1,6 +1,6 @@
 {
   "name": "@striae-org/striae",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "private": false,
   "description": "Striae is a specialized, cloud-native platform designed to streamline forensic firearms identification by providing an intuitive environment for digital comparison image annotation, authenticated confirmations, and automated report generation.",
   "license": "Apache-2.0",
@@ -106,7 +106,7 @@
     "deploy-workers:image": "cd workers/image-worker && npm run deploy",
     "deploy-workers:keys": "cd workers/keys-worker && npm run deploy",
     "deploy-workers:pdf": "cd workers/pdf-worker && npm run deploy",
-    "deploy-workers:user": "cd workers/user-worker && npm run deploy"
+    "deploy-workers:user": "cd workers/user-worker && npm run deploy"    
   },
   "dependencies": {
     "@react-router/cloudflare": "^7.13.2",

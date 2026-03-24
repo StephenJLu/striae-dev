@@ -965,13 +965,12 @@ For questions about this export, contact your Striae system administrator.
  */
 async function fetchImageAsBlob(user: User, fileData: FileData, caseNumber: string): Promise<Blob | null> {
   try {
-    const imageUrl = await getImageUrl(user, fileData, caseNumber, 'Export Package');
-    if (!imageUrl) return null;
-    
-    const response = await fetch(imageUrl);
-    if (!response.ok) return null;
-    
-    return await response.blob();
+    const { blob, revoke } = await getImageUrl(user, fileData, caseNumber, 'Export Package');
+    try {
+      return blob;
+    } finally {
+      revoke();
+    }
   } catch (error) {
     console.error('Failed to fetch image blob:', error);
     return null;

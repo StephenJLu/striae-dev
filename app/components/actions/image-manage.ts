@@ -1,7 +1,4 @@
 import type { User } from 'firebase/auth';
-import { 
-  getAccountHash 
-} from '~/utils/auth';
 import { fetchImageApi, uploadImageApi } from '~/utils/api';
 import { canUploadFile, getCaseData, updateCaseData, deleteFileAnnotations } from '~/utils/data';
 import type { CaseData, FileData, ImageUploadResponse } from '~/types';
@@ -258,30 +255,15 @@ export const deleteFile = async (
   }
 };
 
-const DEFAULT_VARIANT = 'striae';
-interface ImageDeliveryConfig {
-  accountHash: string;
-}
-
-const getImageConfig = async (): Promise<ImageDeliveryConfig> => {
-  const accountHash = await getAccountHash();
-  return { accountHash };
-};
-
-
-export const getImageUrl = async (user: User, fileData: FileData, caseNumber: string, accessReason?: string): Promise<string> => {
+export const getImageUrl = async (user: User, fileData: FileData, caseNumber: string, accessReason?: string): Promise<{ blob: Blob; url: string; revoke: () => void }> => {
   const startTime = Date.now();
   const defaultAccessReason = accessReason || 'Image viewer access';
   
   try {
-    const { accountHash } = await getImageConfig();
-    const imageDeliveryUrl = `https://imagedelivery.net/${accountHash}/${fileData.id}/${DEFAULT_VARIANT}`;
-    const encodedImageDeliveryUrl = encodeURIComponent(imageDeliveryUrl);
-
-    const workerResponse = await fetchImageApi(user, `/${encodedImageDeliveryUrl}`, {
+    const workerResponse = await fetchImageApi(user, `/${encodeURIComponent(fileData.id)}`, {
       method: 'GET',
       headers: {
-        'Accept': 'text/plain'
+        'Accept': 'application/octet-stream,image/*'
       }
     });
     
@@ -291,39 +273,25 @@ export const getImageUrl = async (user: User, fileData: FileData, caseNumber: st
         user,
         fileData.originalFilename || fileData.id,
         fileData.id,
-        'signed-url',
+        'direct-url',
         caseNumber,
         'failure',
         Date.now() - startTime,
-        'Image URL generation failed',
+        'Image retrieval failed',
         fileData.originalFilename
       );
-      throw new Error('Failed to get signed image URL');
+      throw new Error('Failed to retrieve image');
     }
-    
-    const signedUrl = await workerResponse.text();
-    if (!signedUrl.includes('sig=') || !signedUrl.includes('exp=')) {
-      // Log invalid URL response
-      await auditService.logFileAccess(
-        user,
-        fileData.originalFilename || fileData.id,
-        fileData.id,
-        'signed-url',
-        caseNumber,
-        'failure',
-        Date.now() - startTime,
-        'Invalid signed URL returned',
-        fileData.originalFilename
-      );
-      throw new Error('Invalid signed URL returned');
-    }
+
+    const blob = await workerResponse.blob();
+    const objectUrl = URL.createObjectURL(blob);
     
     // Log successful image access
     await auditService.logFileAccess(
       user,
       fileData.originalFilename || fileData.id,
       fileData.id,
-      'signed-url',
+      'direct-url',
       caseNumber,
       'success',
       Date.now() - startTime,
@@ -331,15 +299,15 @@ export const getImageUrl = async (user: User, fileData: FileData, caseNumber: st
       fileData.originalFilename
     );
     
-    return signedUrl;
+    return { blob, url: objectUrl, revoke: () => URL.revokeObjectURL(objectUrl) };
   } catch (error) {
     // Log any unexpected errors if not already logged
-    if (!(error instanceof Error && error.message.includes('Failed to get signed image URL'))) {
+    if (!(error instanceof Error && error.message.includes('Failed to retrieve image'))) {
       await auditService.logFileAccess(
         user,
         fileData.originalFilename || fileData.id,
         fileData.id,
-        'signed-url',
+        'direct-url',
         caseNumber,
         'failure',
         Date.now() - startTime,

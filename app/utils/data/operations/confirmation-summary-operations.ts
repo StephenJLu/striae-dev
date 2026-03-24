@@ -86,7 +86,19 @@ export const getConfirmationSummaryDocument = async (
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch confirmation summary: ${response.status} ${response.statusText}`);
+    let errorDetails = '';
+
+    try {
+      const errorPayload = await response.json() as { error?: unknown };
+      if (typeof errorPayload?.error === 'string' && errorPayload.error.trim().length > 0) {
+        errorDetails = errorPayload.error.trim();
+      }
+    } catch {
+      // Ignore parse errors and fall back to status text only.
+    }
+
+    const baseMessage = `Failed to fetch confirmation summary: ${response.status} ${response.statusText}`;
+    throw new Error(errorDetails ? `${baseMessage} - ${errorDetails}` : baseMessage);
   }
 
   const payload = await response.json().catch(() => null) as unknown;
@@ -295,6 +307,31 @@ export const removeCaseConfirmationSummary = async (
   }
 
   delete summary.cases[caseNumber];
+  summary.updatedAt = getIsoNow();
+
+  await saveConfirmationSummaryDocument(user, summary);
+};
+
+export const moveCaseConfirmationSummary = async (
+  user: User,
+  fromCaseNumber: string,
+  toCaseNumber: string
+): Promise<void> => {
+  if (fromCaseNumber === toCaseNumber) {
+    return;
+  }
+
+  const summary = await getConfirmationSummaryDocument(user);
+  const existingCaseSummary = summary.cases[fromCaseNumber];
+  if (!existingCaseSummary) {
+    return;
+  }
+
+  delete summary.cases[fromCaseNumber];
+  summary.cases[toCaseNumber] = {
+    ...existingCaseSummary,
+    updatedAt: getIsoNow(),
+  };
   summary.updatedAt = getIsoNow();
 
   await saveConfirmationSummaryDocument(user, summary);

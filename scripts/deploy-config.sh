@@ -334,7 +334,7 @@ write_env_var() {
     var_value=$(strip_carriage_returns "$var_value")
     env_file_value="$var_value"
 
-    if [ "$var_name" = "FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY" ] || [ "$var_name" = "MANIFEST_SIGNING_PRIVATE_KEY" ] || [ "$var_name" = "MANIFEST_SIGNING_PUBLIC_KEY" ] || [ "$var_name" = "EXPORT_ENCRYPTION_PRIVATE_KEY" ] || [ "$var_name" = "EXPORT_ENCRYPTION_PUBLIC_KEY" ]; then
+    if [ "$var_name" = "FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY" ] || [ "$var_name" = "MANIFEST_SIGNING_PRIVATE_KEY" ] || [ "$var_name" = "MANIFEST_SIGNING_PUBLIC_KEY" ] || [ "$var_name" = "EXPORT_ENCRYPTION_PRIVATE_KEY" ] || [ "$var_name" = "EXPORT_ENCRYPTION_PUBLIC_KEY" ] || [ "$var_name" = "DATA_AT_REST_ENCRYPTION_PRIVATE_KEY" ] || [ "$var_name" = "DATA_AT_REST_ENCRYPTION_PUBLIC_KEY" ]; then
         # Store as a quoted string so sourced .env preserves escaped newline markers (\n)
         env_file_value=${env_file_value//\"/\\\"}
         env_file_value="\"$env_file_value\""
@@ -590,6 +590,147 @@ configure_export_encryption_credentials() {
     echo ""
 }
 
+generate_data_at_rest_encryption_key_pair() {
+    local private_key_file
+    local public_key_file
+    private_key_file=$(mktemp)
+    public_key_file=$(mktemp)
+
+    if ! node -e "const { generateKeyPairSync } = require('crypto'); const fs = require('fs'); const pair = generateKeyPairSync('rsa', { modulusLength: 2048, publicKeyEncoding: { type: 'spki', format: 'pem' }, privateKeyEncoding: { type: 'pkcs8', format: 'pem' } }); fs.writeFileSync(process.argv[1], pair.privateKey, 'utf8'); fs.writeFileSync(process.argv[2], pair.publicKey, 'utf8');" "$private_key_file" "$public_key_file"; then
+        rm -f "$private_key_file" "$public_key_file"
+        return 1
+    fi
+
+    local private_key_pem
+    local public_key_pem
+    private_key_pem=$(cat "$private_key_file")
+    public_key_pem=$(cat "$public_key_file")
+    rm -f "$private_key_file" "$public_key_file"
+
+    private_key_pem="${private_key_pem//$'\r'/}"
+    public_key_pem="${public_key_pem//$'\r'/}"
+
+    DATA_AT_REST_ENCRYPTION_PRIVATE_KEY="${private_key_pem//$'\n'/\\n}"
+    DATA_AT_REST_ENCRYPTION_PUBLIC_KEY="${public_key_pem//$'\n'/\\n}"
+
+    export DATA_AT_REST_ENCRYPTION_PRIVATE_KEY
+    export DATA_AT_REST_ENCRYPTION_PUBLIC_KEY
+
+    write_env_var "DATA_AT_REST_ENCRYPTION_PRIVATE_KEY" "$DATA_AT_REST_ENCRYPTION_PRIVATE_KEY"
+    write_env_var "DATA_AT_REST_ENCRYPTION_PUBLIC_KEY" "$DATA_AT_REST_ENCRYPTION_PUBLIC_KEY"
+
+    return 0
+}
+
+configure_data_at_rest_encryption_credentials() {
+    echo -e "${BLUE}🗃️ DATA-AT-REST ENCRYPTION CONFIGURATION${NC}"
+    echo "========================================"
+
+    local current_enabled="${DATA_AT_REST_ENCRYPTION_ENABLED:-}"
+    local normalized_enabled=""
+    local enable_choice=""
+
+    current_enabled=$(strip_carriage_returns "$current_enabled")
+    normalized_enabled=$(printf '%s' "$current_enabled" | tr '[:upper:]' '[:lower:]')
+
+    if [ -z "$normalized_enabled" ] || is_placeholder "$normalized_enabled"; then
+        DATA_AT_REST_ENCRYPTION_ENABLED="false"
+    elif [ "$normalized_enabled" = "1" ] || [ "$normalized_enabled" = "true" ] || [ "$normalized_enabled" = "yes" ] || [ "$normalized_enabled" = "on" ]; then
+        DATA_AT_REST_ENCRYPTION_ENABLED="true"
+    else
+        DATA_AT_REST_ENCRYPTION_ENABLED="false"
+    fi
+
+    if [ "$update_env" != "true" ]; then
+        read -p "Enable data-at-rest encryption for new writes? (y/N, Enter keeps current): " enable_choice
+        enable_choice=$(strip_carriage_returns "$enable_choice")
+        case "$enable_choice" in
+            y|Y|yes|YES)
+                DATA_AT_REST_ENCRYPTION_ENABLED="true"
+                ;;
+            n|N|no|NO)
+                DATA_AT_REST_ENCRYPTION_ENABLED="false"
+                ;;
+            "")
+                ;;
+            *)
+                echo -e "${YELLOW}⚠️  Unrecognized choice '$enable_choice'; keeping current setting${NC}"
+                ;;
+        esac
+    fi
+
+    export DATA_AT_REST_ENCRYPTION_ENABLED
+    write_env_var "DATA_AT_REST_ENCRYPTION_ENABLED" "$DATA_AT_REST_ENCRYPTION_ENABLED"
+    echo -e "${GREEN}✅ DATA_AT_REST_ENCRYPTION_ENABLED: $DATA_AT_REST_ENCRYPTION_ENABLED${NC}"
+
+    local should_generate="false"
+    local regenerate_choice=""
+
+    if [ "$update_env" = "true" ]; then
+        should_generate="true"
+    elif [ -z "$DATA_AT_REST_ENCRYPTION_PRIVATE_KEY" ] || is_placeholder "$DATA_AT_REST_ENCRYPTION_PRIVATE_KEY" || [ -z "$DATA_AT_REST_ENCRYPTION_PUBLIC_KEY" ] || is_placeholder "$DATA_AT_REST_ENCRYPTION_PUBLIC_KEY"; then
+        should_generate="true"
+    else
+        echo -e "${GREEN}Current data-at-rest encryption key pair: [HIDDEN]${NC}"
+        read -p "Generate new data-at-rest encryption key pair? (press Enter to keep current, or type 'y' to regenerate): " regenerate_choice
+        regenerate_choice=$(strip_carriage_returns "$regenerate_choice")
+        if [ "$regenerate_choice" = "y" ] || [ "$regenerate_choice" = "Y" ]; then
+            should_generate="true"
+        fi
+    fi
+
+    if [ "$should_generate" = "true" ]; then
+        echo -e "${YELLOW}Generating data-at-rest encryption RSA key pair...${NC}"
+        if generate_data_at_rest_encryption_key_pair; then
+            echo -e "${GREEN}✅ Data-at-rest encryption key pair generated${NC}"
+        else
+            echo -e "${RED}❌ Error: Failed to generate data-at-rest encryption key pair${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${GREEN}✅ Keeping current data-at-rest encryption key pair${NC}"
+    fi
+
+    if [ -z "$DATA_AT_REST_ENCRYPTION_KEY_ID" ] || is_placeholder "$DATA_AT_REST_ENCRYPTION_KEY_ID" || [ "$should_generate" = "true" ]; then
+        local generated_key_id
+        generated_key_id=$(generate_worker_subdomain_label)
+        if [ -z "$generated_key_id" ] || [ ${#generated_key_id} -ne 10 ]; then
+            echo -e "${RED}❌ Error: Failed to generate DATA_AT_REST_ENCRYPTION_KEY_ID${NC}"
+            exit 1
+        fi
+        DATA_AT_REST_ENCRYPTION_KEY_ID="$generated_key_id"
+        export DATA_AT_REST_ENCRYPTION_KEY_ID
+        write_env_var "DATA_AT_REST_ENCRYPTION_KEY_ID" "$DATA_AT_REST_ENCRYPTION_KEY_ID"
+        echo -e "${GREEN}✅ DATA_AT_REST_ENCRYPTION_KEY_ID generated: $DATA_AT_REST_ENCRYPTION_KEY_ID${NC}"
+    else
+        echo -e "${GREEN}✅ DATA_AT_REST_ENCRYPTION_KEY_ID: $DATA_AT_REST_ENCRYPTION_KEY_ID${NC}"
+    fi
+
+    echo ""
+}
+
+validate_data_at_rest_encryption_settings() {
+    local enabled_normalized
+    enabled_normalized=$(printf '%s' "${DATA_AT_REST_ENCRYPTION_ENABLED:-false}" | tr '[:upper:]' '[:lower:]')
+
+    if [ "$enabled_normalized" = "1" ] || [ "$enabled_normalized" = "true" ] || [ "$enabled_normalized" = "yes" ] || [ "$enabled_normalized" = "on" ]; then
+        if [ -z "$DATA_AT_REST_ENCRYPTION_PRIVATE_KEY" ] || is_placeholder "$DATA_AT_REST_ENCRYPTION_PRIVATE_KEY"; then
+            echo -e "${RED}❌ Error: DATA_AT_REST_ENCRYPTION_PRIVATE_KEY is required when DATA_AT_REST_ENCRYPTION_ENABLED is true${NC}"
+            exit 1
+        fi
+
+        if [ -z "$DATA_AT_REST_ENCRYPTION_PUBLIC_KEY" ] || is_placeholder "$DATA_AT_REST_ENCRYPTION_PUBLIC_KEY"; then
+            echo -e "${RED}❌ Error: DATA_AT_REST_ENCRYPTION_PUBLIC_KEY is required when DATA_AT_REST_ENCRYPTION_ENABLED is true${NC}"
+            exit 1
+        fi
+
+        if [ -z "$DATA_AT_REST_ENCRYPTION_KEY_ID" ] || is_placeholder "$DATA_AT_REST_ENCRYPTION_KEY_ID"; then
+            echo -e "${RED}❌ Error: DATA_AT_REST_ENCRYPTION_KEY_ID is required when DATA_AT_REST_ENCRYPTION_ENABLED is true${NC}"
+            exit 1
+        fi
+    fi
+}
+
 # Validate required variables
 required_vars=(
     # Core Cloudflare Configuration
@@ -634,15 +775,14 @@ required_vars=(
     # Storage Configuration (required for config replacement)
     "DATA_BUCKET_NAME"
     "AUDIT_BUCKET_NAME"
+    "FILES_BUCKET_NAME"
     "KV_STORE_ID"
     
     # Worker-Specific Secrets (required for deployment)
     "KEYS_AUTH"
     "PDF_WORKER_AUTH"
     "ACCOUNT_HASH"
-    "API_TOKEN"
     "BROWSER_API_TOKEN"
-    "HMAC_KEY"
     "MANIFEST_SIGNING_PRIVATE_KEY"
     "MANIFEST_SIGNING_KEY_ID"
     "MANIFEST_SIGNING_PUBLIC_KEY"
@@ -824,6 +964,7 @@ validate_generated_configs() {
 
     assert_contains_literal "workers/data-worker/wrangler.jsonc" "$DATA_BUCKET_NAME" "DATA_BUCKET_NAME missing in data worker config"
     assert_contains_literal "workers/audit-worker/wrangler.jsonc" "$AUDIT_BUCKET_NAME" "AUDIT_BUCKET_NAME missing in audit worker config"
+    assert_contains_literal "workers/image-worker/wrangler.jsonc" "$FILES_BUCKET_NAME" "FILES_BUCKET_NAME missing in image worker config"
     assert_contains_literal "workers/user-worker/wrangler.jsonc" "$KV_STORE_ID" "KV_STORE_ID missing in user worker config"
 
     assert_contains_literal "app/config/config.json" "https://$PAGES_CUSTOM_DOMAIN" "PAGES_CUSTOM_DOMAIN missing in app/config/config.json"
@@ -848,7 +989,7 @@ validate_generated_configs() {
     assert_contains_literal "workers/user-worker/src/user-worker.ts" "https://$PAGES_CUSTOM_DOMAIN" "PAGES_CUSTOM_DOMAIN missing in user-worker source"
 
     local placeholder_pattern
-    placeholder_pattern="(\"(ACCOUNT_ID|PAGES_PROJECT_NAME|PAGES_CUSTOM_DOMAIN|KEYS_WORKER_NAME|USER_WORKER_NAME|DATA_WORKER_NAME|AUDIT_WORKER_NAME|IMAGES_WORKER_NAME|PDF_WORKER_NAME|KEYS_WORKER_DOMAIN|USER_WORKER_DOMAIN|DATA_WORKER_DOMAIN|AUDIT_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN|PDF_WORKER_DOMAIN|DATA_BUCKET_NAME|AUDIT_BUCKET_NAME|KV_STORE_ID|ACCOUNT_HASH|MANIFEST_SIGNING_KEY_ID|MANIFEST_SIGNING_PUBLIC_KEY|EXPORT_ENCRYPTION_KEY_ID|EXPORT_ENCRYPTION_PUBLIC_KEY|YOUR_FIREBASE_API_KEY|YOUR_FIREBASE_AUTH_DOMAIN|YOUR_FIREBASE_PROJECT_ID|YOUR_FIREBASE_STORAGE_BUCKET|YOUR_FIREBASE_MESSAGING_SENDER_ID|YOUR_FIREBASE_APP_ID|YOUR_FIREBASE_MEASUREMENT_ID)\"|'(PAGES_CUSTOM_DOMAIN|DATA_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN)')"
+    placeholder_pattern="(\"(ACCOUNT_ID|PAGES_PROJECT_NAME|PAGES_CUSTOM_DOMAIN|KEYS_WORKER_NAME|USER_WORKER_NAME|DATA_WORKER_NAME|AUDIT_WORKER_NAME|IMAGES_WORKER_NAME|PDF_WORKER_NAME|KEYS_WORKER_DOMAIN|USER_WORKER_DOMAIN|DATA_WORKER_DOMAIN|AUDIT_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN|PDF_WORKER_DOMAIN|DATA_BUCKET_NAME|AUDIT_BUCKET_NAME|FILES_BUCKET_NAME|KV_STORE_ID|ACCOUNT_HASH|MANIFEST_SIGNING_KEY_ID|MANIFEST_SIGNING_PUBLIC_KEY|EXPORT_ENCRYPTION_KEY_ID|EXPORT_ENCRYPTION_PUBLIC_KEY|YOUR_FIREBASE_API_KEY|YOUR_FIREBASE_AUTH_DOMAIN|YOUR_FIREBASE_PROJECT_ID|YOUR_FIREBASE_STORAGE_BUCKET|YOUR_FIREBASE_MESSAGING_SENDER_ID|YOUR_FIREBASE_APP_ID|YOUR_FIREBASE_MEASUREMENT_ID)\"|'(PAGES_CUSTOM_DOMAIN|DATA_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN)')"
 
     local files_to_scan=(
         "wrangler.toml"
@@ -880,6 +1021,7 @@ run_validation_checkpoint() {
     validate_required_vars
     validate_env_value_formats
     validate_env_file_entries
+    validate_data_at_rest_encryption_settings
     validate_generated_configs
 }
 
@@ -1385,6 +1527,7 @@ prompt_for_secrets() {
     echo "========================="
     prompt_for_var "DATA_BUCKET_NAME" "Your R2 bucket name for case data storage"
     prompt_for_var "AUDIT_BUCKET_NAME" "Your R2 bucket name for audit logs (separate from data bucket)"
+    prompt_for_var "FILES_BUCKET_NAME" "Your R2 bucket name for encrypted files storage"
     prompt_for_var "KV_STORE_ID" "Your KV namespace ID (UUID format)"
     
     echo -e "${BLUE}🔐 SERVICE-SPECIFIC SECRETS${NC}"
@@ -1392,12 +1535,11 @@ prompt_for_secrets() {
     prompt_for_var "KEYS_AUTH" "Keys worker authentication token (generate with: openssl rand -hex 16)"
     prompt_for_var "PDF_WORKER_AUTH" "PDF worker authentication token (generate with: openssl rand -hex 16)"
     prompt_for_var "ACCOUNT_HASH" "Cloudflare Images Account Hash"
-    prompt_for_var "API_TOKEN" "Cloudflare Images API token (for Images Worker)"
     prompt_for_var "BROWSER_API_TOKEN" "Cloudflare Browser Rendering API token (for PDF Worker)"
-    prompt_for_var "HMAC_KEY" "Cloudflare Images HMAC signing key"
 
     configure_manifest_signing_credentials
     configure_export_encryption_credentials
+    configure_data_at_rest_encryption_credentials
     
     # Reload the updated .env file
     source .env
@@ -1462,6 +1604,7 @@ update_wrangler_configs() {
         echo -e "${YELLOW}  Updating image-worker/wrangler.jsonc...${NC}"
         sed -i "s/\"IMAGES_WORKER_NAME\"/\"$IMAGES_WORKER_NAME\"/g" workers/image-worker/wrangler.jsonc
         sed -i "s/\"ACCOUNT_ID\"/\"$ACCOUNT_ID\"/g" workers/image-worker/wrangler.jsonc
+        sed -i "s/\"FILES_BUCKET_NAME\"/\"$FILES_BUCKET_NAME\"/g" workers/image-worker/wrangler.jsonc
         echo -e "${GREEN}    ✅ image-worker configuration updated${NC}"
     fi
     

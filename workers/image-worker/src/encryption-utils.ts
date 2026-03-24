@@ -39,7 +39,7 @@ export interface DataAtRestEnvelope {
   wrappedKey: string;
 }
 
-interface EncryptJsonAtRestResult {
+interface EncryptBinaryAtRestResult {
   ciphertext: Uint8Array;
   envelope: DataAtRestEnvelope;
 }
@@ -94,11 +94,8 @@ function parsePkcs8PrivateKey(privateKey: string): ArrayBuffer {
   return bytes.buffer;
 }
 
-/**
- * Import RSA private key from PKCS8 PEM format
- */
 async function importRsaOaepPrivateKey(privateKeyPem: string): Promise<CryptoKey> {
-  const key = await crypto.subtle.importKey(
+  return crypto.subtle.importKey(
     'pkcs8',
     parsePkcs8PrivateKey(privateKeyPem),
     {
@@ -108,12 +105,10 @@ async function importRsaOaepPrivateKey(privateKeyPem: string): Promise<CryptoKey
     false,
     ['decrypt']
   );
-
-  return key;
 }
 
 async function importRsaOaepPublicKey(publicKeyPem: string): Promise<CryptoKey> {
-  const key = await crypto.subtle.importKey(
+  return crypto.subtle.importKey(
     'spki',
     parseSpkiPublicKey(publicKeyPem),
     {
@@ -123,8 +118,6 @@ async function importRsaOaepPublicKey(publicKeyPem: string): Promise<CryptoKey> 
     false,
     ['encrypt']
   );
-
-  return key;
 }
 
 async function createAesGcmKey(usages: KeyUsage[]): Promise<CryptoKey> {
@@ -138,10 +131,7 @@ async function createAesGcmKey(usages: KeyUsage[]): Promise<CryptoKey> {
   ) as Promise<CryptoKey>;
 }
 
-async function wrapAesKey(
-  aesKey: CryptoKey,
-  publicKeyPem: string
-): Promise<string> {
+async function wrapAesKey(aesKey: CryptoKey, publicKeyPem: string): Promise<string> {
   const rsaPublicKey = await importRsaOaepPublicKey(publicKeyPem);
   const rawAesKey = await crypto.subtle.exportKey('raw', aesKey);
   const wrappedKey = await crypto.subtle.encrypt(
@@ -153,13 +143,7 @@ async function wrapAesKey(
   return base64UrlEncode(new Uint8Array(wrappedKey));
 }
 
-/**
- * Decrypt AES key from RSA-OAEP wrapped form
- */
-async function unwrapAesKey(
-  wrappedKeyBase64: string,
-  privateKeyPem: string
-): Promise<CryptoKey> {
+async function unwrapAesKey(wrappedKeyBase64: string, privateKeyPem: string): Promise<CryptoKey> {
   const rsaPrivateKey = await importRsaOaepPrivateKey(privateKeyPem);
   const wrappedKeyBytes = base64UrlDecode(wrappedKeyBase64);
 
@@ -178,16 +162,25 @@ async function unwrapAesKey(
   );
 }
 
-export async function encryptJsonForStorage(
-  plaintextJson: string,
+export function validateEnvelope(envelope: DataAtRestEnvelope): void {
+  if (envelope.algorithm !== DATA_AT_REST_ENCRYPTION_ALGORITHM) {
+    throw new Error('Unsupported data-at-rest encryption algorithm');
+  }
+
+  if (envelope.encryptionVersion !== DATA_AT_REST_ENCRYPTION_VERSION) {
+    throw new Error('Unsupported data-at-rest encryption version');
+  }
+}
+
+export async function encryptBinaryForStorage(
+  plaintextBytes: ArrayBuffer,
   publicKeyPem: string,
   keyId: string
-): Promise<EncryptJsonAtRestResult> {
+): Promise<EncryptBinaryAtRestResult> {
   const aesKey = await createAesGcmKey(['encrypt', 'decrypt']);
   const wrappedKey = await wrapAesKey(aesKey, publicKeyPem);
   const iv = crypto.getRandomValues(new Uint8Array(12));
 
-  const plaintextBytes = new TextEncoder().encode(plaintextJson);
   const encryptedBuffer = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv: iv as BufferSource },
     aesKey,
@@ -206,64 +199,19 @@ export async function encryptJsonForStorage(
   };
 }
 
-export async function decryptJsonFromStorage(
+export async function decryptBinaryFromStorage(
   ciphertext: ArrayBuffer,
   envelope: DataAtRestEnvelope,
   privateKeyPem: string
-): Promise<string> {
+): Promise<ArrayBuffer> {
+  validateEnvelope(envelope);
+
   const aesKey = await unwrapAesKey(envelope.wrappedKey, privateKeyPem);
   const iv = base64UrlDecode(envelope.dataIv);
 
-  const plaintext = await crypto.subtle.decrypt(
+  return crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: iv as BufferSource },
     aesKey,
     ciphertext as BufferSource
   );
-
-  return new TextDecoder().decode(plaintext);
-}
-
-/**
- * Decrypt data file (plaintext JSON/CSV)
- */
-export async function decryptExportData(
-  encryptedDataBase64: string,
-  wrappedKeyBase64: string,
-  ivBase64: string,
-  privateKeyPem: string
-): Promise<string> {
-  const aesKey = await unwrapAesKey(wrappedKeyBase64, privateKeyPem);
-  const iv = base64UrlDecode(ivBase64);
-  const ciphertext = base64UrlDecode(encryptedDataBase64);
-
-  const plaintext = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: iv as BufferSource },
-    aesKey,
-    ciphertext as BufferSource
-  );
-
-  return new TextDecoder().decode(plaintext);
-}
-
-/**
- * Decrypt a single image blob
- */
-export async function decryptImageBlob(
-  encryptedImageBase64: string,
-  wrappedKeyBase64: string,
-  ivBase64: string,
-  privateKeyPem: string
-): Promise<Blob> {
-  const aesKey = await unwrapAesKey(wrappedKeyBase64, privateKeyPem);
-  const iv = base64UrlDecode(ivBase64);
-  const ciphertext = base64UrlDecode(encryptedImageBase64);
-
-  const plaintext = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: iv as BufferSource },
-    aesKey,
-    ciphertext as BufferSource
-  );
-
-  // Return as blob (caller can determine MIME type from context)
-  return new Blob([plaintext]);
 }

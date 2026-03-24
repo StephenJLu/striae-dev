@@ -6,13 +6,10 @@
 		"generate:assets": "node scripts/generate-assets.js",
 		"deploy": "wrangler deploy",
 		"dev": "wrangler dev",
-		"start": "wrangler dev",
-		"test": "vitest"
+		"start": "wrangler dev"
 	},
 	"devDependencies": {
 		"@cloudflare/puppeteer": "^1.0.6",
-		"@cloudflare/vitest-pool-workers": "^0.13.0",
-		"vitest": "~4.1.0",
 		"wrangler": "^4.76.0"
 	},
 	"overrides": {

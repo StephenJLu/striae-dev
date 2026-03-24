@@ -43,7 +43,19 @@ export const getCaseData = async (
     }
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch case data: ${response.status} ${response.statusText}`);
+      let errorDetails = '';
+
+      try {
+        const errorPayload = await response.json() as { error?: unknown };
+        if (typeof errorPayload?.error === 'string' && errorPayload.error.trim().length > 0) {
+          errorDetails = errorPayload.error.trim();
+        }
+      } catch {
+        // Ignore parse errors and fall back to status text only.
+      }
+
+      const baseMessage = `Failed to fetch case data: ${response.status} ${response.statusText}`;
+      throw new Error(errorDetails ? `${baseMessage} - ${errorDetails}` : baseMessage);
     }
 
     const caseData = await response.json() as CaseData;

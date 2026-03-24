@@ -12,6 +12,7 @@ import {
   duplicateCaseData,
   deleteFileAnnotations,
   signForensicManifest,
+  moveCaseConfirmationSummary,
   removeCaseConfirmationSummary
 } from '~/utils/data';
 import { type CaseData, type ReadOnlyCaseData, type FileData, type AuditTrail, type CaseExportData, type ValidationAuditEntry } from '~/types';
@@ -392,7 +393,10 @@ export const renameCase = async (
     // 4) Delete R2 case data with old case number
     await deleteCaseData(user, oldCaseNumber);
 
-    // 5) Delete old case number in user's KV entry
+    // 5) Move confirmation summary metadata to the new case number
+    await moveCaseConfirmationSummary(user, oldCaseNumber, newCaseNumber);
+
+    // 6) Delete old case number in user's KV entry
     await removeUserCase(user, oldCaseNumber);
 
     // Log successful case rename under the original case number context
@@ -681,18 +685,13 @@ const getVerificationPublicSigningKey = (preferredKeyId?: string): { keyId: stri
 
 const fetchImageAsBlob = async (user: User, fileData: FileData, caseNumber: string): Promise<Blob | null> => {
   try {
-    const imageUrl = await getImageUrl(user, fileData, caseNumber, 'Archive Package');
+    const { blob, revoke } = await getImageUrl(user, fileData, caseNumber, 'Archive Package');
 
-    if (!imageUrl) {
-      return null;
+    try {
+      return blob;
+    } finally {
+      revoke();
     }
-
-    const response = await fetch(imageUrl);
-    if (!response.ok) {
-      return null;
-    }
-
-    return await response.blob();
   } catch (error) {
     console.error('Failed to fetch image for archive package:', error);
     return null;

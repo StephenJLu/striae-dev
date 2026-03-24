@@ -26,6 +26,7 @@ interface UseStriaeResetHelpersProps {
   setShowNotes: Dispatch<SetStateAction<boolean>>;
   setIsAuditTrailOpen: Dispatch<SetStateAction<boolean>>;
   setIsRenameCaseModalOpen: Dispatch<SetStateAction<boolean>>;
+  onRevokeImage?: () => void;
 }
 
 export const useStriaeResetHelpers = ({
@@ -45,8 +46,10 @@ export const useStriaeResetHelpers = ({
   setShowNotes,
   setIsAuditTrailOpen,
   setIsRenameCaseModalOpen,
+  onRevokeImage,
 }: UseStriaeResetHelpersProps) => {
   const clearSelectedImageState = useCallback(() => {
+    onRevokeImage?.();
     setSelectedImage('/clear.jpg');
     setSelectedFilename(undefined);
     setImageId(undefined);
@@ -54,6 +57,7 @@ export const useStriaeResetHelpers = ({
     setError(undefined);
     setImageLoaded(false);
   }, [
+    onRevokeImage,
     setSelectedImage,
     setSelectedFilename,
     setImageId,

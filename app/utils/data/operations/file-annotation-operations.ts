@@ -42,7 +42,19 @@ export const getFileAnnotations = async (
     }
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch file annotations: ${response.status} ${response.statusText}`);
+      let errorDetails = '';
+
+      try {
+        const errorPayload = await response.json() as { error?: unknown };
+        if (typeof errorPayload?.error === 'string' && errorPayload.error.trim().length > 0) {
+          errorDetails = errorPayload.error.trim();
+        }
+      } catch {
+        // Ignore parse errors and fall back to status text only.
+      }
+
+      const baseMessage = `Failed to fetch file annotations: ${response.status} ${response.statusText}`;
+      throw new Error(errorDetails ? `${baseMessage} - ${errorDetails}` : baseMessage);
     }
 
     return await response.json() as AnnotationData;

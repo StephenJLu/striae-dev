@@ -172,12 +172,6 @@ deploy_pages_environment_secrets() {
         set_pages_secret "$secret" "$secret_value" "$pages_env"
     done
 
-    local optional_api_token
-    optional_api_token=$(get_optional_value "API_TOKEN")
-    if [ -n "$optional_api_token" ]; then
-        set_pages_secret "API_TOKEN" "$optional_api_token" "$pages_env"
-    fi
-
     local optional_primershear_emails
     optional_primershear_emails=$(get_optional_value "PRIMERSHEAR_EMAILS")
     if [ -n "$optional_primershear_emails" ]; then
