@@ -184,7 +184,7 @@ export const CaseImport = ({
 
     const importType = await resolveImportType(file);
     if (!importType) {
-      setError('The selected file is not a supported Striae case or confirmation import package.');
+      setError(IMPORT_FILE_TYPE_NOT_SUPPORTED);
       clearImportData();
       return;
     }

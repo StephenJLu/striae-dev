@@ -1,5 +1,3 @@
-import { isConfirmationDataFile } from '~/components/actions/case-review';
-
 const CASE_EXPORT_DATA_FILE_REGEX = /_data\.(json|csv)$/i;
 const CONFIRMATION_EXPORT_FILE_REGEX = /^confirmation-data-.*\.json$/i;
 const FORENSIC_MANIFEST_FILE_NAME = 'forensic_manifest.json';
@@ -20,16 +18,6 @@ export const isValidZipFile = (file: File): boolean => {
 };
 
 /**
- * Check if a file is a valid confirmation JSON file
- */
-export const isValidConfirmationFile = (file: File): boolean => {
-  const lowerName = file.name.toLowerCase();
-  const jsonType = file.type === 'application/json' || file.type === '';
-
-  return lowerName.endsWith('.json') && jsonType && isConfirmationDataFile(file.name);
-};
-
-/**
  * Check if a file is valid for import (ZIP packages only)
  */
 export const isValidImportFile = (file: File): boolean => {
@@ -47,7 +35,7 @@ export const getImportType = (file: File): 'case' | 'confirmation' | null => {
 /**
  * Resolve import type, including ZIP package inspection.
  * Case ZIPs are identified by case data files or FORENSIC_MANIFEST.json.
- * Confirmation ZIPs are identified by confirmation-data-*.json.
+ * Confirmation ZIPs are identified by confirmation-data-*.json plus ENCRYPTION_MANIFEST.json.
  */
 export const resolveImportType = async (file: File): Promise<'case' | 'confirmation' | null> => {
   if (!isValidZipFile(file)) {

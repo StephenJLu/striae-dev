@@ -61,8 +61,7 @@ export const FileSelector = ({
       const file = files[0];
       
       // Check file type (same as input accept attribute)
-      const isValidType = file.name.toLowerCase().endsWith('.zip') || 
-                         file.name.toLowerCase().endsWith('.json');
+      const isValidType = file.name.toLowerCase().endsWith('.zip');
       
       if (isValidType) {
         if (onFileSelectDirect) {
@@ -92,11 +91,11 @@ export const FileSelector = ({
           ref={fileInputRef}
           type="file"
           id="zipFile"
-          accept=".zip,.json"
+          accept=".zip"
           onChange={onFileSelect}
           disabled={isDisabled}
           className={styles.fileInput}
-          aria-label="File picker for ZIP or JSON files"
+          aria-label="File picker for ZIP packages"
         />
         <div 
           className={`${styles.fileLabel} ${isDragOver ? styles.fileLabelDragOver : ''}`}
@@ -111,7 +110,7 @@ export const FileSelector = ({
           role="button"
           tabIndex={isDisabled ? -1 : 0}
           aria-disabled={isDisabled}
-          aria-label="File selection area. Drag and drop a ZIP file for case import or JSON file for confirmation import."
+          aria-label="File selection area. Drag and drop a case ZIP or encrypted confirmation ZIP package for import."
           onKeyDown={(e) => {
             if ((e.key === 'Enter' || e.key === ' ') && !isDisabled) {
               if (e.key === ' ') {
@@ -128,7 +127,7 @@ export const FileSelector = ({
                 ? selectedFile.name 
                 : isDragOver 
                   ? 'Drop file here...' 
-                  : 'Select ZIP or JSON file... or drag & drop'
+                  : 'Select ZIP package... or drag & drop'
               }
             </span>
           </div>
