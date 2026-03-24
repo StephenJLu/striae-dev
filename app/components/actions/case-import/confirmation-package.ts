@@ -74,11 +74,24 @@ async function extractConfirmationPackageFromZip(file: File): Promise<Confirmati
     const manifestPath = fileEntries.find((path) =>
       getLeafFileName(path).toLowerCase() === ENCRYPTION_MANIFEST_FILE_NAME
     );
-    if (manifestPath) {
-      const manifestContent = await zip.file(manifestPath)?.async('text');
-      if (manifestContent) {
-        encryptionManifest = JSON.parse(manifestContent);
-      }
+    if (!manifestPath) {
+      throw new Error('Encrypted confirmation ZIP is missing ENCRYPTION_MANIFEST.json.');
+    }
+
+    const manifestFile = zip.file(manifestPath);
+    if (!manifestFile) {
+      throw new Error('Failed to read ENCRYPTION_MANIFEST.json from encrypted confirmation ZIP package.');
+    }
+
+    const manifestContent = await manifestFile.async('text');
+    if (manifestContent.trim().length === 0) {
+      throw new Error('ENCRYPTION_MANIFEST.json is empty in the encrypted confirmation ZIP package.');
+    }
+
+    try {
+      encryptionManifest = JSON.parse(manifestContent);
+    } catch {
+      throw new Error('ENCRYPTION_MANIFEST.json is invalid in the encrypted confirmation ZIP package.');
     }
 
     // Find and read encrypted confirmation data file
