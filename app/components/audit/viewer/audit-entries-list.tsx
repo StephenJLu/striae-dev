@@ -1,3 +1,4 @@
+import { useMemo, useState, type MouseEvent } from 'react';
 import { type ValidationAuditEntry } from '~/types';
 import { formatAuditTimestamp, getAuditActionIcon, getAuditStatusIcon } from './audit-viewer-utils';
 import styles from '../user-audit.module.css';
@@ -13,7 +14,57 @@ const isConfirmationImportEntry = (entry: ValidationAuditEntry): boolean => {
   );
 };
 
+const isConfirmationEvent = (entry: ValidationAuditEntry): boolean => {
+  return (
+    entry.action === 'confirmation-create' ||
+    entry.action === 'confirmation-export' ||
+    entry.action === 'confirmation-import' ||
+    entry.action === 'confirm' ||
+    (entry.action === 'import' && entry.details.workflowPhase === 'confirmation') ||
+    (entry.action === 'export' && entry.details.workflowPhase === 'confirmation')
+  );
+};
+
+const supportsFullDetailsToggle = (entry: ValidationAuditEntry): boolean => {
+  return (
+    entry.action === 'annotation-create' ||
+    entry.action === 'annotation-edit' ||
+    entry.action === 'annotation-delete' ||
+    isConfirmationEvent(entry)
+  );
+};
+
+const getEntryKey = (entry: ValidationAuditEntry): string => {
+  return `${entry.timestamp}-${entry.userId}-${entry.action}-${entry.details.fileName || ''}-${entry.details.confirmationId || ''}`;
+};
+
 export const AuditEntriesList = ({ entries }: AuditEntriesListProps) => {
+  const [expandedEntryKeys, setExpandedEntryKeys] = useState<Set<string>>(new Set());
+
+  const expandableEntries = useMemo(() => {
+    return new Set(entries.filter(supportsFullDetailsToggle).map(getEntryKey));
+  }, [entries]);
+
+  const toggleExpanded = (entryKey: string) => {
+    setExpandedEntryKeys((current) => {
+      const next = new Set(current);
+
+      if (next.has(entryKey)) {
+        next.delete(entryKey);
+      } else {
+        next.add(entryKey);
+      }
+
+      return next;
+    });
+  };
+
+  const handleToggleClick = (event: MouseEvent<HTMLButtonElement>, entryKey: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleExpanded(entryKey);
+  };
+
   return (
     <div className={styles.entriesList}>
       <h3>Activity Log ({entries.length} entries)</h3>
@@ -22,30 +73,49 @@ export const AuditEntriesList = ({ entries }: AuditEntriesListProps) => {
           <p>No activities match the current filters.</p>
         </div>
       ) : (
-        entries.map((entry) => (
-          <div
-            key={`${entry.timestamp}-${entry.userId}-${entry.action}-${entry.details.fileName || ''}`}
-            className={`${styles.entry} ${styles[entry.result]}`}
-          >
-            <div className={styles.entryHeader}>
-              <div className={styles.entryIcons}>
-                <span className={styles.actionIcon}>{getAuditActionIcon(entry.action)}</span>
-                <span className={styles.statusIcon}>{getAuditStatusIcon(entry.result)}</span>
-              </div>
-              <div className={styles.entryTitle}>
-                <span className={styles.action}>{entry.action.toUpperCase().replace(/-/g, ' ')}</span>
-                <span className={styles.fileName}>{entry.details.fileName}</span>
-              </div>
-              <div className={styles.entryTimestamp}>{formatAuditTimestamp(entry.timestamp)}</div>
-            </div>
+        entries.map((entry) => {
+          const entryKey = getEntryKey(entry);
+          const isExpandable = expandableEntries.has(entryKey);
+          const isExpanded = expandedEntryKeys.has(entryKey);
 
-            <div className={styles.entryDetails}>
-              {entry.details.caseNumber && (
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>Case:</span>
-                  <span className={styles.detailValue}>{entry.details.caseNumber}</span>
+          return (
+            <div
+              key={entryKey}
+              className={`${styles.entry} ${styles[entry.result]}`}
+            >
+              <div className={styles.entryHeader}>
+                <div className={styles.entryIcons}>
+                  <span className={styles.actionIcon}>{getAuditActionIcon(entry.action)}</span>
+                  <span className={styles.statusIcon}>{getAuditStatusIcon(entry.result)}</span>
                 </div>
-              )}
+                <div className={styles.entryTitle}>
+                  <span className={styles.action}>{entry.action.toUpperCase().replace(/-/g, ' ')}</span>
+                  <span className={styles.fileName}>{entry.details.fileName}</span>
+                </div>
+
+                <div className={styles.entryHeaderActions}>
+                  <div className={styles.entryTimestamp}>{formatAuditTimestamp(entry.timestamp)}</div>
+                  {isExpandable && (
+                    <button
+                      type="button"
+                      className={styles.entryDetailsToggle}
+                      aria-expanded={isExpanded}
+                      aria-label={isExpanded ? 'Hide full entry details' : 'Show full entry details'}
+                      onClick={(event) => handleToggleClick(event, entryKey)}
+                    >
+                      {isExpanded ? 'Hide details' : 'Show details'}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className={styles.entryDetails}>
+                {entry.details.caseNumber && (
+                  <div className={styles.detailRow}>
+                    <span className={styles.detailLabel}>Case:</span>
+                    <span className={styles.detailValue}>{entry.details.caseNumber}</span>
+                  </div>
+                )}
 
               {entry.details.userProfileDetails?.badgeId && (
                 <div className={styles.detailRow}>
@@ -191,37 +261,49 @@ export const AuditEntriesList = ({ entries }: AuditEntriesListProps) => {
                 </>
               )}
 
-              {(entry.action === 'pdf-generate' || entry.action === 'confirm') && entry.details.fileDetails && (
-                <>
-                  {entry.details.fileDetails.fileId && (
-                    <div className={styles.detailRow}>
-                      <span className={styles.detailLabel}>
-                        {entry.action === 'pdf-generate' ? 'Source File ID:' : 'Original Image ID:'}
-                      </span>
-                      <span className={styles.detailValue}>{entry.details.fileDetails.fileId}</span>
-                    </div>
-                  )}
+                {(entry.action === 'pdf-generate' || entry.action === 'confirm') && entry.details.fileDetails && (
+                  <>
+                    {entry.details.fileDetails.fileId && (
+                      <div className={styles.detailRow}>
+                        <span className={styles.detailLabel}>
+                          {entry.action === 'pdf-generate' ? 'Source File ID:' : 'Original Image ID:'}
+                        </span>
+                        <span className={styles.detailValue}>{entry.details.fileDetails.fileId}</span>
+                      </div>
+                    )}
 
-                  {entry.details.fileDetails.originalFileName && (
-                    <div className={styles.detailRow}>
-                      <span className={styles.detailLabel}>
-                        {entry.action === 'pdf-generate' ? 'Source Filename:' : 'Original Filename:'}
-                      </span>
-                      <span className={styles.detailValue}>{entry.details.fileDetails.originalFileName}</span>
-                    </div>
-                  )}
+                    {entry.details.fileDetails.originalFileName && (
+                      <div className={styles.detailRow}>
+                        <span className={styles.detailLabel}>
+                          {entry.action === 'pdf-generate' ? 'Source Filename:' : 'Original Filename:'}
+                        </span>
+                        <span className={styles.detailValue}>{entry.details.fileDetails.originalFileName}</span>
+                      </div>
+                    )}
 
-                  {entry.action === 'confirm' && entry.details.confirmationId && (
+                    {entry.action === 'confirm' && entry.details.confirmationId && (
+                      <div className={styles.detailRow}>
+                        <span className={styles.detailLabel}>Confirmation ID:</span>
+                        <span className={styles.detailValue}>{entry.details.confirmationId}</span>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {isExpandable && isExpanded && (
+                  <div className={styles.expandedDetails}>
                     <div className={styles.detailRow}>
-                      <span className={styles.detailLabel}>Confirmation ID:</span>
-                      <span className={styles.detailValue}>{entry.details.confirmationId}</span>
+                      <span className={styles.detailLabel}>Full Entry Details:</span>
                     </div>
-                  )}
-                </>
-              )}
+                    <pre className={styles.expandedDetailsCode}>
+                      {JSON.stringify(entry, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))
+          );
+        })
       )}
     </div>
   );
