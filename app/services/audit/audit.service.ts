@@ -56,7 +56,7 @@ import {
  * Audit Service for ValidationAuditEntry system
  * Provides comprehensive audit logging throughout the confirmation workflow
  */
-export class AuditService {
+class AuditService {
   private static instance: AuditService;
   private auditBuffer: ValidationAuditEntry[] = [];
   private workflowId: string | null = null;
