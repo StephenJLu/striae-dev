@@ -1,5 +1,5 @@
 import type { User } from 'firebase/auth';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { SidebarContainer } from '~/components/sidebar/sidebar-container';
 import { Navbar } from '~/components/navbar/navbar';
 import { RenameCaseModal } from '~/components/navbar/case-modals/rename-case-modal';
@@ -99,6 +99,11 @@ export const Striae = ({ user }: StriaePage) => {
     archiveReason?: string;
   }>({ archived: false });
 
+  const handleRevokeImage = useCallback(() => {
+    currentRevokeRef.current?.();
+    currentRevokeRef.current = null;
+  }, []);
+
   const {
     clearSelectedImageState,
     clearCaseContextState,
@@ -120,7 +125,7 @@ export const Striae = ({ user }: StriaePage) => {
     setShowNotes,
     setIsAuditTrailOpen,
     setIsRenameCaseModalOpen,
-    onRevokeImage: () => { currentRevokeRef.current?.(); currentRevokeRef.current = null; },
+    onRevokeImage: handleRevokeImage,
   });
 
 
