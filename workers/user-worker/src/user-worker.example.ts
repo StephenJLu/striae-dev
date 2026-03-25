@@ -1,3 +1,10 @@
+import {
+  decryptJsonFromUserKv,
+  encryptJsonForUserKv,
+  tryParseEncryptedRecord,
+  validateEncryptedRecord
+} from './encryption-utils';
+
 interface Env {
   USER_DB_AUTH: string;
   USER_DB: KVNamespace;
@@ -8,6 +15,9 @@ interface Env {
   PROJECT_ID: string;
   FIREBASE_SERVICE_ACCOUNT_EMAIL: string;
   FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY: string;
+  USER_KV_ENCRYPTION_PRIVATE_KEY: string;
+  USER_KV_ENCRYPTION_PUBLIC_KEY: string;
+  USER_KV_ENCRYPTION_KEY_ID: string;
 }
 
 interface UserData {
@@ -80,6 +90,13 @@ interface FirebaseDeleteAccountErrorResponse {
   };
 }
 
+interface UserKvBackfillRequest {
+  dryRun?: boolean;
+  prefix?: string;
+  cursor?: string;
+  batchSize?: number;
+}
+
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': 'PAGES_CUSTOM_DOMAIN',
   'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
@@ -94,6 +111,7 @@ const DEFAULT_IMAGE_WORKER_BASE_URL = 'IMAGES_WORKER_DOMAIN';
 const GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const FIREBASE_IDENTITY_TOOLKIT_BASE_URL = 'https://identitytoolkit.googleapis.com/v1/projects';
 const GOOGLE_IDENTITY_TOOLKIT_SCOPE = 'https://www.googleapis.com/auth/identitytoolkit';
+const USER_KV_BACKFILL_PATH = '/api/admin/user-kv-backfill';
 const textEncoder = new TextEncoder();
 
 async function authenticate(request: Request, env: Env): Promise<void> {
@@ -126,6 +144,147 @@ function resolveImageWorkerBaseUrl(env: Env): string {
   }
 
   return normalizeWorkerBaseUrl(DEFAULT_IMAGE_WORKER_BASE_URL);
+}
+
+function requireUserKvEncryptionConfig(env: Env): void {
+  if (
+    !env.USER_KV_ENCRYPTION_PRIVATE_KEY ||
+    !env.USER_KV_ENCRYPTION_PUBLIC_KEY ||
+    !env.USER_KV_ENCRYPTION_KEY_ID
+  ) {
+    throw new Error('User KV encryption is not fully configured');
+  }
+}
+
+function clampBackfillBatchSize(size: number | undefined): number {
+  if (typeof size !== 'number' || !Number.isFinite(size)) {
+    return 100;
+  }
+
+  const normalized = Math.floor(size);
+  if (normalized < 1) {
+    return 1;
+  }
+
+  if (normalized > 1000) {
+    return 1000;
+  }
+
+  return normalized;
+}
+
+async function readUserRecord(env: Env, userUid: string): Promise<UserData | null> {
+  const storedValue = await env.USER_DB.get(userUid);
+  if (storedValue === null) {
+    return null;
+  }
+
+  const encryptedRecord = tryParseEncryptedRecord(storedValue);
+  if (encryptedRecord) {
+    validateEncryptedRecord(encryptedRecord, env.USER_KV_ENCRYPTION_KEY_ID);
+    const decryptedJson = await decryptJsonFromUserKv(
+      encryptedRecord,
+      env.USER_KV_ENCRYPTION_PRIVATE_KEY
+    );
+    return JSON.parse(decryptedJson) as UserData;
+  }
+
+  return JSON.parse(storedValue) as UserData;
+}
+
+async function writeUserRecord(env: Env, userUid: string, userData: UserData): Promise<void> {
+  const encryptedPayload = await encryptJsonForUserKv(
+    JSON.stringify(userData),
+    env.USER_KV_ENCRYPTION_PUBLIC_KEY,
+    env.USER_KV_ENCRYPTION_KEY_ID
+  );
+
+  await env.USER_DB.put(userUid, encryptedPayload);
+}
+
+async function handleUserKvBackfill(request: Request, env: Env): Promise<Response> {
+  const requestBody = await request.json().catch(() => ({})) as UserKvBackfillRequest;
+  const dryRun = requestBody.dryRun === true;
+  const prefix = typeof requestBody.prefix === 'string' ? requestBody.prefix : '';
+  const cursor = typeof requestBody.cursor === 'string' && requestBody.cursor.length > 0
+    ? requestBody.cursor
+    : undefined;
+  const batchSize = clampBackfillBatchSize(requestBody.batchSize);
+
+  const listed = await env.USER_DB.list({
+    prefix: prefix.length > 0 ? prefix : undefined,
+    cursor,
+    limit: batchSize
+  });
+
+  let scanned = 0;
+  let eligible = 0;
+  let encrypted = 0;
+  let skippedEncrypted = 0;
+  let failed = 0;
+  const failures: Array<{ key: string; error: string }> = [];
+
+  for (const keyInfo of listed.keys) {
+    scanned += 1;
+    const key = keyInfo.name;
+
+    try {
+      const storedValue = await env.USER_DB.get(key);
+      if (storedValue === null) {
+        failed += 1;
+        if (failures.length < 20) {
+          failures.push({ key, error: 'Record not found during backfill' });
+        }
+        continue;
+      }
+
+      const encryptedRecord = tryParseEncryptedRecord(storedValue);
+      if (encryptedRecord) {
+        skippedEncrypted += 1;
+        continue;
+      }
+
+      eligible += 1;
+      if (dryRun) {
+        continue;
+      }
+
+      const encryptedPayload = await encryptJsonForUserKv(
+        storedValue,
+        env.USER_KV_ENCRYPTION_PUBLIC_KEY,
+        env.USER_KV_ENCRYPTION_KEY_ID
+      );
+
+      await env.USER_DB.put(key, encryptedPayload);
+      encrypted += 1;
+    } catch (error) {
+      failed += 1;
+      if (failures.length < 20) {
+        failures.push({
+          key,
+          error: error instanceof Error ? error.message : 'Unknown backfill failure'
+        });
+      }
+    }
+  }
+
+  return new Response(JSON.stringify({
+    success: failed === 0,
+    dryRun,
+    prefix: prefix.length > 0 ? prefix : null,
+    batchSize,
+    scanned,
+    eligible,
+    encrypted,
+    skippedEncrypted,
+    failed,
+    failures,
+    hasMore: listed.list_complete !== true,
+    nextCursor: listed.list_complete === true ? null : listed.cursor
+  }), {
+    status: 200,
+    headers: corsHeaders
+  });
 }
 
 function base64UrlEncode(value: string | Uint8Array): string {
@@ -266,14 +425,14 @@ async function deleteFirebaseAuthUser(env: Env, userUid: string): Promise<void> 
 
 async function handleGetUser(env: Env, userUid: string): Promise<Response> {
   try {
-    const value = await env.USER_DB.get(userUid);
-    if (value === null) {
+    const userData = await readUserRecord(env, userUid);
+    if (userData === null) {
       return new Response('User not found', { 
         status: 404, 
         headers: corsHeaders 
       });
     }
-    return new Response(value, { 
+    return new Response(JSON.stringify(userData), { 
       status: 200, 
       headers: corsHeaders 
     });
@@ -292,21 +451,20 @@ async function handleAddUser(request: Request, env: Env, userUid: string): Promi
     const normalizedBadgeId = typeof badgeId === 'string' ? badgeId.trim() : undefined;
     
     // Check for existing user
-    const value = await env.USER_DB.get(userUid);
+    const existingUser = await readUserRecord(env, userUid);
     
     let userData: UserData;
-    if (value !== null) {
+    if (existingUser !== null) {
       // Update existing user, preserving cases
-      const existing: UserData = JSON.parse(value);
       userData = {
-        ...existing,
+        ...existingUser,
         // Preserve all existing fields
-        email: email || existing.email,
-        firstName: firstName || existing.firstName,
-        lastName: lastName || existing.lastName,
-        company: company || existing.company,
-        badgeId: normalizedBadgeId !== undefined ? normalizedBadgeId : (existing.badgeId ?? ''),
-        permitted: permitted !== undefined ? permitted : existing.permitted,
+        email: email || existingUser.email,
+        firstName: firstName || existingUser.firstName,
+        lastName: lastName || existingUser.lastName,
+        company: company || existingUser.company,
+        badgeId: normalizedBadgeId !== undefined ? normalizedBadgeId : (existingUser.badgeId ?? ''),
+        permitted: permitted !== undefined ? permitted : existingUser.permitted,
         updatedAt: new Date().toISOString()
       };
       if (requestData.readOnlyCases !== undefined) {
@@ -331,10 +489,10 @@ async function handleAddUser(request: Request, env: Env, userUid: string): Promi
     }
 
     // Store value in KV
-    await env.USER_DB.put(userUid, JSON.stringify(userData));
+    await writeUserRecord(env, userUid, userData);
 
     return new Response(JSON.stringify(userData), {
-      status: value !== null ? 200 : 201,
+      status: existingUser !== null ? 200 : 201,
       headers: corsHeaders
     });
   } catch {
@@ -454,14 +612,13 @@ async function executeUserDeletion(
   userUid: string,
   reportProgress?: (progress: AccountDeletionProgressEvent) => void
 ): Promise<{ success: boolean; message: string; totalCases: number; completedCases: number }> {
-  const userData = await env.USER_DB.get(userUid);
+  const userData = await readUserRecord(env, userUid);
   if (userData === null) {
     throw new Error('User not found');
   }
 
-  const userObject: UserData = JSON.parse(userData);
-  const ownedCases = (userObject.cases || []).map((caseItem) => caseItem.caseNumber);
-  const readOnlyCases = (userObject.readOnlyCases || []).map((caseItem) => caseItem.caseNumber);
+  const ownedCases = (userData.cases || []).map((caseItem) => caseItem.caseNumber);
+  const readOnlyCases = (userData.readOnlyCases || []).map((caseItem) => caseItem.caseNumber);
   const allCaseNumbers = Array.from(new Set([...ownedCases, ...readOnlyCases]));
   const totalCases = allCaseNumbers.length;
   let completedCases = 0;
@@ -604,8 +761,8 @@ async function handleAddCases(request: Request, env: Env, userUid: string): Prom
     const { cases = [] }: AddCasesRequest = await request.json();
     
     // Get current user data
-    const value = await env.USER_DB.get(userUid);
-    if (!value) {
+    const userData = await readUserRecord(env, userUid);
+    if (!userData) {
       return new Response('User not found', { 
         status: 404, 
         headers: corsHeaders 
@@ -613,7 +770,6 @@ async function handleAddCases(request: Request, env: Env, userUid: string): Prom
     }
 
     // Update cases
-    const userData: UserData = JSON.parse(value);
     const existingCases = userData.cases || [];
     
     // Filter out duplicates
@@ -628,7 +784,7 @@ async function handleAddCases(request: Request, env: Env, userUid: string): Prom
     userData.updatedAt = new Date().toISOString();
 
     // Save to KV
-    await env.USER_DB.put(userUid, JSON.stringify(userData));
+    await writeUserRecord(env, userUid, userData);
 
     return new Response(JSON.stringify(userData), {
       status: 200,
@@ -647,8 +803,8 @@ async function handleDeleteCases(request: Request, env: Env, userUid: string): P
     const { casesToDelete }: DeleteCasesRequest = await request.json();
     
     // Get current user data
-    const value = await env.USER_DB.get(userUid);
-    if (!value) {
+    const userData = await readUserRecord(env, userUid);
+    if (!userData) {
       return new Response('User not found', { 
         status: 404, 
         headers: corsHeaders 
@@ -656,14 +812,13 @@ async function handleDeleteCases(request: Request, env: Env, userUid: string): P
     }
 
     // Update user data
-    const userData: UserData = JSON.parse(value);
     userData.cases = userData.cases.filter(c => 
       !casesToDelete.includes(c.caseNumber)
     );
     userData.updatedAt = new Date().toISOString();
 
     // Save to KV
-    await env.USER_DB.put(userUid, JSON.stringify(userData));
+    await writeUserRecord(env, userUid, userData);
 
     return new Response(JSON.stringify(userData), {
       status: 200,
@@ -685,8 +840,20 @@ export default {
 
     try {
       await authenticate(request, env);
+      requireUserKvEncryptionConfig(env);
       
       const url = new URL(request.url);
+      if (url.pathname === USER_KV_BACKFILL_PATH) {
+        if (request.method === 'POST') {
+          return handleUserKvBackfill(request, env);
+        }
+
+        return new Response('Method not allowed', {
+          status: 405,
+          headers: corsHeaders
+        });
+      }
+
       const parts = url.pathname.split('/');
       const userUid = parts[1];
       const isCasesEndpoint = parts[2] === 'cases';
@@ -726,6 +893,13 @@ export default {
         return new Response('Forbidden', { 
           status: 403, 
           headers: corsHeaders 
+        });
+      }
+
+      if (errorMessage === 'User KV encryption is not fully configured') {
+        return new Response(errorMessage, {
+          status: 500,
+          headers: corsHeaders
         });
       }
       
