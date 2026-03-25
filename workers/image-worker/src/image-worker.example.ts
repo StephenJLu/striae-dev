@@ -18,7 +18,6 @@ interface UploadResult {
   id: string;
   filename: string;
   uploaded: string;
-  requireSignedURLs: boolean;
   variants: string[];
 }
 
@@ -355,7 +354,6 @@ async function handleImageUpload(request: Request, env: Env): Promise<Response> 
       id: fileId,
       filename,
       uploaded: uploadedAt,
-      requireSignedURLs: false,
       variants: []
     }
   });
