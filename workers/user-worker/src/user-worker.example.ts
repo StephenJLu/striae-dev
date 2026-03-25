@@ -570,17 +570,6 @@ async function handleGetUser(env: Env, userUid: string): Promise<Response> {
     const errorMessage = error instanceof Error ? error.message : 'Unknown user data read error';
     console.error('Failed to get user data:', { uid: userUid, reason: errorMessage });
 
-    if (
-      errorMessage === 'User KV record is not encrypted' ||
-      errorMessage === 'User KV record UID mismatch' ||
-      errorMessage.startsWith('Failed to decrypt user KV record')
-    ) {
-      return new Response(errorMessage, {
-        status: 500,
-        headers: corsHeaders
-      });
-    }
-
     return new Response('Failed to get user data', {
       status: 500,
       headers: corsHeaders
