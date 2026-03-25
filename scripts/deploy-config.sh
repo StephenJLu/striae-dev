@@ -631,38 +631,8 @@ configure_data_at_rest_encryption_credentials() {
     echo -e "${BLUE}🗃️ DATA-AT-REST ENCRYPTION CONFIGURATION${NC}"
     echo "========================================"
 
-    local current_enabled="${DATA_AT_REST_ENCRYPTION_ENABLED:-}"
-    local normalized_enabled=""
-    local enable_choice=""
-
-    current_enabled=$(strip_carriage_returns "$current_enabled")
-    normalized_enabled=$(printf '%s' "$current_enabled" | tr '[:upper:]' '[:lower:]')
-
-    if [ -z "$normalized_enabled" ] || is_placeholder "$normalized_enabled"; then
-        DATA_AT_REST_ENCRYPTION_ENABLED="false"
-    elif [ "$normalized_enabled" = "1" ] || [ "$normalized_enabled" = "true" ] || [ "$normalized_enabled" = "yes" ] || [ "$normalized_enabled" = "on" ]; then
-        DATA_AT_REST_ENCRYPTION_ENABLED="true"
-    else
-        DATA_AT_REST_ENCRYPTION_ENABLED="false"
-    fi
-
-    if [ "$update_env" != "true" ]; then
-        read -p "Enable data-at-rest encryption for new writes? (y/N, Enter keeps current): " enable_choice
-        enable_choice=$(strip_carriage_returns "$enable_choice")
-        case "$enable_choice" in
-            y|Y|yes|YES)
-                DATA_AT_REST_ENCRYPTION_ENABLED="true"
-                ;;
-            n|N|no|NO)
-                DATA_AT_REST_ENCRYPTION_ENABLED="false"
-                ;;
-            "")
-                ;;
-            *)
-                echo -e "${YELLOW}⚠️  Unrecognized choice '$enable_choice'; keeping current setting${NC}"
-                ;;
-        esac
-    fi
+    # Data-at-rest encryption is mandatory for all environments.
+    DATA_AT_REST_ENCRYPTION_ENABLED="true"
 
     export DATA_AT_REST_ENCRYPTION_ENABLED
     write_env_var "DATA_AT_REST_ENCRYPTION_ENABLED" "$DATA_AT_REST_ENCRYPTION_ENABLED"
