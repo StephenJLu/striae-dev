@@ -297,7 +297,7 @@ update_private_key_registry() {
         existing_registry_json="{}"
     fi
 
-    updated_registry_json=$(node -e "const raw = process.argv[1] || '{}'; const keyId = process.argv[2] || ''; const privateKey = process.argv[3] || ''; if (!keyId || !privateKey) process.exit(1); let registry = {}; try { const parsed = JSON.parse(raw); if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) registry = parsed; } catch (_) {} registry[keyId] = privateKey; process.stdout.write(JSON.stringify(registry));" "$existing_registry_json" "$current_key_id" "$private_key_value" 2>/dev/null || true)
+    updated_registry_json=$(node -e "const raw = process.argv[1] || '{}'; const keyId = process.argv[2] || ''; const privateKey = process.argv[3] || ''; if (!keyId || !privateKey) process.exit(1); const normalized = { activeKeyId: null, keys: {} }; try { const parsed = JSON.parse(raw); if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) { if (parsed.keys && typeof parsed.keys === 'object' && !Array.isArray(parsed.keys)) { normalized.keys = Object.fromEntries(Object.entries(parsed.keys).filter(([id, pem]) => typeof id === 'string' && id.trim().length > 0 && typeof pem === 'string' && pem.trim().length > 0)); if (typeof parsed.activeKeyId === 'string' && parsed.activeKeyId.trim().length > 0) normalized.activeKeyId = parsed.activeKeyId.trim(); } else { normalized.keys = Object.fromEntries(Object.entries(parsed).filter(([id, pem]) => id !== 'activeKeyId' && id !== 'keys' && typeof id === 'string' && id.trim().length > 0 && typeof pem === 'string' && pem.trim().length > 0)); if (typeof parsed.activeKeyId === 'string' && parsed.activeKeyId.trim().length > 0) normalized.activeKeyId = parsed.activeKeyId.trim(); } } } catch (_) {} normalized.keys[keyId] = privateKey; normalized.activeKeyId = keyId; process.stdout.write(JSON.stringify(normalized));" "$existing_registry_json" "$current_key_id" "$private_key_value" 2>/dev/null || true)
 
     if [ -z "$updated_registry_json" ]; then
         echo -e "${RED}❌ Error: Failed to update $registry_label key registry JSON${NC}"
@@ -312,7 +312,7 @@ update_private_key_registry() {
     export "$active_key_var_name"
     write_env_var "$active_key_var_name" "$current_key_id"
 
-    registry_entry_count=$(node -e "const raw = process.argv[1] || '{}'; try { const parsed = JSON.parse(raw); if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) { process.stdout.write('0'); } else { process.stdout.write(String(Object.keys(parsed).length)); } } catch (_) { process.stdout.write('0'); }" "$updated_registry_json")
+    registry_entry_count=$(node -e "const raw = process.argv[1] || '{}'; try { const parsed = JSON.parse(raw); if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) { process.stdout.write('0'); process.exit(0); } const keys = parsed.keys && typeof parsed.keys === 'object' && !Array.isArray(parsed.keys) ? parsed.keys : parsed; const count = Object.entries(keys).filter(([id, pem]) => id !== 'activeKeyId' && id !== 'keys' && typeof id === 'string' && id.trim().length > 0 && typeof pem === 'string' && pem.trim().length > 0).length; process.stdout.write(String(count)); } catch (_) { process.stdout.write('0'); }" "$updated_registry_json")
     echo -e "${GREEN}✅ Updated $registry_label key registry ($registry_entry_count key IDs tracked)${NC}"
     echo -e "${GREEN}✅ $active_key_var_name: $current_key_id${NC}"
 }
