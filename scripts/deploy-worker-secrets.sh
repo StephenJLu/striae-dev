@@ -253,7 +253,7 @@ fi
 
 # Images Worker
 if ! set_worker_secrets "Images Worker" "workers/image-worker" \
-    "IMAGES_API_TOKEN" "DATA_AT_REST_ENCRYPTION_PRIVATE_KEY" "DATA_AT_REST_ENCRYPTION_PUBLIC_KEY" "DATA_AT_REST_ENCRYPTION_KEY_ID"; then
+    "IMAGES_API_TOKEN" "DATA_AT_REST_ENCRYPTION_PRIVATE_KEY" "DATA_AT_REST_ENCRYPTION_PUBLIC_KEY" "DATA_AT_REST_ENCRYPTION_KEY_ID" "IMAGE_SIGNED_URL_SECRET"; then
     echo -e "${YELLOW}⚠️  Skipping Images Worker (not configured)${NC}"
 fi
 
