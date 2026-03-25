@@ -4,38 +4,69 @@ validate_data_at_rest_encryption_settings() {
     local enabled_normalized
     enabled_normalized=$(printf '%s' "${DATA_AT_REST_ENCRYPTION_ENABLED:-false}" | tr '[:upper:]' '[:lower:]')
 
-    if [ "$enabled_normalized" = "1" ] || [ "$enabled_normalized" = "true" ] || [ "$enabled_normalized" = "yes" ] || [ "$enabled_normalized" = "on" ]; then
-        if [ -z "$DATA_AT_REST_ENCRYPTION_PRIVATE_KEY" ] || is_placeholder "$DATA_AT_REST_ENCRYPTION_PRIVATE_KEY"; then
-            echo -e "${RED}❌ Error: DATA_AT_REST_ENCRYPTION_PRIVATE_KEY is required when DATA_AT_REST_ENCRYPTION_ENABLED is true${NC}"
-            exit 1
-        fi
+    if [ "$enabled_normalized" != "1" ] && [ "$enabled_normalized" != "true" ] && [ "$enabled_normalized" != "yes" ] && [ "$enabled_normalized" != "on" ]; then
+        echo -e "${RED}❌ Error: DATA_AT_REST_ENCRYPTION_ENABLED must be true because data-at-rest encryption is mandatory${NC}"
+        exit 1
+    fi
 
-        if [ -z "$DATA_AT_REST_ENCRYPTION_PUBLIC_KEY" ] || is_placeholder "$DATA_AT_REST_ENCRYPTION_PUBLIC_KEY"; then
-            echo -e "${RED}❌ Error: DATA_AT_REST_ENCRYPTION_PUBLIC_KEY is required when DATA_AT_REST_ENCRYPTION_ENABLED is true${NC}"
-            exit 1
-        fi
+    local has_legacy_private_key=false
+    local has_registry_keys_json=false
 
-        if [ -z "$DATA_AT_REST_ENCRYPTION_KEY_ID" ] || is_placeholder "$DATA_AT_REST_ENCRYPTION_KEY_ID"; then
-            echo -e "${RED}❌ Error: DATA_AT_REST_ENCRYPTION_KEY_ID is required when DATA_AT_REST_ENCRYPTION_ENABLED is true${NC}"
-            exit 1
-        fi
+    if [ -n "$DATA_AT_REST_ENCRYPTION_PRIVATE_KEY" ] && ! is_placeholder "$DATA_AT_REST_ENCRYPTION_PRIVATE_KEY"; then
+        has_legacy_private_key=true
+    fi
+
+    if [ -n "$DATA_AT_REST_ENCRYPTION_KEYS_JSON" ] && ! is_placeholder "$DATA_AT_REST_ENCRYPTION_KEYS_JSON"; then
+        has_registry_keys_json=true
+    fi
+
+    if [ "$has_legacy_private_key" != "true" ] && [ "$has_registry_keys_json" != "true" ]; then
+        echo -e "${RED}❌ Error: either DATA_AT_REST_ENCRYPTION_PRIVATE_KEY or DATA_AT_REST_ENCRYPTION_KEYS_JSON is required when data-at-rest encryption is enabled${NC}"
+        exit 1
+    fi
+
+    if [ -z "$DATA_AT_REST_ENCRYPTION_PUBLIC_KEY" ] || is_placeholder "$DATA_AT_REST_ENCRYPTION_PUBLIC_KEY"; then
+        echo -e "${RED}❌ Error: DATA_AT_REST_ENCRYPTION_PUBLIC_KEY is required when data-at-rest encryption is enabled${NC}"
+        exit 1
+    fi
+
+    if [ -z "$DATA_AT_REST_ENCRYPTION_KEY_ID" ] || is_placeholder "$DATA_AT_REST_ENCRYPTION_KEY_ID"; then
+        echo -e "${RED}❌ Error: DATA_AT_REST_ENCRYPTION_KEY_ID is required when data-at-rest encryption is enabled${NC}"
+        exit 1
     fi
 }
 
 validate_user_kv_encryption_settings() {
-    if [ -z "$USER_KV_ENCRYPTION_PRIVATE_KEY" ] || is_placeholder "$USER_KV_ENCRYPTION_PRIVATE_KEY"; then
-        echo -e "${RED}❌ Error: USER_KV_ENCRYPTION_PRIVATE_KEY is required${NC}"
+    local has_legacy_private_key=false
+    local has_registry_keys_json=false
+    local write_endpoints_enabled_normalized
+
+    if [ -n "$USER_KV_ENCRYPTION_PRIVATE_KEY" ] && ! is_placeholder "$USER_KV_ENCRYPTION_PRIVATE_KEY"; then
+        has_legacy_private_key=true
+    fi
+
+    if [ -n "$USER_KV_ENCRYPTION_KEYS_JSON" ] && ! is_placeholder "$USER_KV_ENCRYPTION_KEYS_JSON"; then
+        has_registry_keys_json=true
+    fi
+
+    if [ "$has_legacy_private_key" != "true" ] && [ "$has_registry_keys_json" != "true" ]; then
+        echo -e "${RED}❌ Error: either USER_KV_ENCRYPTION_PRIVATE_KEY or USER_KV_ENCRYPTION_KEYS_JSON is required${NC}"
         exit 1
     fi
 
-    if [ -z "$USER_KV_ENCRYPTION_PUBLIC_KEY" ] || is_placeholder "$USER_KV_ENCRYPTION_PUBLIC_KEY"; then
-        echo -e "${RED}❌ Error: USER_KV_ENCRYPTION_PUBLIC_KEY is required${NC}"
-        exit 1
-    fi
+    # Defaults to enabled to preserve current behavior unless explicitly set false for read-only deployments.
+    write_endpoints_enabled_normalized=$(printf '%s' "${USER_KV_WRITE_ENDPOINTS_ENABLED:-true}" | tr '[:upper:]' '[:lower:]')
 
-    if [ -z "$USER_KV_ENCRYPTION_KEY_ID" ] || is_placeholder "$USER_KV_ENCRYPTION_KEY_ID"; then
-        echo -e "${RED}❌ Error: USER_KV_ENCRYPTION_KEY_ID is required${NC}"
-        exit 1
+    if [ "$write_endpoints_enabled_normalized" = "1" ] || [ "$write_endpoints_enabled_normalized" = "true" ] || [ "$write_endpoints_enabled_normalized" = "yes" ] || [ "$write_endpoints_enabled_normalized" = "on" ]; then
+        if [ -z "$USER_KV_ENCRYPTION_PUBLIC_KEY" ] || is_placeholder "$USER_KV_ENCRYPTION_PUBLIC_KEY"; then
+            echo -e "${RED}❌ Error: USER_KV_ENCRYPTION_PUBLIC_KEY is required when USER_KV_WRITE_ENDPOINTS_ENABLED is true${NC}"
+            exit 1
+        fi
+
+        if [ -z "$USER_KV_ENCRYPTION_KEY_ID" ] || is_placeholder "$USER_KV_ENCRYPTION_KEY_ID"; then
+            echo -e "${RED}❌ Error: USER_KV_ENCRYPTION_KEY_ID is required when USER_KV_WRITE_ENDPOINTS_ENABLED is true${NC}"
+            exit 1
+        fi
     fi
 }
 
@@ -85,9 +116,6 @@ required_vars=(
     "AUDIT_BUCKET_NAME"
     "FILES_BUCKET_NAME"
     "KV_STORE_ID"
-    "USER_KV_ENCRYPTION_PRIVATE_KEY"
-    "USER_KV_ENCRYPTION_KEY_ID"
-    "USER_KV_ENCRYPTION_PUBLIC_KEY"
 
     # Worker-Specific Secrets (required for deployment)
     "KEYS_AUTH"
