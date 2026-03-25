@@ -92,7 +92,12 @@ is_placeholder() {
         return 1
     fi
 
-    [[ "$normalized" =~ ^your.*here$ || "$normalized" =~ ^your || "$normalized" == *"placeholder"* ]]
+    [[ "$normalized" =~ ^your_[a-z0-9_]+_here$ || \
+       "$normalized" =~ ^your-[a-z0-9-]+-here$ || \
+       "$normalized" == "placeholder" || \
+       "$normalized" == "changeme" || \
+       "$normalized" == "replace_me" || \
+       "$normalized" == "replace-me" ]]
 }
 
 # Check if .env file exists
