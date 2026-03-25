@@ -173,7 +173,14 @@ function isEncryptedRecord(value: unknown): value is UserKvEncryptedRecord {
 }
 
 export function tryParseEncryptedRecord(serializedValue: string): UserKvEncryptedRecord | null {
-  const parsed = JSON.parse(serializedValue) as unknown;
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(serializedValue) as unknown;
+  } catch {
+    return null;
+  }
+
   if (!isEncryptedRecord(parsed)) {
     return null;
   }

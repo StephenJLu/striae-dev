@@ -28,6 +28,7 @@ trap 'echo -e "\n${RED}❌ deploy-config.sh failed near line ${LINENO}${NC}"' ER
 update_env=false
 show_help=false
 validate_only=false
+force_rotate_keys=false
 for arg in "$@"; do
     case "$arg" in
         -h|--help)
@@ -38,6 +39,9 @@ for arg in "$@"; do
             ;;
         --validate-only)
             validate_only=true
+            ;;
+        --force-rotate-keys)
+            force_rotate_keys=true
             ;;
         *)
             echo -e "${RED}❌ Unknown option: $arg${NC}"
@@ -52,18 +56,28 @@ if [ "$update_env" = "true" ] && [ "$validate_only" = "true" ]; then
     exit 1
 fi
 
+if [ "$force_rotate_keys" = "true" ] && [ "$validate_only" = "true" ]; then
+    echo -e "${RED}❌ --force-rotate-keys and --validate-only cannot be used together${NC}"
+    exit 1
+fi
+
 if [ "$show_help" = "true" ]; then
-    echo "Usage: bash ./scripts/deploy-config.sh [--update-env] [--validate-only]"
+    echo "Usage: bash ./scripts/deploy-config.sh [--update-env] [--validate-only] [--force-rotate-keys]"
     echo ""
     echo "Options:"
     echo "  --update-env   Reset .env from .env.example and overwrite configs"
     echo "  --validate-only Validate current .env and generated config files without modifying them"
+    echo "  --force-rotate-keys Force regeneration of all encryption/signing key pairs without prompts"
     echo "  -h, --help     Show this help message"
     exit 0
 fi
 
 if [ "$update_env" = "true" ]; then
-    echo -e "${YELLOW}⚠️  Update-env mode: overwriting configs and regenerating .env values${NC}"
+    echo -e "${YELLOW}⚠️  Update-env mode: overwriting configs and resetting .env values from template${NC}"
+fi
+
+if [ "$force_rotate_keys" = "true" ]; then
+    echo -e "${YELLOW}⚠️  Force-rotate-keys mode: all encryption/signing key pairs will be regenerated without prompts${NC}"
 fi
 
 require_command() {
@@ -285,6 +299,63 @@ resolve_existing_domain_value() {
     printf '%s' "$current_value"
 }
 
+restore_env_var_from_backup_if_missing() {
+    local var_name=$1
+    local current_value="${!var_name}"
+    local preserved_value=""
+
+    if [ "$update_env" != "true" ]; then
+        return 0
+    fi
+
+    if [ -z "$preserved_domain_env_file" ] || [ ! -f "$preserved_domain_env_file" ]; then
+        return 0
+    fi
+
+    current_value=$(strip_carriage_returns "$current_value")
+
+    if [ -n "$current_value" ] && ! is_placeholder "$current_value"; then
+        return 0
+    fi
+
+    preserved_value=$(read_env_var_from_file "$preserved_domain_env_file" "$var_name")
+    preserved_value=$(strip_carriage_returns "$preserved_value")
+
+    if [ -z "$preserved_value" ] || is_placeholder "$preserved_value"; then
+        return 0
+    fi
+
+    printf -v "$var_name" '%s' "$preserved_value"
+    export "$var_name"
+    write_env_var "$var_name" "$preserved_value"
+}
+
+confirm_key_pair_regeneration() {
+    local key_pair_label=$1
+    local impact_warning=$2
+    local regenerate_choice=""
+
+    if [ "$force_rotate_keys" = "true" ]; then
+        echo -e "${YELLOW}⚠️  Auto-confirmed regeneration for $key_pair_label key pair (--force-rotate-keys).${NC}"
+        return 0
+    fi
+
+    echo -e "${GREEN}Current $key_pair_label key pair: [HIDDEN]${NC}"
+
+    if [ -n "$impact_warning" ]; then
+        echo -e "${YELLOW}⚠️  $impact_warning${NC}"
+    fi
+
+    read -p "Regenerate $key_pair_label key pair? (press Enter to keep current, or type 'y' to regenerate): " regenerate_choice
+    regenerate_choice=$(strip_carriage_returns "$regenerate_choice")
+
+    if [ "$regenerate_choice" = "y" ] || [ "$regenerate_choice" = "Y" ]; then
+        return 0
+    fi
+
+    return 1
+}
+
 generate_worker_subdomain_label() {
     node -e "const { randomInt } = require('crypto'); const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789'; let value = ''; for (let index = 0; index < 10; index += 1) { value += alphabet[randomInt(alphabet.length)]; } process.stdout.write(value);" 2>/dev/null
 }
@@ -473,17 +544,14 @@ configure_manifest_signing_credentials() {
     echo "================================="
 
     local should_generate="false"
-    local regenerate_choice=""
+    restore_env_var_from_backup_if_missing "MANIFEST_SIGNING_PRIVATE_KEY"
+    restore_env_var_from_backup_if_missing "MANIFEST_SIGNING_PUBLIC_KEY"
+    restore_env_var_from_backup_if_missing "MANIFEST_SIGNING_KEY_ID"
 
-    if [ "$update_env" = "true" ]; then
-        should_generate="true"
-    elif [ -z "$MANIFEST_SIGNING_PRIVATE_KEY" ] || is_placeholder "$MANIFEST_SIGNING_PRIVATE_KEY" || [ -z "$MANIFEST_SIGNING_PUBLIC_KEY" ] || is_placeholder "$MANIFEST_SIGNING_PUBLIC_KEY"; then
+    if [ -z "$MANIFEST_SIGNING_PRIVATE_KEY" ] || is_placeholder "$MANIFEST_SIGNING_PRIVATE_KEY" || [ -z "$MANIFEST_SIGNING_PUBLIC_KEY" ] || is_placeholder "$MANIFEST_SIGNING_PUBLIC_KEY"; then
         should_generate="true"
     else
-        echo -e "${GREEN}Current manifest signing key pair: [HIDDEN]${NC}"
-        read -p "Generate new manifest signing key pair? (press Enter to keep current, or type 'y' to regenerate): " regenerate_choice
-        regenerate_choice=$(strip_carriage_returns "$regenerate_choice")
-        if [ "$regenerate_choice" = "y" ] || [ "$regenerate_choice" = "Y" ]; then
+        if confirm_key_pair_regeneration "manifest signing" "Regenerating this key pair can invalidate verification for signatures tied to the previous key ID."; then
             should_generate="true"
         fi
     fi
@@ -555,17 +623,14 @@ configure_export_encryption_credentials() {
     echo "================================="
 
     local should_generate="false"
-    local regenerate_choice=""
+    restore_env_var_from_backup_if_missing "EXPORT_ENCRYPTION_PRIVATE_KEY"
+    restore_env_var_from_backup_if_missing "EXPORT_ENCRYPTION_PUBLIC_KEY"
+    restore_env_var_from_backup_if_missing "EXPORT_ENCRYPTION_KEY_ID"
 
-    if [ "$update_env" = "true" ]; then
-        should_generate="true"
-    elif [ -z "$EXPORT_ENCRYPTION_PRIVATE_KEY" ] || is_placeholder "$EXPORT_ENCRYPTION_PRIVATE_KEY" || [ -z "$EXPORT_ENCRYPTION_PUBLIC_KEY" ] || is_placeholder "$EXPORT_ENCRYPTION_PUBLIC_KEY"; then
+    if [ -z "$EXPORT_ENCRYPTION_PRIVATE_KEY" ] || is_placeholder "$EXPORT_ENCRYPTION_PRIVATE_KEY" || [ -z "$EXPORT_ENCRYPTION_PUBLIC_KEY" ] || is_placeholder "$EXPORT_ENCRYPTION_PUBLIC_KEY"; then
         should_generate="true"
     else
-        echo -e "${GREEN}Current export encryption key pair: [HIDDEN]${NC}"
-        read -p "Generate new export encryption key pair? (press Enter to keep current, or type 'y' to regenerate): " regenerate_choice
-        regenerate_choice=$(strip_carriage_returns "$regenerate_choice")
-        if [ "$regenerate_choice" = "y" ] || [ "$regenerate_choice" = "Y" ]; then
+        if confirm_key_pair_regeneration "export encryption" "Regenerating this key pair can make prior encrypted exports undecryptable without migration."; then
             should_generate="true"
         fi
     fi
@@ -669,17 +734,14 @@ configure_user_kv_encryption_credentials() {
     echo "=================================="
 
     local should_generate="false"
-    local regenerate_choice=""
+    restore_env_var_from_backup_if_missing "USER_KV_ENCRYPTION_PRIVATE_KEY"
+    restore_env_var_from_backup_if_missing "USER_KV_ENCRYPTION_PUBLIC_KEY"
+    restore_env_var_from_backup_if_missing "USER_KV_ENCRYPTION_KEY_ID"
 
-    if [ "$update_env" = "true" ]; then
-        should_generate="true"
-    elif [ -z "$USER_KV_ENCRYPTION_PRIVATE_KEY" ] || is_placeholder "$USER_KV_ENCRYPTION_PRIVATE_KEY" || [ -z "$USER_KV_ENCRYPTION_PUBLIC_KEY" ] || is_placeholder "$USER_KV_ENCRYPTION_PUBLIC_KEY"; then
+    if [ -z "$USER_KV_ENCRYPTION_PRIVATE_KEY" ] || is_placeholder "$USER_KV_ENCRYPTION_PRIVATE_KEY" || [ -z "$USER_KV_ENCRYPTION_PUBLIC_KEY" ] || is_placeholder "$USER_KV_ENCRYPTION_PUBLIC_KEY"; then
         should_generate="true"
     else
-        echo -e "${GREEN}Current user KV encryption key pair: [HIDDEN]${NC}"
-        read -p "Generate new user KV encryption key pair? (press Enter to keep current, or type 'y' to regenerate): " regenerate_choice
-        regenerate_choice=$(strip_carriage_returns "$regenerate_choice")
-        if [ "$regenerate_choice" = "y" ] || [ "$regenerate_choice" = "Y" ]; then
+        if confirm_key_pair_regeneration "user KV encryption" "Regenerating this key pair or key ID without re-encryption migration can make existing user KV records undecryptable."; then
             should_generate="true"
         fi
     fi
@@ -726,17 +788,14 @@ configure_data_at_rest_encryption_credentials() {
     echo -e "${GREEN}✅ DATA_AT_REST_ENCRYPTION_ENABLED: $DATA_AT_REST_ENCRYPTION_ENABLED${NC}"
 
     local should_generate="false"
-    local regenerate_choice=""
+    restore_env_var_from_backup_if_missing "DATA_AT_REST_ENCRYPTION_PRIVATE_KEY"
+    restore_env_var_from_backup_if_missing "DATA_AT_REST_ENCRYPTION_PUBLIC_KEY"
+    restore_env_var_from_backup_if_missing "DATA_AT_REST_ENCRYPTION_KEY_ID"
 
-    if [ "$update_env" = "true" ]; then
-        should_generate="true"
-    elif [ -z "$DATA_AT_REST_ENCRYPTION_PRIVATE_KEY" ] || is_placeholder "$DATA_AT_REST_ENCRYPTION_PRIVATE_KEY" || [ -z "$DATA_AT_REST_ENCRYPTION_PUBLIC_KEY" ] || is_placeholder "$DATA_AT_REST_ENCRYPTION_PUBLIC_KEY"; then
+    if [ -z "$DATA_AT_REST_ENCRYPTION_PRIVATE_KEY" ] || is_placeholder "$DATA_AT_REST_ENCRYPTION_PRIVATE_KEY" || [ -z "$DATA_AT_REST_ENCRYPTION_PUBLIC_KEY" ] || is_placeholder "$DATA_AT_REST_ENCRYPTION_PUBLIC_KEY"; then
         should_generate="true"
     else
-        echo -e "${GREEN}Current data-at-rest encryption key pair: [HIDDEN]${NC}"
-        read -p "Generate new data-at-rest encryption key pair? (press Enter to keep current, or type 'y' to regenerate): " regenerate_choice
-        regenerate_choice=$(strip_carriage_returns "$regenerate_choice")
-        if [ "$regenerate_choice" = "y" ] || [ "$regenerate_choice" = "Y" ]; then
+        if confirm_key_pair_regeneration "data-at-rest encryption" "Regenerating this key pair can make previously encrypted data unreadable without migration."; then
             should_generate="true"
         fi
     fi
