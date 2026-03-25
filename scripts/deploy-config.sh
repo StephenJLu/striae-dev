@@ -781,7 +781,7 @@ required_vars=(
     # Worker-Specific Secrets (required for deployment)
     "KEYS_AUTH"
     "PDF_WORKER_AUTH"
-    "ACCOUNT_HASH"
+    "IMAGE_SIGNED_URL_SECRET"
     "BROWSER_API_TOKEN"
     "MANIFEST_SIGNING_PRIVATE_KEY"
     "MANIFEST_SIGNING_KEY_ID"
@@ -968,7 +968,6 @@ validate_generated_configs() {
     assert_contains_literal "workers/user-worker/wrangler.jsonc" "$KV_STORE_ID" "KV_STORE_ID missing in user worker config"
 
     assert_contains_literal "app/config/config.json" "https://$PAGES_CUSTOM_DOMAIN" "PAGES_CUSTOM_DOMAIN missing in app/config/config.json"
-    assert_contains_literal "app/config/config.json" "$ACCOUNT_HASH" "ACCOUNT_HASH missing in app/config/config.json"
     assert_contains_literal "app/config/config.json" "$EXPORT_ENCRYPTION_KEY_ID" "EXPORT_ENCRYPTION_KEY_ID missing in app/config/config.json"
     assert_contains_literal "app/config/config.json" "\"export_encryption_public_key\":" "export_encryption_public_key missing in app/config/config.json"
     assert_contains_literal "app/routes/auth/login.tsx" "const APP_CANONICAL_ORIGIN = 'https://$PAGES_CUSTOM_DOMAIN';" "PAGES_CUSTOM_DOMAIN missing in app/routes/auth/login.tsx canonical origin"
@@ -989,7 +988,7 @@ validate_generated_configs() {
     assert_contains_literal "workers/user-worker/src/user-worker.ts" "https://$PAGES_CUSTOM_DOMAIN" "PAGES_CUSTOM_DOMAIN missing in user-worker source"
 
     local placeholder_pattern
-    placeholder_pattern="(\"(ACCOUNT_ID|PAGES_PROJECT_NAME|PAGES_CUSTOM_DOMAIN|KEYS_WORKER_NAME|USER_WORKER_NAME|DATA_WORKER_NAME|AUDIT_WORKER_NAME|IMAGES_WORKER_NAME|PDF_WORKER_NAME|KEYS_WORKER_DOMAIN|USER_WORKER_DOMAIN|DATA_WORKER_DOMAIN|AUDIT_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN|PDF_WORKER_DOMAIN|DATA_BUCKET_NAME|AUDIT_BUCKET_NAME|FILES_BUCKET_NAME|KV_STORE_ID|ACCOUNT_HASH|MANIFEST_SIGNING_KEY_ID|MANIFEST_SIGNING_PUBLIC_KEY|EXPORT_ENCRYPTION_KEY_ID|EXPORT_ENCRYPTION_PUBLIC_KEY|YOUR_FIREBASE_API_KEY|YOUR_FIREBASE_AUTH_DOMAIN|YOUR_FIREBASE_PROJECT_ID|YOUR_FIREBASE_STORAGE_BUCKET|YOUR_FIREBASE_MESSAGING_SENDER_ID|YOUR_FIREBASE_APP_ID|YOUR_FIREBASE_MEASUREMENT_ID)\"|'(PAGES_CUSTOM_DOMAIN|DATA_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN)')"
+    placeholder_pattern="(\"(ACCOUNT_ID|PAGES_PROJECT_NAME|PAGES_CUSTOM_DOMAIN|KEYS_WORKER_NAME|USER_WORKER_NAME|DATA_WORKER_NAME|AUDIT_WORKER_NAME|IMAGES_WORKER_NAME|PDF_WORKER_NAME|KEYS_WORKER_DOMAIN|USER_WORKER_DOMAIN|DATA_WORKER_DOMAIN|AUDIT_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN|PDF_WORKER_DOMAIN|DATA_BUCKET_NAME|AUDIT_BUCKET_NAME|FILES_BUCKET_NAME|KV_STORE_ID|MANIFEST_SIGNING_KEY_ID|MANIFEST_SIGNING_PUBLIC_KEY|EXPORT_ENCRYPTION_KEY_ID|EXPORT_ENCRYPTION_PUBLIC_KEY|YOUR_FIREBASE_API_KEY|YOUR_FIREBASE_AUTH_DOMAIN|YOUR_FIREBASE_PROJECT_ID|YOUR_FIREBASE_STORAGE_BUCKET|YOUR_FIREBASE_MESSAGING_SENDER_ID|YOUR_FIREBASE_APP_ID|YOUR_FIREBASE_MEASUREMENT_ID)\"|'(PAGES_CUSTOM_DOMAIN|DATA_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN)')"
 
     local files_to_scan=(
         "wrangler.toml"
@@ -1534,7 +1533,7 @@ prompt_for_secrets() {
     echo "============================"
     prompt_for_var "KEYS_AUTH" "Keys worker authentication token (generate with: openssl rand -hex 16)"
     prompt_for_var "PDF_WORKER_AUTH" "PDF worker authentication token (generate with: openssl rand -hex 16)"
-    prompt_for_var "ACCOUNT_HASH" "Cloudflare Images Account Hash"
+    prompt_for_var "IMAGE_SIGNED_URL_SECRET" "Image signed URL secret (generate with: openssl rand -base64 48 | tr '+/' '-_' | tr -d '=')"
     prompt_for_var "BROWSER_API_TOKEN" "Cloudflare Browser Rendering API token (for PDF Worker)"
 
     configure_manifest_signing_credentials
@@ -1680,15 +1679,12 @@ update_wrangler_configs() {
         local escaped_manifest_signing_public_key
         local escaped_export_encryption_key_id
         local escaped_export_encryption_public_key
-        local escaped_account_hash
         escaped_manifest_signing_key_id=$(escape_for_sed_replacement "$MANIFEST_SIGNING_KEY_ID")
         escaped_manifest_signing_public_key=$(escape_for_sed_replacement "$MANIFEST_SIGNING_PUBLIC_KEY")
         escaped_export_encryption_key_id=$(escape_for_sed_replacement "$EXPORT_ENCRYPTION_KEY_ID")
         escaped_export_encryption_public_key=$(escape_for_sed_replacement "$EXPORT_ENCRYPTION_PUBLIC_KEY")
-        escaped_account_hash=$(escape_for_sed_replacement "$ACCOUNT_HASH")
 
         sed -i "s|\"url\": \"[^\"]*\"|\"url\": \"https://$escaped_pages_custom_domain\"|g" app/config/config.json
-        sed -i "s|\"account_hash\": \"[^\"]*\"|\"account_hash\": \"$escaped_account_hash\"|g" app/config/config.json
         sed -i "s|\"MANIFEST_SIGNING_KEY_ID\"|\"$escaped_manifest_signing_key_id\"|g" app/config/config.json
         sed -i "s|\"MANIFEST_SIGNING_PUBLIC_KEY\"|\"$escaped_manifest_signing_public_key\"|g" app/config/config.json
         sed -i "s|\"EXPORT_ENCRYPTION_KEY_ID\"|\"$escaped_export_encryption_key_id\"|g" app/config/config.json
