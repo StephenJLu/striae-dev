@@ -10,7 +10,7 @@
 	},
 	"devDependencies": {
 		"@cloudflare/puppeteer": "^1.0.6",
-		"wrangler": "^4.76.0"
+		"wrangler": "^4.77.0"
 	},
 	"overrides": {
 		"undici": "7.24.1",
