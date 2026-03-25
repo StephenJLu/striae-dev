@@ -985,7 +985,8 @@ export default {
     try {
       await authenticate(request, env);
 
-      if (request.method === 'GET' || request.method === 'DELETE') {
+      // DELETE can mutate user KV data (for example /:uid/cases), so non-GET methods require write config.
+      if (request.method === 'GET') {
         requireUserKvReadConfig(env);
       } else {
         requireUserKvWriteConfig(env);
