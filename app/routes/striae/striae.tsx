@@ -241,6 +241,7 @@ export const Striae = ({ user }: StriaePage) => {
     await generatePDF({
       user,
       selectedImage,
+      sourceImageId: imageId,
       selectedFilename,
       userCompany,
       userFirstName,

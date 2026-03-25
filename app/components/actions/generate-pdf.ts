@@ -6,6 +6,7 @@ import { fetchPdfApi } from '~/utils/api';
 interface GeneratePDFParams {
   user: User;
   selectedImage: string | undefined;
+  sourceImageId?: string;
   selectedFilename: string | undefined;
   userCompany: string;
   userFirstName: string;
@@ -44,6 +45,10 @@ const resolvePdfImageUrl = async (selectedImage: string | undefined): Promise<st
     return selectedImage;
   }
 
+  if (selectedImage.startsWith('/')) {
+    return new URL(selectedImage, window.location.origin).toString();
+  }
+
   if (selectedImage.startsWith('data:')) {
     return selectedImage;
   }
@@ -64,6 +69,7 @@ const resolvePdfImageUrl = async (selectedImage: string | undefined): Promise<st
 export const generatePDF = async ({
   user,
   selectedImage,
+  sourceImageId,
   selectedFilename,
   userCompany,
   userFirstName,
@@ -187,7 +193,7 @@ export const generatePDF = async ({
           processingTime,
           blob.size,
           [],
-          selectedImage, // Source file ID
+          sourceImageId, // Source file ID
           selectedFilename // Source original filename
         );
       } catch (auditError) {
@@ -215,7 +221,7 @@ export const generatePDF = async ({
           processingTime,
           0, // No file size for failed generation
           [errorText || 'PDF generation failed'],
-          selectedImage, // Source file ID
+          sourceImageId, // Source file ID
           selectedFilename // Source original filename
         );
       } catch (auditError) {
@@ -242,7 +248,7 @@ export const generatePDF = async ({
         processingTime,
         0, // No file size for failed generation
         [error instanceof Error ? error.message : 'Unknown error generating PDF'],
-        selectedImage, // Source file ID
+        sourceImageId, // Source file ID
         selectedFilename // Source original filename
       );
     } catch (auditError) {
