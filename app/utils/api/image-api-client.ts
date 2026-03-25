@@ -1,5 +1,5 @@
 import type { User } from 'firebase/auth';
-import { type ImageUploadResponse } from '~/types';
+import { type ImageUploadResponse, type SignedImageUrlResponse } from '~/types';
 
 const IMAGE_API_BASE = '/api/image';
 
@@ -91,6 +91,54 @@ function parseUploadResponse(payload: string): ImageUploadResponse {
   }
 
   return parsed;
+}
+
+function parseSignedUrlResponse(payload: string): SignedImageUrlResponse {
+  const parsed = JSON.parse(payload) as SignedImageUrlResponse;
+  if (!parsed.success || !parsed.result?.url || !parsed.result?.fileId || !parsed.result?.expiresAt) {
+    throw new Error('Signed URL response is invalid');
+  }
+
+  return parsed;
+}
+
+export async function createSignedImageUrlApi(
+  user: User,
+  fileId: string,
+  expiresInSeconds?: number
+): Promise<SignedImageUrlResponse> {
+  const response = await fetchImageApi(user, `/${encodeURIComponent(fileId)}/signed-url`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify(
+      typeof expiresInSeconds === 'number'
+        ? { expiresInSeconds }
+        : {}
+    )
+  });
+
+  if (!response.ok) {
+    throw new Error(`Signed URL request failed with status ${response.status}`);
+  }
+
+  const parsed = parseSignedUrlResponse(await response.text());
+  const rawUrl = parsed.result.url;
+  let normalizedUrl = rawUrl;
+
+  if (rawUrl.startsWith('/')) {
+    normalizedUrl = new URL(rawUrl, window.location.origin).toString();
+  }
+
+  return {
+    ...parsed,
+    result: {
+      ...parsed.result,
+      url: normalizedUrl
+    }
+  };
 }
 
 export async function uploadImageApi(

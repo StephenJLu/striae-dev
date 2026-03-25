@@ -10,6 +10,8 @@ interface Env {
   DATA_AT_REST_ENCRYPTION_PRIVATE_KEY: string;
   DATA_AT_REST_ENCRYPTION_PUBLIC_KEY: string;
   DATA_AT_REST_ENCRYPTION_KEY_ID: string;
+  IMAGE_SIGNED_URL_SECRET?: string;
+  IMAGE_SIGNED_URL_TTL_SECONDS?: string;
 }
 
 interface UploadResult {
@@ -35,7 +37,29 @@ interface ErrorResponse {
   error: string;
 }
 
-type APIResponse = UploadResponse | SuccessResponse | ErrorResponse;
+interface SignedUrlResult {
+  fileId: string;
+  url: string;
+  expiresAt: string;
+  expiresInSeconds: number;
+}
+
+interface SignedUrlResponse {
+  success: boolean;
+  result: SignedUrlResult;
+}
+
+type APIResponse = UploadResponse | SuccessResponse | ErrorResponse | SignedUrlResponse;
+
+interface SignedAccessPayload {
+  fileId: string;
+  iat: number;
+  exp: number;
+  nonce: string;
+}
+
+const DEFAULT_SIGNED_URL_TTL_SECONDS = 3600;
+const MAX_SIGNED_URL_TTL_SECONDS = 86400;
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': 'PAGES_CUSTOM_DOMAIN',
@@ -90,6 +114,162 @@ function parseFileId(pathname: string): string | null {
   }
 
   return decodedFileId;
+}
+
+function parsePathSegments(pathname: string): string[] | null {
+  const normalized = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+  if (!normalized) {
+    return [];
+  }
+
+  const rawSegments = normalized.split('/');
+  const decodedSegments: string[] = [];
+
+  for (const segment of rawSegments) {
+    if (!segment) {
+      return null;
+    }
+
+    let decoded = '';
+    try {
+      decoded = decodeURIComponent(segment);
+    } catch {
+      return null;
+    }
+
+    if (!decoded || decoded.includes('/')) {
+      return null;
+    }
+
+    decodedSegments.push(decoded);
+  }
+
+  return decodedSegments;
+}
+
+function base64UrlEncode(input: ArrayBuffer | Uint8Array): string {
+  const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function base64UrlDecode(input: string): Uint8Array | null {
+  if (!input || /[^A-Za-z0-9_-]/.test(input)) {
+    return null;
+  }
+
+  const paddingLength = (4 - (input.length % 4)) % 4;
+  const padded = input.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat(paddingLength);
+
+  try {
+    const binary = atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+
+    return bytes;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeSignedUrlTtlSeconds(requestedTtlSeconds: unknown, env: Env): number {
+  const defaultFromEnv = Number.parseInt(env.IMAGE_SIGNED_URL_TTL_SECONDS ?? '', 10);
+  const fallbackTtl = Number.isFinite(defaultFromEnv) && defaultFromEnv > 0
+    ? defaultFromEnv
+    : DEFAULT_SIGNED_URL_TTL_SECONDS;
+  const requested = typeof requestedTtlSeconds === 'number' ? requestedTtlSeconds : fallbackTtl;
+  const normalized = Math.floor(requested);
+
+  if (!Number.isFinite(normalized) || normalized <= 0) {
+    return fallbackTtl;
+  }
+
+  return Math.min(normalized, MAX_SIGNED_URL_TTL_SECONDS);
+}
+
+function requireSignedUrlConfig(env: Env): void {
+  const resolvedSecret = (env.IMAGE_SIGNED_URL_SECRET || env.IMAGES_API_TOKEN || '').trim();
+  if (resolvedSecret.length === 0) {
+    throw new Error('Signed URL configuration is missing');
+  }
+}
+
+async function getSignedUrlHmacKey(env: Env): Promise<CryptoKey> {
+  const resolvedSecret = (env.IMAGE_SIGNED_URL_SECRET || env.IMAGES_API_TOKEN || '').trim();
+  const keyBytes = new TextEncoder().encode(resolvedSecret);
+  return crypto.subtle.importKey('raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
+}
+
+async function signSignedAccessPayload(payload: SignedAccessPayload, env: Env): Promise<string> {
+  const payloadJson = JSON.stringify(payload);
+  const payloadBase64Url = base64UrlEncode(new TextEncoder().encode(payloadJson));
+  const hmacKey = await getSignedUrlHmacKey(env);
+  const signature = await crypto.subtle.sign('HMAC', hmacKey, new TextEncoder().encode(payloadBase64Url));
+  const signatureBase64Url = base64UrlEncode(signature);
+  return `${payloadBase64Url}.${signatureBase64Url}`;
+}
+
+async function verifySignedAccessToken(token: string, fileId: string, env: Env): Promise<boolean> {
+  const tokenParts = token.split('.');
+  if (tokenParts.length !== 2) {
+    return false;
+  }
+
+  const [payloadBase64Url, signatureBase64Url] = tokenParts;
+  if (!payloadBase64Url || !signatureBase64Url) {
+    return false;
+  }
+
+  const signatureBytes = base64UrlDecode(signatureBase64Url);
+  if (!signatureBytes) {
+    return false;
+  }
+
+  const signatureBuffer = new Uint8Array(signatureBytes).buffer;
+
+  const hmacKey = await getSignedUrlHmacKey(env);
+  const signatureValid = await crypto.subtle.verify(
+    'HMAC',
+    hmacKey,
+    signatureBuffer,
+    new TextEncoder().encode(payloadBase64Url)
+  );
+  if (!signatureValid) {
+    return false;
+  }
+
+  const payloadBytes = base64UrlDecode(payloadBase64Url);
+  if (!payloadBytes) {
+    return false;
+  }
+
+  let payload: SignedAccessPayload;
+  try {
+    payload = JSON.parse(new TextDecoder().decode(payloadBytes)) as SignedAccessPayload;
+  } catch {
+    return false;
+  }
+
+  if (payload.fileId !== fileId) {
+    return false;
+  }
+
+  const nowEpochSeconds = Math.floor(Date.now() / 1000);
+  if (!Number.isInteger(payload.exp) || payload.exp <= nowEpochSeconds) {
+    return false;
+  }
+
+  if (!Number.isInteger(payload.iat) || payload.iat > nowEpochSeconds + 300) {
+    return false;
+  }
+
+  return typeof payload.nonce === 'string' && payload.nonce.length > 0;
 }
 
 function extractEnvelope(file: R2ObjectBody): DataAtRestEnvelope | null {
@@ -200,17 +380,66 @@ async function handleImageDelete(request: Request, env: Env): Promise<Response> 
   return createJsonResponse({ success: true });
 }
 
-async function handleImageServing(request: Request, env: Env): Promise<Response> {
+async function handleSignedUrlMinting(request: Request, env: Env, fileId: string): Promise<Response> {
   if (!hasValidToken(request, env)) {
     return createJsonResponse({ error: 'Unauthorized' }, 403);
   }
 
-  requireEncryptionRetrievalConfig(env);
+  requireSignedUrlConfig(env);
 
-  const fileId = parseFileId(new URL(request.url).pathname);
-  if (!fileId) {
-    return createJsonResponse({ error: 'Image ID is required' }, 400);
+  const existing = await env.STRIAE_FILES.head(fileId);
+  if (!existing) {
+    return createJsonResponse({ error: 'File not found' }, 404);
   }
+
+  let requestedExpiresInSeconds: number | undefined;
+  const contentType = request.headers.get('Content-Type') || '';
+  if (contentType.includes('application/json')) {
+    const requestBody = await request.json().catch(() => null) as { expiresInSeconds?: number } | null;
+    if (requestBody && typeof requestBody.expiresInSeconds === 'number') {
+      requestedExpiresInSeconds = requestBody.expiresInSeconds;
+    }
+  }
+
+  const nowEpochSeconds = Math.floor(Date.now() / 1000);
+  const ttlSeconds = normalizeSignedUrlTtlSeconds(requestedExpiresInSeconds, env);
+  const payload: SignedAccessPayload = {
+    fileId,
+    iat: nowEpochSeconds,
+    exp: nowEpochSeconds + ttlSeconds,
+    nonce: crypto.randomUUID().replace(/-/g, '')
+  };
+
+  const signedToken = await signSignedAccessPayload(payload, env);
+  const signedPath = `/${encodeURIComponent(fileId)}?st=${encodeURIComponent(signedToken)}`;
+  const signedUrl = new URL(signedPath, request.url).toString();
+
+  return createJsonResponse({
+    success: true,
+    result: {
+      fileId,
+      url: signedUrl,
+      expiresAt: new Date(payload.exp * 1000).toISOString(),
+      expiresInSeconds: ttlSeconds
+    }
+  });
+}
+
+async function handleImageServing(request: Request, env: Env, fileId: string): Promise<Response> {
+  const requestUrl = new URL(request.url);
+  const signedToken = requestUrl.searchParams.get('st');
+  if (signedToken) {
+    requireSignedUrlConfig(env);
+
+    const tokenValid = await verifySignedAccessToken(signedToken, fileId, env);
+    if (!tokenValid) {
+      return createJsonResponse({ error: 'Invalid or expired signed URL token' }, 403);
+    }
+  } else if (!hasValidToken(request, env)) {
+    return createJsonResponse({ error: 'Unauthorized' }, 403);
+  }
+
+  requireEncryptionRetrievalConfig(env);
 
   const file = await env.STRIAE_FILES.get(fileId);
   if (!file) {
@@ -250,11 +479,32 @@ export default {
     }
 
     try {
+      const requestUrl = new URL(request.url);
+      const pathSegments = parsePathSegments(requestUrl.pathname);
+      if (!pathSegments) {
+        return createJsonResponse({ error: 'Invalid image path encoding' }, 400);
+      }
+
       switch (request.method) {
-        case 'POST':
-          return handleImageUpload(request, env);
-        case 'GET':
-          return handleImageServing(request, env);
+        case 'POST': {
+          if (pathSegments.length === 0) {
+            return handleImageUpload(request, env);
+          }
+
+          if (pathSegments.length === 2 && pathSegments[1] === 'signed-url') {
+            return handleSignedUrlMinting(request, env, pathSegments[0]);
+          }
+
+          return createJsonResponse({ error: 'Not found' }, 404);
+        }
+        case 'GET': {
+          const fileId = pathSegments.length === 1 ? pathSegments[0] : null;
+          if (!fileId) {
+            return createJsonResponse({ error: 'Image ID is required' }, 400);
+          }
+
+          return handleImageServing(request, env, fileId);
+        }
         case 'DELETE':
           return handleImageDelete(request, env);
         default:

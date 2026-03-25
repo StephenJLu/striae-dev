@@ -28,3 +28,21 @@ export interface ImageUploadResponse {
   errors: FileUploadResponse['errors'];
   messages: FileUploadResponse['messages'];
 }
+
+export interface SignedImageUrlResponse {
+  success: boolean;
+  result: {
+    fileId: string;
+    url: string;
+    expiresAt: string;
+    expiresInSeconds: number;
+  };
+}
+
+export interface ImageAccessResult {
+  url: string;
+  revoke: () => void;
+  blob?: Blob;
+  urlType: 'signed' | 'blob';
+  expiresAt?: string;
+}

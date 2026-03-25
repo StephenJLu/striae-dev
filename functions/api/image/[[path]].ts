@@ -82,12 +82,16 @@ export const onRequest = async ({ request, env }: ImageProxyContext): Promise<Re
     });
   }
 
-  const identity = await verifyFirebaseIdentityFromRequest(request, env);
-  if (!identity) {
-    return textResponse('Unauthorized', 401);
+  const requestUrl = new URL(request.url);
+  const isSignedGetRequest = request.method === 'GET' && typeof requestUrl.searchParams.get('st') === 'string';
+
+  if (!isSignedGetRequest) {
+    const identity = await verifyFirebaseIdentityFromRequest(request, env);
+    if (!identity) {
+      return textResponse('Unauthorized', 401);
+    }
   }
 
-  const requestUrl = new URL(request.url);
   const proxyPathResult = extractProxyPath(requestUrl);
   if (!proxyPathResult.ok) {
     return proxyPathResult.reason === 'bad-encoding'

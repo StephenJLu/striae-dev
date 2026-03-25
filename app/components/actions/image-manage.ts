@@ -1,7 +1,7 @@
 import type { User } from 'firebase/auth';
-import { fetchImageApi, uploadImageApi } from '~/utils/api';
+import { createSignedImageUrlApi, fetchImageApi, uploadImageApi } from '~/utils/api';
 import { canUploadFile, getCaseData, updateCaseData, deleteFileAnnotations } from '~/utils/data';
-import type { CaseData, FileData, ImageUploadResponse } from '~/types';
+import type { CaseData, FileData, ImageAccessResult, ImageUploadResponse } from '~/types';
 import { auditService } from '~/services/audit';
 
 export interface DeleteFileResult {
@@ -255,20 +255,49 @@ export const deleteFile = async (
   }
 };
 
-export const getImageUrl = async (user: User, fileData: FileData, caseNumber: string, accessReason?: string): Promise<{ blob: Blob; url: string; revoke: () => void }> => {
+export const getImageUrl = async (
+  user: User,
+  fileData: FileData,
+  caseNumber: string,
+  accessReason?: string
+): Promise<ImageAccessResult> => {
   const startTime = Date.now();
   const defaultAccessReason = accessReason || 'Image viewer access';
-  
+
   try {
+    try {
+      const signedUrlResponse = await createSignedImageUrlApi(user, fileData.id);
+
+      await auditService.logFileAccess(
+        user,
+        fileData.originalFilename || fileData.id,
+        fileData.id,
+        'signed-url',
+        caseNumber,
+        'success',
+        Date.now() - startTime,
+        defaultAccessReason,
+        fileData.originalFilename
+      );
+
+      return {
+        url: signedUrlResponse.result.url,
+        revoke: () => {},
+        urlType: 'signed',
+        expiresAt: signedUrlResponse.result.expiresAt
+      };
+    } catch {
+      // Fallback to direct blob retrieval during migration.
+    }
+
     const workerResponse = await fetchImageApi(user, `/${encodeURIComponent(fileData.id)}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/octet-stream,image/*'
       }
     });
-    
+
     if (!workerResponse.ok) {
-      // Log failed image access
       await auditService.logFileAccess(
         user,
         fileData.originalFilename || fileData.id,
@@ -285,8 +314,7 @@ export const getImageUrl = async (user: User, fileData: FileData, caseNumber: st
 
     const blob = await workerResponse.blob();
     const objectUrl = URL.createObjectURL(blob);
-    
-    // Log successful image access
+
     await auditService.logFileAccess(
       user,
       fileData.originalFilename || fileData.id,
@@ -298,10 +326,14 @@ export const getImageUrl = async (user: User, fileData: FileData, caseNumber: st
       defaultAccessReason,
       fileData.originalFilename
     );
-    
-    return { blob, url: objectUrl, revoke: () => URL.revokeObjectURL(objectUrl) };
+
+    return {
+      blob,
+      url: objectUrl,
+      revoke: () => URL.revokeObjectURL(objectUrl),
+      urlType: 'blob'
+    };
   } catch (error) {
-    // Log any unexpected errors if not already logged
     if (!(error instanceof Error && error.message.includes('Failed to retrieve image'))) {
       await auditService.logFileAccess(
         user,
