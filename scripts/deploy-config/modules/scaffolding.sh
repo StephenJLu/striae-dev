@@ -193,8 +193,16 @@ copy_example_configs() {
 update_wrangler_configs() {
     echo -e "\n${BLUE}🔧 Updating wrangler configuration files...${NC}"
 
+    local normalized_account_id
+    local escaped_account_id
     local normalized_pages_custom_domain
     local escaped_pages_custom_domain
+
+    normalized_account_id=$(printf '%s' "$ACCOUNT_ID" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+    ACCOUNT_ID="$normalized_account_id"
+    export ACCOUNT_ID
+    write_env_var "ACCOUNT_ID" "$ACCOUNT_ID"
+    escaped_account_id=$(escape_for_sed_replacement "$ACCOUNT_ID")
 
     normalized_pages_custom_domain=$(normalize_domain_value "$PAGES_CUSTOM_DOMAIN")
     PAGES_CUSTOM_DOMAIN="$normalized_pages_custom_domain"
@@ -206,7 +214,7 @@ update_wrangler_configs() {
     if [ -f "workers/audit-worker/wrangler.jsonc" ]; then
         echo -e "${YELLOW}  Updating audit-worker/wrangler.jsonc...${NC}"
         sed -i "s/\"AUDIT_WORKER_NAME\"/\"$AUDIT_WORKER_NAME\"/g" workers/audit-worker/wrangler.jsonc
-        sed -i "s/\"ACCOUNT_ID\"/\"$ACCOUNT_ID\"/g" workers/audit-worker/wrangler.jsonc
+        sed -i "s/\"ACCOUNT_ID\"/\"$escaped_account_id\"/g" workers/audit-worker/wrangler.jsonc
         sed -i "s/\"AUDIT_BUCKET_NAME\"/\"$AUDIT_BUCKET_NAME\"/g" workers/audit-worker/wrangler.jsonc
         echo -e "${GREEN}    ✅ audit-worker configuration updated${NC}"
     fi
@@ -220,7 +228,7 @@ update_wrangler_configs() {
     if [ -f "workers/data-worker/wrangler.jsonc" ]; then
         echo -e "${YELLOW}  Updating data-worker/wrangler.jsonc...${NC}"
         sed -i "s/\"DATA_WORKER_NAME\"/\"$DATA_WORKER_NAME\"/g" workers/data-worker/wrangler.jsonc
-        sed -i "s/\"ACCOUNT_ID\"/\"$ACCOUNT_ID\"/g" workers/data-worker/wrangler.jsonc
+        sed -i "s/\"ACCOUNT_ID\"/\"$escaped_account_id\"/g" workers/data-worker/wrangler.jsonc
         sed -i "s/\"DATA_BUCKET_NAME\"/\"$DATA_BUCKET_NAME\"/g" workers/data-worker/wrangler.jsonc
         echo -e "${GREEN}    ✅ data-worker configuration updated${NC}"
     fi
@@ -234,7 +242,7 @@ update_wrangler_configs() {
     if [ -f "workers/image-worker/wrangler.jsonc" ]; then
         echo -e "${YELLOW}  Updating image-worker/wrangler.jsonc...${NC}"
         sed -i "s/\"IMAGES_WORKER_NAME\"/\"$IMAGES_WORKER_NAME\"/g" workers/image-worker/wrangler.jsonc
-        sed -i "s/\"ACCOUNT_ID\"/\"$ACCOUNT_ID\"/g" workers/image-worker/wrangler.jsonc
+        sed -i "s/\"ACCOUNT_ID\"/\"$escaped_account_id\"/g" workers/image-worker/wrangler.jsonc
         sed -i "s/\"FILES_BUCKET_NAME\"/\"$FILES_BUCKET_NAME\"/g" workers/image-worker/wrangler.jsonc
         echo -e "${GREEN}    ✅ image-worker configuration updated${NC}"
     fi
@@ -248,7 +256,7 @@ update_wrangler_configs() {
     if [ -f "workers/keys-worker/wrangler.jsonc" ]; then
         echo -e "${YELLOW}  Updating keys-worker/wrangler.jsonc...${NC}"
         sed -i "s/\"KEYS_WORKER_NAME\"/\"$KEYS_WORKER_NAME\"/g" workers/keys-worker/wrangler.jsonc
-        sed -i "s/\"ACCOUNT_ID\"/\"$ACCOUNT_ID\"/g" workers/keys-worker/wrangler.jsonc
+        sed -i "s/\"ACCOUNT_ID\"/\"$escaped_account_id\"/g" workers/keys-worker/wrangler.jsonc
         echo -e "${GREEN}    ✅ keys-worker configuration updated${NC}"
     fi
 
@@ -261,7 +269,7 @@ update_wrangler_configs() {
     if [ -f "workers/pdf-worker/wrangler.jsonc" ]; then
         echo -e "${YELLOW}  Updating pdf-worker/wrangler.jsonc...${NC}"
         sed -i "s/\"PDF_WORKER_NAME\"/\"$PDF_WORKER_NAME\"/g" workers/pdf-worker/wrangler.jsonc
-        sed -i "s/\"ACCOUNT_ID\"/\"$ACCOUNT_ID\"/g" workers/pdf-worker/wrangler.jsonc
+        sed -i "s/\"ACCOUNT_ID\"/\"$escaped_account_id\"/g" workers/pdf-worker/wrangler.jsonc
         echo -e "${GREEN}    ✅ pdf-worker configuration updated${NC}"
     fi
 
@@ -274,7 +282,7 @@ update_wrangler_configs() {
     if [ -f "workers/user-worker/wrangler.jsonc" ]; then
         echo -e "${YELLOW}  Updating user-worker/wrangler.jsonc...${NC}"
         sed -i "s/\"USER_WORKER_NAME\"/\"$USER_WORKER_NAME\"/g" workers/user-worker/wrangler.jsonc
-        sed -i "s/\"ACCOUNT_ID\"/\"$ACCOUNT_ID\"/g" workers/user-worker/wrangler.jsonc
+        sed -i "s/\"ACCOUNT_ID\"/\"$escaped_account_id\"/g" workers/user-worker/wrangler.jsonc
         sed -i "s/\"KV_STORE_ID\"/\"$KV_STORE_ID\"/g" workers/user-worker/wrangler.jsonc
         echo -e "${GREEN}    ✅ user-worker configuration updated${NC}"
     fi
