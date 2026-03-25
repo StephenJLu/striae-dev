@@ -83,13 +83,10 @@ export const onRequest = async ({ request, env }: ImageProxyContext): Promise<Re
   }
 
   const requestUrl = new URL(request.url);
-  const isSignedGetRequest = request.method === 'GET' && typeof requestUrl.searchParams.get('st') === 'string';
 
-  if (!isSignedGetRequest) {
-    const identity = await verifyFirebaseIdentityFromRequest(request, env);
-    if (!identity) {
-      return textResponse('Unauthorized', 401);
-    }
+  const identity = await verifyFirebaseIdentityFromRequest(request, env);
+  if (!identity) {
+    return textResponse('Unauthorized', 401);
   }
 
   const proxyPathResult = extractProxyPath(requestUrl);
