@@ -90,13 +90,6 @@ interface FirebaseDeleteAccountErrorResponse {
   };
 }
 
-interface UserKvBackfillRequest {
-  dryRun?: boolean;
-  prefix?: string;
-  cursor?: string;
-  batchSize?: number;
-}
-
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': 'PAGES_CUSTOM_DOMAIN',
   'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
@@ -111,7 +104,6 @@ const DEFAULT_IMAGE_WORKER_BASE_URL = 'IMAGES_WORKER_DOMAIN';
 const GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const FIREBASE_IDENTITY_TOOLKIT_BASE_URL = 'https://identitytoolkit.googleapis.com/v1/projects';
 const GOOGLE_IDENTITY_TOOLKIT_SCOPE = 'https://www.googleapis.com/auth/identitytoolkit';
-const USER_KV_BACKFILL_PATH = '/api/admin/user-kv-backfill';
 const textEncoder = new TextEncoder();
 
 async function authenticate(request: Request, env: Env): Promise<void> {
@@ -156,23 +148,6 @@ function requireUserKvEncryptionConfig(env: Env): void {
   }
 }
 
-function clampBackfillBatchSize(size: number | undefined): number {
-  if (typeof size !== 'number' || !Number.isFinite(size)) {
-    return 100;
-  }
-
-  const normalized = Math.floor(size);
-  if (normalized < 1) {
-    return 1;
-  }
-
-  if (normalized > 1000) {
-    return 1000;
-  }
-
-  return normalized;
-}
-
 async function readUserRecord(env: Env, userUid: string): Promise<UserData | null> {
   const storedValue = await env.USER_DB.get(userUid);
   if (storedValue === null) {
@@ -189,7 +164,7 @@ async function readUserRecord(env: Env, userUid: string): Promise<UserData | nul
     return JSON.parse(decryptedJson) as UserData;
   }
 
-  return JSON.parse(storedValue) as UserData;
+  throw new Error('User KV record is not encrypted');
 }
 
 async function writeUserRecord(env: Env, userUid: string, userData: UserData): Promise<void> {
@@ -200,91 +175,6 @@ async function writeUserRecord(env: Env, userUid: string, userData: UserData): P
   );
 
   await env.USER_DB.put(userUid, encryptedPayload);
-}
-
-async function handleUserKvBackfill(request: Request, env: Env): Promise<Response> {
-  const requestBody = await request.json().catch(() => ({})) as UserKvBackfillRequest;
-  const dryRun = requestBody.dryRun === true;
-  const prefix = typeof requestBody.prefix === 'string' ? requestBody.prefix : '';
-  const cursor = typeof requestBody.cursor === 'string' && requestBody.cursor.length > 0
-    ? requestBody.cursor
-    : undefined;
-  const batchSize = clampBackfillBatchSize(requestBody.batchSize);
-
-  const listed = await env.USER_DB.list({
-    prefix: prefix.length > 0 ? prefix : undefined,
-    cursor,
-    limit: batchSize
-  });
-
-  let scanned = 0;
-  let eligible = 0;
-  let encrypted = 0;
-  let skippedEncrypted = 0;
-  let failed = 0;
-  const failures: Array<{ key: string; error: string }> = [];
-
-  for (const keyInfo of listed.keys) {
-    scanned += 1;
-    const key = keyInfo.name;
-
-    try {
-      const storedValue = await env.USER_DB.get(key);
-      if (storedValue === null) {
-        failed += 1;
-        if (failures.length < 20) {
-          failures.push({ key, error: 'Record not found during backfill' });
-        }
-        continue;
-      }
-
-      const encryptedRecord = tryParseEncryptedRecord(storedValue);
-      if (encryptedRecord) {
-        skippedEncrypted += 1;
-        continue;
-      }
-
-      eligible += 1;
-      if (dryRun) {
-        continue;
-      }
-
-      const encryptedPayload = await encryptJsonForUserKv(
-        storedValue,
-        env.USER_KV_ENCRYPTION_PUBLIC_KEY,
-        env.USER_KV_ENCRYPTION_KEY_ID
-      );
-
-      await env.USER_DB.put(key, encryptedPayload);
-      encrypted += 1;
-    } catch (error) {
-      failed += 1;
-      if (failures.length < 20) {
-        failures.push({
-          key,
-          error: error instanceof Error ? error.message : 'Unknown backfill failure'
-        });
-      }
-    }
-  }
-
-  return new Response(JSON.stringify({
-    success: failed === 0,
-    dryRun,
-    prefix: prefix.length > 0 ? prefix : null,
-    batchSize,
-    scanned,
-    eligible,
-    encrypted,
-    skippedEncrypted,
-    failed,
-    failures,
-    hasMore: listed.list_complete !== true,
-    nextCursor: listed.list_complete === true ? null : listed.cursor
-  }), {
-    status: 200,
-    headers: corsHeaders
-  });
 }
 
 function base64UrlEncode(value: string | Uint8Array): string {
@@ -843,17 +733,6 @@ export default {
       requireUserKvEncryptionConfig(env);
       
       const url = new URL(request.url);
-      if (url.pathname === USER_KV_BACKFILL_PATH) {
-        if (request.method === 'POST') {
-          return handleUserKvBackfill(request, env);
-        }
-
-        return new Response('Method not allowed', {
-          status: 405,
-          headers: corsHeaders
-        });
-      }
-
       const parts = url.pathname.split('/');
       const userUid = parts[1];
       const isCasesEndpoint = parts[2] === 'cases';
