@@ -1454,7 +1454,7 @@ prompt_for_secrets() {
     echo "==================================="
     prompt_for_var "USER_DB_AUTH" "Custom user database authentication token (generate with: openssl rand -hex 16)"
     prompt_for_var "R2_KEY_SECRET" "Custom R2 storage authentication token (generate with: openssl rand -hex 16)"
-    prompt_for_var "IMAGES_API_TOKEN" "Cloudflare Images API token (shared between workers)"
+    prompt_for_var "IMAGES_API_TOKEN" "Image worker API token (shared between workers)"
     
     echo -e "${BLUE}🔥 FIREBASE AUTH CONFIGURATION${NC}"
     echo "==============================="

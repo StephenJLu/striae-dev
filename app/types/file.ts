@@ -12,7 +12,6 @@ export interface FileUploadResponse {
     id: string;
     filename: string;
     uploaded: string;
-    variants: string[];
   };
   errors: Array<{
     code: number;

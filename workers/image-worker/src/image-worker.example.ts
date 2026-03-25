@@ -18,7 +18,6 @@ interface UploadResult {
   id: string;
   filename: string;
   uploaded: string;
-  variants: string[];
 }
 
 interface UploadResponse {
@@ -353,8 +352,7 @@ async function handleImageUpload(request: Request, env: Env): Promise<Response> 
     result: {
       id: fileId,
       filename,
-      uploaded: uploadedAt,
-      variants: []
+      uploaded: uploadedAt
     }
   });
 }
