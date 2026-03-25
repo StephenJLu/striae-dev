@@ -7,10 +7,6 @@
     "nodejs_compat"
   ],
   
-  "browser": {
-    "binding": "BROWSER"
-  },
-  
   "observability": { 
 	"enabled": true
   },

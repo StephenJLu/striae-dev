@@ -66,6 +66,7 @@ npm run deploy:all
 
 - **🧹 Runtime and Legacy Cleanup** - Removed deprecated `requireSignedURLs` handling and additional Cloudflare holdover remnants that were no longer part of the active architecture.
 - **🛡️ Deploy-Config Validation Hardening** - Refined placeholder detection regex behavior and incorporated release-window validation/code-review updates for safer environment setup flows.
+- **🗝️ Key Registry Rotation Hardening** - Added deploy-config key-registry entry automation, standardized nested key-registry JSON + active key ID variables, and aligned worker key resolution paths for rotation-safe decrypt compatibility.
 - **⚙️ Worker and Runtime Alignment** - Updated image-worker generated type surfaces, refreshed compatibility-date metadata, and included user-worker KV EAR follow-up adjustments.
 - **📦 Migration Completion Cleanup** - Removed obsolete backfill-function remnants as part of post-migration stabilization.
 

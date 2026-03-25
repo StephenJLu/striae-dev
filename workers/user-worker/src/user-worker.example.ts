@@ -2,6 +2,7 @@ import {
   decryptJsonFromUserKv,
   encryptJsonForUserKv,
   tryParseEncryptedRecord,
+  type UserKvEncryptedRecord,
   validateEncryptedRecord
 } from './encryption-utils';
 
@@ -18,7 +19,21 @@ interface Env {
   USER_KV_ENCRYPTION_PRIVATE_KEY: string;
   USER_KV_ENCRYPTION_PUBLIC_KEY: string;
   USER_KV_ENCRYPTION_KEY_ID: string;
+  USER_KV_ENCRYPTION_KEYS_JSON?: string;
+  USER_KV_ENCRYPTION_ACTIVE_KEY_ID?: string;
 }
+
+interface KeyRegistryPayload {
+  activeKeyId?: unknown;
+  keys?: unknown;
+}
+
+interface PrivateKeyRegistry {
+  activeKeyId: string | null;
+  keys: Record<string, string>;
+}
+
+type DecryptionTelemetryOutcome = 'primary-hit' | 'fallback-hit' | 'all-failed';
 
 interface UserData {
   uid: string;
@@ -32,6 +47,23 @@ interface UserData {
   readOnlyCases?: ReadOnlyCaseItem[];
   createdAt?: string;
   updatedAt?: string;
+}
+
+function isLegacyUserData(value: unknown): value is UserData {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Partial<UserData>;
+  return (
+    typeof candidate.uid === 'string' &&
+    typeof candidate.email === 'string' &&
+    typeof candidate.firstName === 'string' &&
+    typeof candidate.lastName === 'string' &&
+    typeof candidate.company === 'string' &&
+    typeof candidate.permitted === 'boolean' &&
+    Array.isArray(candidate.cases)
+  );
 }
 
 interface CaseItem {
@@ -138,14 +170,191 @@ function resolveImageWorkerBaseUrl(env: Env): string {
   return normalizeWorkerBaseUrl(DEFAULT_IMAGE_WORKER_BASE_URL);
 }
 
-function requireUserKvEncryptionConfig(env: Env): void {
+function requireUserKvReadConfig(env: Env): void {
+  const hasLegacyPrivateKey = typeof env.USER_KV_ENCRYPTION_PRIVATE_KEY === 'string' && env.USER_KV_ENCRYPTION_PRIVATE_KEY.trim().length > 0;
+  const hasRegistryPrivateKeys = typeof env.USER_KV_ENCRYPTION_KEYS_JSON === 'string' && env.USER_KV_ENCRYPTION_KEYS_JSON.trim().length > 0;
+
+  if (!hasLegacyPrivateKey && !hasRegistryPrivateKeys) {
+    throw new Error('User KV encryption is not fully configured');
+  }
+}
+
+function requireUserKvWriteConfig(env: Env): void {
+  const hasLegacyPrivateKey = typeof env.USER_KV_ENCRYPTION_PRIVATE_KEY === 'string' && env.USER_KV_ENCRYPTION_PRIVATE_KEY.trim().length > 0;
+  const hasRegistryPrivateKeys = typeof env.USER_KV_ENCRYPTION_KEYS_JSON === 'string' && env.USER_KV_ENCRYPTION_KEYS_JSON.trim().length > 0;
+
   if (
-    !env.USER_KV_ENCRYPTION_PRIVATE_KEY ||
     !env.USER_KV_ENCRYPTION_PUBLIC_KEY ||
-    !env.USER_KV_ENCRYPTION_KEY_ID
+    !env.USER_KV_ENCRYPTION_KEY_ID ||
+    (!hasLegacyPrivateKey && !hasRegistryPrivateKeys)
   ) {
     throw new Error('User KV encryption is not fully configured');
   }
+}
+
+function normalizePrivateKeyPem(rawValue: string): string {
+  return rawValue.trim().replace(/^['"]|['"]$/g, '').replace(/\\n/g, '\n');
+}
+
+function getNonEmptyString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function parseUserKvPrivateKeyRegistry(env: Env): PrivateKeyRegistry {
+  const keys: Record<string, string> = {};
+  const configuredActiveKeyId = getNonEmptyString(env.USER_KV_ENCRYPTION_ACTIVE_KEY_ID);
+
+  if (getNonEmptyString(env.USER_KV_ENCRYPTION_KEYS_JSON)) {
+    let parsedRegistry: unknown;
+    try {
+      parsedRegistry = JSON.parse(env.USER_KV_ENCRYPTION_KEYS_JSON as string) as unknown;
+    } catch {
+      throw new Error('USER_KV_ENCRYPTION_KEYS_JSON is not valid JSON');
+    }
+
+    if (!parsedRegistry || typeof parsedRegistry !== 'object') {
+      throw new Error('USER_KV_ENCRYPTION_KEYS_JSON must be an object');
+    }
+
+    const payload = parsedRegistry as KeyRegistryPayload;
+    if (!payload.keys || typeof payload.keys !== 'object') {
+      throw new Error('USER_KV_ENCRYPTION_KEYS_JSON must include a keys object');
+    }
+
+    for (const [keyId, pemValue] of Object.entries(payload.keys as Record<string, unknown>)) {
+      const normalizedKeyId = getNonEmptyString(keyId);
+      const normalizedPem = getNonEmptyString(pemValue);
+      if (!normalizedKeyId || !normalizedPem) {
+        continue;
+      }
+
+      keys[normalizedKeyId] = normalizePrivateKeyPem(normalizedPem);
+    }
+
+    const payloadActiveKeyId = getNonEmptyString(payload.activeKeyId);
+    const activeKeyId = configuredActiveKeyId ?? payloadActiveKeyId;
+
+    if (Object.keys(keys).length === 0) {
+      throw new Error('USER_KV_ENCRYPTION_KEYS_JSON does not contain any usable keys');
+    }
+
+    if (activeKeyId && !keys[activeKeyId]) {
+      throw new Error('USER_KV active key ID is not present in USER_KV_ENCRYPTION_KEYS_JSON');
+    }
+
+    return {
+      activeKeyId: activeKeyId ?? null,
+      keys
+    };
+  }
+
+  const legacyKeyId = getNonEmptyString(env.USER_KV_ENCRYPTION_KEY_ID);
+  const legacyPrivateKey = getNonEmptyString(env.USER_KV_ENCRYPTION_PRIVATE_KEY);
+  if (!legacyKeyId || !legacyPrivateKey) {
+    throw new Error('User KV encryption private key registry is not configured');
+  }
+
+  keys[legacyKeyId] = normalizePrivateKeyPem(legacyPrivateKey);
+
+  return {
+    activeKeyId: configuredActiveKeyId ?? legacyKeyId,
+    keys
+  };
+}
+
+function buildPrivateKeyCandidates(
+  recordKeyId: string,
+  registry: PrivateKeyRegistry
+): Array<{ keyId: string; privateKeyPem: string }> {
+  const candidates: Array<{ keyId: string; privateKeyPem: string }> = [];
+  const seen = new Set<string>();
+
+  const appendCandidate = (candidateKeyId: string | null): void => {
+    if (!candidateKeyId || seen.has(candidateKeyId)) {
+      return;
+    }
+
+    const privateKeyPem = registry.keys[candidateKeyId];
+    if (!privateKeyPem) {
+      return;
+    }
+
+    seen.add(candidateKeyId);
+    candidates.push({ keyId: candidateKeyId, privateKeyPem });
+  };
+
+  appendCandidate(getNonEmptyString(recordKeyId));
+  appendCandidate(registry.activeKeyId);
+
+  for (const keyId of Object.keys(registry.keys)) {
+    appendCandidate(keyId);
+  }
+
+  return candidates;
+}
+
+function logUserKvDecryptionTelemetry(input: {
+  recordKeyId: string;
+  selectedKeyId: string | null;
+  attemptCount: number;
+  outcome: DecryptionTelemetryOutcome;
+  reason?: string;
+}): void {
+  const details = {
+    scope: 'user-kv',
+    recordKeyId: input.recordKeyId,
+    selectedKeyId: input.selectedKeyId,
+    attemptCount: input.attemptCount,
+    fallbackUsed: input.outcome === 'fallback-hit',
+    outcome: input.outcome,
+    reason: input.reason ?? null
+  };
+
+  if (input.outcome === 'all-failed') {
+    console.warn('Key registry decryption failed', details);
+    return;
+  }
+
+  console.info('Key registry decryption resolved', details);
+}
+
+async function decryptUserKvRecord(
+  encryptedRecord: UserKvEncryptedRecord,
+  registry: PrivateKeyRegistry
+): Promise<string> {
+  const candidates = buildPrivateKeyCandidates(encryptedRecord.keyId, registry);
+  const primaryKeyId = candidates[0]?.keyId ?? null;
+  let lastError: unknown;
+
+  for (let index = 0; index < candidates.length; index += 1) {
+    const candidate = candidates[index];
+    try {
+      const decryptedJson = await decryptJsonFromUserKv(encryptedRecord, candidate.privateKeyPem);
+      logUserKvDecryptionTelemetry({
+        recordKeyId: encryptedRecord.keyId,
+        selectedKeyId: candidate.keyId,
+        attemptCount: index + 1,
+        outcome: candidate.keyId === primaryKeyId ? 'primary-hit' : 'fallback-hit'
+      });
+      return decryptedJson;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  logUserKvDecryptionTelemetry({
+    recordKeyId: encryptedRecord.keyId,
+    selectedKeyId: null,
+    attemptCount: candidates.length,
+    outcome: 'all-failed',
+    reason: lastError instanceof Error ? lastError.message : 'unknown decryption error'
+  });
+
+  throw new Error(
+    `Failed to decrypt user KV record after ${candidates.length} key attempt(s): ${
+      lastError instanceof Error ? lastError.message : 'unknown decryption error'
+    }`
+  );
 }
 
 async function readUserRecord(env: Env, userUid: string): Promise<UserData | null> {
@@ -156,15 +365,46 @@ async function readUserRecord(env: Env, userUid: string): Promise<UserData | nul
 
   const encryptedRecord = tryParseEncryptedRecord(storedValue);
   if (encryptedRecord) {
-    validateEncryptedRecord(encryptedRecord, env.USER_KV_ENCRYPTION_KEY_ID);
-    const decryptedJson = await decryptJsonFromUserKv(
-      encryptedRecord,
-      env.USER_KV_ENCRYPTION_PRIVATE_KEY
-    );
+    validateEncryptedRecord(encryptedRecord);
+    const keyRegistry = parseUserKvPrivateKeyRegistry(env);
+    const decryptedJson = await decryptUserKvRecord(encryptedRecord, keyRegistry);
     return JSON.parse(decryptedJson) as UserData;
   }
 
-  throw new Error('User KV record is not encrypted');
+  // Legacy support: accept existing plaintext records and opportunistically
+  // rewrite them as encrypted records during the first successful read.
+  let parsedLegacyRecord: unknown;
+  try {
+    parsedLegacyRecord = JSON.parse(storedValue) as unknown;
+  } catch {
+    throw new Error('User KV record is not encrypted');
+  }
+
+  if (!isLegacyUserData(parsedLegacyRecord)) {
+    throw new Error('User KV record is not encrypted');
+  }
+
+  const legacyUserData = parsedLegacyRecord;
+
+  if (legacyUserData.uid !== userUid) {
+    throw new Error('User KV record UID mismatch');
+  }
+
+  try {
+    await writeUserRecord(env, userUid, legacyUserData);
+    console.info('Migrated plaintext USER_DB record to encrypted format', {
+      scope: 'user-kv',
+      uid: userUid
+    });
+  } catch (error) {
+    console.warn('Failed to migrate plaintext USER_DB record during read', {
+      scope: 'user-kv',
+      uid: userUid,
+      reason: error instanceof Error ? error.message : 'unknown migration error'
+    });
+  }
+
+  return legacyUserData;
 }
 
 async function writeUserRecord(env: Env, userUid: string, userData: UserData): Promise<void> {
@@ -326,10 +566,13 @@ async function handleGetUser(env: Env, userUid: string): Promise<Response> {
       status: 200, 
       headers: corsHeaders 
     });
-  } catch {
-    return new Response('Failed to get user data', { 
-      status: 500, 
-      headers: corsHeaders 
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown user data read error';
+    console.error('Failed to get user data:', { uid: userUid, reason: errorMessage });
+
+    return new Response('Failed to get user data', {
+      status: 500,
+      headers: corsHeaders
     });
   }
 }
@@ -730,7 +973,13 @@ export default {
 
     try {
       await authenticate(request, env);
-      requireUserKvEncryptionConfig(env);
+
+      // DELETE can mutate user KV data (for example /:uid/cases), so non-GET methods require write config.
+      if (request.method === 'GET') {
+        requireUserKvReadConfig(env);
+      } else {
+        requireUserKvWriteConfig(env);
+      }
       
       const url = new URL(request.url);
       const parts = url.pathname.split('/');

@@ -95,6 +95,46 @@ load_required_admin_service_credentials() {
 
 load_required_admin_service_credentials
 
+build_user_worker_secret_list() {
+    local secrets=(
+        "USER_DB_AUTH"
+        "R2_KEY_SECRET"
+        "IMAGES_API_TOKEN"
+        "DATA_WORKER_DOMAIN"
+        "IMAGES_WORKER_DOMAIN"
+        "PROJECT_ID"
+        "FIREBASE_SERVICE_ACCOUNT_EMAIL"
+        "FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY"
+    )
+
+    if [ -n "${USER_KV_ENCRYPTION_PRIVATE_KEY:-}" ]; then
+        secrets+=("USER_KV_ENCRYPTION_PRIVATE_KEY")
+    fi
+
+    if [ -n "${USER_KV_ENCRYPTION_KEYS_JSON:-}" ]; then
+        secrets+=("USER_KV_ENCRYPTION_KEYS_JSON")
+    fi
+
+    if [ -n "${USER_KV_ENCRYPTION_ACTIVE_KEY_ID:-}" ]; then
+        secrets+=("USER_KV_ENCRYPTION_ACTIVE_KEY_ID")
+    fi
+
+    local write_endpoints_enabled_normalized
+    write_endpoints_enabled_normalized=$(printf '%s' "${USER_KV_WRITE_ENDPOINTS_ENABLED:-true}" | tr '[:upper:]' '[:lower:]')
+
+    if [ "$write_endpoints_enabled_normalized" = "1" ] || [ "$write_endpoints_enabled_normalized" = "true" ] || [ "$write_endpoints_enabled_normalized" = "yes" ] || [ "$write_endpoints_enabled_normalized" = "on" ]; then
+        if [ -n "${USER_KV_ENCRYPTION_KEY_ID:-}" ]; then
+            secrets+=("USER_KV_ENCRYPTION_KEY_ID")
+        fi
+
+        if [ -n "${USER_KV_ENCRYPTION_PUBLIC_KEY:-}" ]; then
+            secrets+=("USER_KV_ENCRYPTION_PUBLIC_KEY")
+        fi
+    fi
+
+    printf '%s\n' "${secrets[@]}"
+}
+
 build_audit_worker_secret_list() {
     local secrets=(
         "R2_KEY_SECRET"
@@ -114,6 +154,14 @@ build_audit_worker_secret_list() {
 
     if [ -n "${DATA_AT_REST_ENCRYPTION_KEY_ID:-}" ]; then
         secrets+=("DATA_AT_REST_ENCRYPTION_KEY_ID")
+    fi
+
+    if [ -n "${DATA_AT_REST_ENCRYPTION_KEYS_JSON:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_KEYS_JSON")
+    fi
+
+    if [ -n "${DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID")
     fi
 
     printf '%s\n' "${secrets[@]}"
@@ -192,6 +240,45 @@ build_data_worker_secret_list() {
         secrets+=("DATA_AT_REST_ENCRYPTION_KEY_ID")
     fi
 
+    if [ -n "${DATA_AT_REST_ENCRYPTION_KEYS_JSON:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_KEYS_JSON")
+    fi
+
+    if [ -n "${DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID")
+    fi
+
+    if [ -n "${EXPORT_ENCRYPTION_KEYS_JSON:-}" ]; then
+        secrets+=("EXPORT_ENCRYPTION_KEYS_JSON")
+    fi
+
+    if [ -n "${EXPORT_ENCRYPTION_ACTIVE_KEY_ID:-}" ]; then
+        secrets+=("EXPORT_ENCRYPTION_ACTIVE_KEY_ID")
+    fi
+
+    printf '%s\n' "${secrets[@]}"
+}
+
+build_images_worker_secret_list() {
+    local secrets=(
+        "IMAGES_API_TOKEN"
+        "DATA_AT_REST_ENCRYPTION_PUBLIC_KEY"
+        "DATA_AT_REST_ENCRYPTION_KEY_ID"
+        "IMAGE_SIGNED_URL_SECRET"
+    )
+
+    if [ -n "${DATA_AT_REST_ENCRYPTION_PRIVATE_KEY:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_PRIVATE_KEY")
+    fi
+
+    if [ -n "${DATA_AT_REST_ENCRYPTION_KEYS_JSON:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_KEYS_JSON")
+    fi
+
+    if [ -n "${DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID")
+    fi
+
     printf '%s\n' "${secrets[@]}"
 }
 
@@ -235,9 +322,13 @@ if ! set_worker_secrets "Keys Worker" "workers/keys-worker" \
     echo -e "${YELLOW}⚠️  Skipping Keys Worker (not configured)${NC}"
 fi
 
-# User Worker  
-if ! set_worker_secrets "User Worker" "workers/user-worker" \
-    "USER_DB_AUTH" "R2_KEY_SECRET" "IMAGES_API_TOKEN" "DATA_WORKER_DOMAIN" "IMAGES_WORKER_DOMAIN" "PROJECT_ID" "FIREBASE_SERVICE_ACCOUNT_EMAIL" "FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY" "USER_KV_ENCRYPTION_PRIVATE_KEY" "USER_KV_ENCRYPTION_KEY_ID" "USER_KV_ENCRYPTION_PUBLIC_KEY"; then
+# User Worker
+user_worker_secrets=()
+while IFS= read -r secret; do
+    user_worker_secrets+=("$secret")
+done < <(build_user_worker_secret_list)
+
+if ! set_worker_secrets "User Worker" "workers/user-worker" "${user_worker_secrets[@]}"; then
     echo -e "${YELLOW}⚠️  Skipping User Worker (not configured)${NC}"
 fi
 
@@ -252,8 +343,12 @@ if ! set_worker_secrets "Data Worker" "workers/data-worker" "${data_worker_secre
 fi
 
 # Images Worker
-if ! set_worker_secrets "Images Worker" "workers/image-worker" \
-    "IMAGES_API_TOKEN" "DATA_AT_REST_ENCRYPTION_PRIVATE_KEY" "DATA_AT_REST_ENCRYPTION_PUBLIC_KEY" "DATA_AT_REST_ENCRYPTION_KEY_ID" "IMAGE_SIGNED_URL_SECRET"; then
+images_worker_secrets=()
+while IFS= read -r secret; do
+    images_worker_secrets+=("$secret")
+done < <(build_images_worker_secret_list)
+
+if ! set_worker_secrets "Images Worker" "workers/image-worker" "${images_worker_secrets[@]}"; then
     echo -e "${YELLOW}⚠️  Skipping Images Worker (not configured)${NC}"
 fi
 

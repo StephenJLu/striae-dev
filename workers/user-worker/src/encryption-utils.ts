@@ -188,17 +188,13 @@ export function tryParseEncryptedRecord(serializedValue: string): UserKvEncrypte
   return parsed;
 }
 
-export function validateEncryptedRecord(record: UserKvEncryptedRecord, expectedKeyId: string): void {
+export function validateEncryptedRecord(record: UserKvEncryptedRecord): void {
   if (record.algorithm !== USER_KV_ENCRYPTION_ALGORITHM) {
     throw new Error('Unsupported user KV encryption algorithm');
   }
 
   if (record.encryptionVersion !== USER_KV_ENCRYPTION_VERSION) {
     throw new Error('Unsupported user KV encryption version');
-  }
-
-  if (record.keyId !== expectedKeyId) {
-    throw new Error('User KV encryption key mismatch');
   }
 }
 
