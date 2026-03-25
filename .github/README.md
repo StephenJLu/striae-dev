@@ -62,6 +62,13 @@ npm run deploy:all
 
 ## 📋 Changelog
 
+## [2026-03-25] - *[Minor Release v5.2.0](https://github.com/striae-org/striae/releases/tag/v5.2.0)*
+
+- **🧹 Runtime and Legacy Cleanup** - Removed deprecated `requireSignedURLs` handling and additional Cloudflare holdover remnants that were no longer part of the active architecture.
+- **🛡️ Deploy-Config Validation Hardening** - Refined placeholder detection regex behavior and incorporated release-window validation/code-review updates for safer environment setup flows.
+- **⚙️ Worker and Runtime Alignment** - Updated image-worker generated type surfaces, refreshed compatibility-date metadata, and included user-worker KV EAR follow-up adjustments.
+- **📦 Migration Completion Cleanup** - Removed obsolete backfill-function remnants as part of post-migration stabilization.
+
 ## [2026-03-24] - *[Patch Release v5.1.1](https://github.com/striae-org/striae/releases/tag/v5.1.1)*
 
 - **🔗 Signed URL Generation Refinement** - Fixed signed URL generation and verification logic for consistent validation across image serving surfaces with follow-up deploy-config alignment for URL signing keys.
