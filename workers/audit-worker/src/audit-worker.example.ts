@@ -101,11 +101,16 @@ function parseDataAtRestPrivateKeyRegistry(env: Env): PrivateKeyRegistry {
     }
 
     const payload = parsedRegistry as KeyRegistryPayload;
-    if (!payload.keys || typeof payload.keys !== 'object') {
-      throw new Error('DATA_AT_REST_ENCRYPTION_KEYS_JSON must include a keys object');
-    }
+    const payloadActiveKeyId = getNonEmptyString(payload.activeKeyId);
+    const rawKeys = payload.keys && typeof payload.keys === 'object'
+      ? payload.keys as Record<string, unknown>
+      : parsedRegistry as Record<string, unknown>;
 
-    for (const [keyId, pemValue] of Object.entries(payload.keys as Record<string, unknown>)) {
+    for (const [keyId, pemValue] of Object.entries(rawKeys)) {
+      if (keyId === 'activeKeyId' || keyId === 'keys') {
+        continue;
+      }
+
       const normalizedKeyId = getNonEmptyString(keyId);
       const normalizedPem = getNonEmptyString(pemValue);
       if (!normalizedKeyId || !normalizedPem) {
@@ -115,7 +120,6 @@ function parseDataAtRestPrivateKeyRegistry(env: Env): PrivateKeyRegistry {
       keys[normalizedKeyId] = normalizePrivateKeyPem(normalizedPem);
     }
 
-    const payloadActiveKeyId = getNonEmptyString(payload.activeKeyId);
     const resolvedActiveKeyId = configuredActiveKeyId ?? payloadActiveKeyId;
 
     if (Object.keys(keys).length === 0) {

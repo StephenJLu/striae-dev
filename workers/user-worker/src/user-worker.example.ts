@@ -49,6 +49,23 @@ interface UserData {
   updatedAt?: string;
 }
 
+function isLegacyUserData(value: unknown): value is UserData {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Partial<UserData>;
+  return (
+    typeof candidate.uid === 'string' &&
+    typeof candidate.email === 'string' &&
+    typeof candidate.firstName === 'string' &&
+    typeof candidate.lastName === 'string' &&
+    typeof candidate.company === 'string' &&
+    typeof candidate.permitted === 'boolean' &&
+    Array.isArray(candidate.cases)
+  );
+}
+
 interface CaseItem {
   caseNumber: string;
   caseName?: string;
@@ -354,7 +371,40 @@ async function readUserRecord(env: Env, userUid: string): Promise<UserData | nul
     return JSON.parse(decryptedJson) as UserData;
   }
 
-  throw new Error('User KV record is not encrypted');
+  // Legacy support: accept existing plaintext records and opportunistically
+  // rewrite them as encrypted records during the first successful read.
+  let parsedLegacyRecord: unknown;
+  try {
+    parsedLegacyRecord = JSON.parse(storedValue) as unknown;
+  } catch {
+    throw new Error('User KV record is not encrypted');
+  }
+
+  if (!isLegacyUserData(parsedLegacyRecord)) {
+    throw new Error('User KV record is not encrypted');
+  }
+
+  const legacyUserData = parsedLegacyRecord;
+
+  if (legacyUserData.uid !== userUid) {
+    throw new Error('User KV record UID mismatch');
+  }
+
+  try {
+    await writeUserRecord(env, userUid, legacyUserData);
+    console.info('Migrated plaintext USER_DB record to encrypted format', {
+      scope: 'user-kv',
+      uid: userUid
+    });
+  } catch (error) {
+    console.warn('Failed to migrate plaintext USER_DB record during read', {
+      scope: 'user-kv',
+      uid: userUid,
+      reason: error instanceof Error ? error.message : 'unknown migration error'
+    });
+  }
+
+  return legacyUserData;
 }
 
 async function writeUserRecord(env: Env, userUid: string, userData: UserData): Promise<void> {
@@ -516,10 +566,24 @@ async function handleGetUser(env: Env, userUid: string): Promise<Response> {
       status: 200, 
       headers: corsHeaders 
     });
-  } catch {
-    return new Response('Failed to get user data', { 
-      status: 500, 
-      headers: corsHeaders 
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown user data read error';
+    console.error('Failed to get user data:', { uid: userUid, reason: errorMessage });
+
+    if (
+      errorMessage === 'User KV record is not encrypted' ||
+      errorMessage === 'User KV record UID mismatch' ||
+      errorMessage.startsWith('Failed to decrypt user KV record')
+    ) {
+      return new Response(errorMessage, {
+        status: 500,
+        headers: corsHeaders
+      });
+    }
+
+    return new Response('Failed to get user data', {
+      status: 500,
+      headers: corsHeaders
     });
   }
 }

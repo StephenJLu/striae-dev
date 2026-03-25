@@ -118,11 +118,16 @@ function parsePrivateKeyRegistry(input: {
     }
 
     const payload = parsedRegistry as KeyRegistryPayload;
-    if (!payload.keys || typeof payload.keys !== 'object') {
-      throw new Error(`${input.context} registry JSON must include a keys object`);
-    }
+    const payloadActiveKeyId = getNonEmptyString(payload.activeKeyId);
+    const rawKeys = payload.keys && typeof payload.keys === 'object'
+      ? payload.keys as Record<string, unknown>
+      : parsedRegistry as Record<string, unknown>;
 
-    for (const [keyId, pemValue] of Object.entries(payload.keys as Record<string, unknown>)) {
+    for (const [keyId, pemValue] of Object.entries(rawKeys)) {
+      if (keyId === 'activeKeyId' || keyId === 'keys') {
+        continue;
+      }
+
       const normalizedKeyId = getNonEmptyString(keyId);
       const normalizedPem = getNonEmptyString(pemValue);
 
@@ -133,7 +138,6 @@ function parsePrivateKeyRegistry(input: {
       keys[normalizedKeyId] = normalizePrivateKeyPem(normalizedPem);
     }
 
-    const payloadActiveKeyId = getNonEmptyString(payload.activeKeyId);
     const resolvedActiveKeyId = configuredActiveKeyId ?? payloadActiveKeyId;
 
     if (Object.keys(keys).length === 0) {
