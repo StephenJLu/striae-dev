@@ -423,9 +423,14 @@ async function handleSignedUrlMinting(request: Request, env: Env, fileId: string
 
 async function handleImageServing(request: Request, env: Env, fileId: string): Promise<Response> {
   const requestUrl = new URL(request.url);
+  const hasSignedToken = requestUrl.searchParams.has('st');
   const signedToken = requestUrl.searchParams.get('st');
-  if (signedToken) {
+  if (hasSignedToken) {
     requireSignedUrlConfig(env);
+
+    if (!signedToken || signedToken.trim().length === 0) {
+      return createJsonResponse({ error: 'Invalid or expired signed URL token' }, 403);
+    }
 
     const tokenValid = await verifySignedAccessToken(signedToken, fileId, env);
     if (!tokenValid) {
