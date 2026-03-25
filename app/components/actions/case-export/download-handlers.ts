@@ -965,7 +965,24 @@ For questions about this export, contact your Striae system administrator.
  */
 async function fetchImageAsBlob(user: User, fileData: FileData, caseNumber: string): Promise<Blob | null> {
   try {
-    const { blob, revoke } = await getImageUrl(user, fileData, caseNumber, 'Export Package');
+    const imageAccess = await getImageUrl(user, fileData, caseNumber, 'Export Package');
+    const { blob, revoke, url } = imageAccess;
+
+    if (!blob) {
+      const signedResponse = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/octet-stream,image/*'
+        }
+      });
+
+      if (!signedResponse.ok) {
+        throw new Error(`Signed URL fetch failed with status ${signedResponse.status}`);
+      }
+
+      return await signedResponse.blob();
+    }
+
     try {
       return blob;
     } finally {

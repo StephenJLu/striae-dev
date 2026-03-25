@@ -81,13 +81,23 @@ require_command grep
 
 is_placeholder() {
     local value="$1"
-    local normalized=$(echo "$value" | tr '[:upper:]' '[:lower:]')
+    local normalized
+
+    normalized=$(printf '%s' "$value" | tr -d '\r' | tr '[:upper:]' '[:lower:]')
+    normalized=$(printf '%s' "$normalized" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+    normalized=${normalized#\"}
+    normalized=${normalized%\"}
 
     if [ -z "$normalized" ]; then
         return 1
     fi
 
-    [[ "$normalized" == your_*_here ]]
+    [[ "$normalized" =~ ^your_[a-z0-9_]+_here$ || \
+       "$normalized" =~ ^your-[a-z0-9-]+-here$ || \
+       "$normalized" == "placeholder" || \
+       "$normalized" == "changeme" || \
+       "$normalized" == "replace_me" || \
+       "$normalized" == "replace-me" ]]
 }
 
 # Check if .env file exists
@@ -626,38 +636,8 @@ configure_data_at_rest_encryption_credentials() {
     echo -e "${BLUE}🗃️ DATA-AT-REST ENCRYPTION CONFIGURATION${NC}"
     echo "========================================"
 
-    local current_enabled="${DATA_AT_REST_ENCRYPTION_ENABLED:-}"
-    local normalized_enabled=""
-    local enable_choice=""
-
-    current_enabled=$(strip_carriage_returns "$current_enabled")
-    normalized_enabled=$(printf '%s' "$current_enabled" | tr '[:upper:]' '[:lower:]')
-
-    if [ -z "$normalized_enabled" ] || is_placeholder "$normalized_enabled"; then
-        DATA_AT_REST_ENCRYPTION_ENABLED="false"
-    elif [ "$normalized_enabled" = "1" ] || [ "$normalized_enabled" = "true" ] || [ "$normalized_enabled" = "yes" ] || [ "$normalized_enabled" = "on" ]; then
-        DATA_AT_REST_ENCRYPTION_ENABLED="true"
-    else
-        DATA_AT_REST_ENCRYPTION_ENABLED="false"
-    fi
-
-    if [ "$update_env" != "true" ]; then
-        read -p "Enable data-at-rest encryption for new writes? (y/N, Enter keeps current): " enable_choice
-        enable_choice=$(strip_carriage_returns "$enable_choice")
-        case "$enable_choice" in
-            y|Y|yes|YES)
-                DATA_AT_REST_ENCRYPTION_ENABLED="true"
-                ;;
-            n|N|no|NO)
-                DATA_AT_REST_ENCRYPTION_ENABLED="false"
-                ;;
-            "")
-                ;;
-            *)
-                echo -e "${YELLOW}⚠️  Unrecognized choice '$enable_choice'; keeping current setting${NC}"
-                ;;
-        esac
-    fi
+    # Data-at-rest encryption is mandatory for all environments.
+    DATA_AT_REST_ENCRYPTION_ENABLED="true"
 
     export DATA_AT_REST_ENCRYPTION_ENABLED
     write_env_var "DATA_AT_REST_ENCRYPTION_ENABLED" "$DATA_AT_REST_ENCRYPTION_ENABLED"
@@ -781,7 +761,7 @@ required_vars=(
     # Worker-Specific Secrets (required for deployment)
     "KEYS_AUTH"
     "PDF_WORKER_AUTH"
-    "ACCOUNT_HASH"
+    "IMAGE_SIGNED_URL_SECRET"
     "BROWSER_API_TOKEN"
     "MANIFEST_SIGNING_PRIVATE_KEY"
     "MANIFEST_SIGNING_KEY_ID"
@@ -968,7 +948,6 @@ validate_generated_configs() {
     assert_contains_literal "workers/user-worker/wrangler.jsonc" "$KV_STORE_ID" "KV_STORE_ID missing in user worker config"
 
     assert_contains_literal "app/config/config.json" "https://$PAGES_CUSTOM_DOMAIN" "PAGES_CUSTOM_DOMAIN missing in app/config/config.json"
-    assert_contains_literal "app/config/config.json" "$ACCOUNT_HASH" "ACCOUNT_HASH missing in app/config/config.json"
     assert_contains_literal "app/config/config.json" "$EXPORT_ENCRYPTION_KEY_ID" "EXPORT_ENCRYPTION_KEY_ID missing in app/config/config.json"
     assert_contains_literal "app/config/config.json" "\"export_encryption_public_key\":" "export_encryption_public_key missing in app/config/config.json"
     assert_contains_literal "app/routes/auth/login.tsx" "const APP_CANONICAL_ORIGIN = 'https://$PAGES_CUSTOM_DOMAIN';" "PAGES_CUSTOM_DOMAIN missing in app/routes/auth/login.tsx canonical origin"
@@ -989,7 +968,7 @@ validate_generated_configs() {
     assert_contains_literal "workers/user-worker/src/user-worker.ts" "https://$PAGES_CUSTOM_DOMAIN" "PAGES_CUSTOM_DOMAIN missing in user-worker source"
 
     local placeholder_pattern
-    placeholder_pattern="(\"(ACCOUNT_ID|PAGES_PROJECT_NAME|PAGES_CUSTOM_DOMAIN|KEYS_WORKER_NAME|USER_WORKER_NAME|DATA_WORKER_NAME|AUDIT_WORKER_NAME|IMAGES_WORKER_NAME|PDF_WORKER_NAME|KEYS_WORKER_DOMAIN|USER_WORKER_DOMAIN|DATA_WORKER_DOMAIN|AUDIT_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN|PDF_WORKER_DOMAIN|DATA_BUCKET_NAME|AUDIT_BUCKET_NAME|FILES_BUCKET_NAME|KV_STORE_ID|ACCOUNT_HASH|MANIFEST_SIGNING_KEY_ID|MANIFEST_SIGNING_PUBLIC_KEY|EXPORT_ENCRYPTION_KEY_ID|EXPORT_ENCRYPTION_PUBLIC_KEY|YOUR_FIREBASE_API_KEY|YOUR_FIREBASE_AUTH_DOMAIN|YOUR_FIREBASE_PROJECT_ID|YOUR_FIREBASE_STORAGE_BUCKET|YOUR_FIREBASE_MESSAGING_SENDER_ID|YOUR_FIREBASE_APP_ID|YOUR_FIREBASE_MEASUREMENT_ID)\"|'(PAGES_CUSTOM_DOMAIN|DATA_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN)')"
+    placeholder_pattern="(\"(ACCOUNT_ID|PAGES_PROJECT_NAME|PAGES_CUSTOM_DOMAIN|KEYS_WORKER_NAME|USER_WORKER_NAME|DATA_WORKER_NAME|AUDIT_WORKER_NAME|IMAGES_WORKER_NAME|PDF_WORKER_NAME|KEYS_WORKER_DOMAIN|USER_WORKER_DOMAIN|DATA_WORKER_DOMAIN|AUDIT_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN|PDF_WORKER_DOMAIN|DATA_BUCKET_NAME|AUDIT_BUCKET_NAME|FILES_BUCKET_NAME|KV_STORE_ID|MANIFEST_SIGNING_KEY_ID|MANIFEST_SIGNING_PUBLIC_KEY|EXPORT_ENCRYPTION_KEY_ID|EXPORT_ENCRYPTION_PUBLIC_KEY|YOUR_FIREBASE_API_KEY|YOUR_FIREBASE_AUTH_DOMAIN|YOUR_FIREBASE_PROJECT_ID|YOUR_FIREBASE_STORAGE_BUCKET|YOUR_FIREBASE_MESSAGING_SENDER_ID|YOUR_FIREBASE_APP_ID|YOUR_FIREBASE_MEASUREMENT_ID)\"|'(PAGES_CUSTOM_DOMAIN|DATA_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN)')"
 
     local files_to_scan=(
         "wrangler.toml"
@@ -1250,6 +1229,58 @@ prompt_for_secrets() {
     fi
     
     # Function to prompt for a variable
+    is_auto_generated_secret_var() {
+        local var_name=$1
+        case "$var_name" in
+            USER_DB_AUTH|R2_KEY_SECRET|KEYS_AUTH|PDF_WORKER_AUTH|IMAGES_API_TOKEN|IMAGE_SIGNED_URL_SECRET)
+                return 0
+                ;;
+            *)
+                return 1
+                ;;
+        esac
+    }
+
+    is_secret_placeholder_value() {
+        local var_name=$1
+        local value=$2
+        case "$var_name" in
+            USER_DB_AUTH)
+                [ "$value" = "your_custom_user_db_auth_token_here" ]
+                ;;
+            R2_KEY_SECRET)
+                [ "$value" = "your_custom_r2_secret_here" ]
+                ;;
+            KEYS_AUTH)
+                [ "$value" = "your_custom_keys_auth_token_here" ]
+                ;;
+            PDF_WORKER_AUTH)
+                [ "$value" = "your_custom_pdf_worker_auth_token_here" ]
+                ;;
+            IMAGES_API_TOKEN)
+                [ "$value" = "your_cloudflare_images_api_token_here" ]
+                ;;
+            IMAGE_SIGNED_URL_SECRET)
+                [ "$value" = "your_image_signed_url_secret_here" ]
+                ;;
+            *)
+                return 1
+                ;;
+        esac
+    }
+
+    generate_secret_value() {
+        local var_name=$1
+        case "$var_name" in
+            IMAGE_SIGNED_URL_SECRET)
+                openssl rand -base64 48 2>/dev/null | tr '+/' '-_' | tr -d '='
+                ;;
+            *)
+                openssl rand -hex 32 2>/dev/null
+                ;;
+        esac
+    }
+
     prompt_for_var() {
         local var_name=$1
         local description=$2
@@ -1263,19 +1294,19 @@ prompt_for_secrets() {
             current_value=$(resolve_existing_domain_value "$var_name" "$current_value")
         fi
         
-        # Auto-generate specific authentication secrets - but allow keeping current
-        if [ "$var_name" = "USER_DB_AUTH" ] || [ "$var_name" = "R2_KEY_SECRET" ] || [ "$var_name" = "KEYS_AUTH" ] || [ "$var_name" = "PDF_WORKER_AUTH" ]; then
+        # Auto-generate selected secrets - but allow keeping current.
+        if is_auto_generated_secret_var "$var_name"; then
             echo -e "${BLUE}$var_name${NC}"
             echo -e "${YELLOW}$description${NC}"
             
-            if [ "$update_env" != "true" ] && [ -n "$current_value" ] && ! is_placeholder "$current_value" && [ "$current_value" != "your_custom_user_db_auth_token_here" ] && [ "$current_value" != "your_custom_r2_secret_here" ] && [ "$current_value" != "your_custom_keys_auth_token_here" ] && [ "$current_value" != "your_custom_pdf_worker_auth_token_here" ]; then
+            if [ "$update_env" != "true" ] && [ -n "$current_value" ] && ! is_placeholder "$current_value" && ! is_secret_placeholder_value "$var_name" "$current_value"; then
                 # Current value exists and is not a placeholder
                 echo -e "${GREEN}Current value: [HIDDEN]${NC}"
                 read -p "Generate new secret? (press Enter to keep current, or type 'y' to generate): " gen_choice
                 gen_choice=$(strip_carriage_returns "$gen_choice")
                 
                 if [ "$gen_choice" = "y" ] || [ "$gen_choice" = "Y" ]; then
-                    new_value=$(openssl rand -hex 32 2>/dev/null || echo "")
+                    new_value=$(generate_secret_value "$var_name" || echo "")
                     if [ -n "$new_value" ]; then
                         echo -e "${GREEN}✅ $var_name auto-generated${NC}"
                     else
@@ -1302,7 +1333,7 @@ prompt_for_secrets() {
             else
                 # No current value or placeholder value - auto-generate
                 echo -e "${YELLOW}Auto-generating secret...${NC}"
-                new_value=$(openssl rand -hex 32 2>/dev/null || echo "")
+                new_value=$(generate_secret_value "$var_name" || echo "")
                 if [ -n "$new_value" ]; then
                     echo -e "${GREEN}✅ $var_name auto-generated${NC}"
                 else
@@ -1428,7 +1459,7 @@ prompt_for_secrets() {
     echo "==================================="
     prompt_for_var "USER_DB_AUTH" "Custom user database authentication token (generate with: openssl rand -hex 16)"
     prompt_for_var "R2_KEY_SECRET" "Custom R2 storage authentication token (generate with: openssl rand -hex 16)"
-    prompt_for_var "IMAGES_API_TOKEN" "Cloudflare Images API token (shared between workers)"
+    prompt_for_var "IMAGES_API_TOKEN" "Image worker API token (shared between workers)"
     
     echo -e "${BLUE}🔥 FIREBASE AUTH CONFIGURATION${NC}"
     echo "==============================="
@@ -1534,7 +1565,7 @@ prompt_for_secrets() {
     echo "============================"
     prompt_for_var "KEYS_AUTH" "Keys worker authentication token (generate with: openssl rand -hex 16)"
     prompt_for_var "PDF_WORKER_AUTH" "PDF worker authentication token (generate with: openssl rand -hex 16)"
-    prompt_for_var "ACCOUNT_HASH" "Cloudflare Images Account Hash"
+    prompt_for_var "IMAGE_SIGNED_URL_SECRET" "Image signed URL secret (generate with: openssl rand -base64 48 | tr '+/' '-_' | tr -d '=')"
     prompt_for_var "BROWSER_API_TOKEN" "Cloudflare Browser Rendering API token (for PDF Worker)"
 
     configure_manifest_signing_credentials
@@ -1680,15 +1711,12 @@ update_wrangler_configs() {
         local escaped_manifest_signing_public_key
         local escaped_export_encryption_key_id
         local escaped_export_encryption_public_key
-        local escaped_account_hash
         escaped_manifest_signing_key_id=$(escape_for_sed_replacement "$MANIFEST_SIGNING_KEY_ID")
         escaped_manifest_signing_public_key=$(escape_for_sed_replacement "$MANIFEST_SIGNING_PUBLIC_KEY")
         escaped_export_encryption_key_id=$(escape_for_sed_replacement "$EXPORT_ENCRYPTION_KEY_ID")
         escaped_export_encryption_public_key=$(escape_for_sed_replacement "$EXPORT_ENCRYPTION_PUBLIC_KEY")
-        escaped_account_hash=$(escape_for_sed_replacement "$ACCOUNT_HASH")
 
         sed -i "s|\"url\": \"[^\"]*\"|\"url\": \"https://$escaped_pages_custom_domain\"|g" app/config/config.json
-        sed -i "s|\"account_hash\": \"[^\"]*\"|\"account_hash\": \"$escaped_account_hash\"|g" app/config/config.json
         sed -i "s|\"MANIFEST_SIGNING_KEY_ID\"|\"$escaped_manifest_signing_key_id\"|g" app/config/config.json
         sed -i "s|\"MANIFEST_SIGNING_PUBLIC_KEY\"|\"$escaped_manifest_signing_public_key\"|g" app/config/config.json
         sed -i "s|\"EXPORT_ENCRYPTION_KEY_ID\"|\"$escaped_export_encryption_key_id\"|g" app/config/config.json

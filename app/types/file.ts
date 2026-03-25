@@ -12,8 +12,6 @@ export interface FileUploadResponse {
     id: string;
     filename: string;
     uploaded: string;
-    requireSignedURLs: boolean;
-    variants: string[];
   };
   errors: Array<{
     code: number;
@@ -27,4 +25,22 @@ export interface ImageUploadResponse {
   result: FileUploadResponse['result'];
   errors: FileUploadResponse['errors'];
   messages: FileUploadResponse['messages'];
+}
+
+export interface SignedImageUrlResponse {
+  success: boolean;
+  result: {
+    fileId: string;
+    url: string;
+    expiresAt: string;
+    expiresInSeconds: number;
+  };
+}
+
+export interface ImageAccessResult {
+  url: string;
+  revoke: () => void;
+  blob?: Blob;
+  urlType: 'signed' | 'blob';
+  expiresAt?: string;
 }
