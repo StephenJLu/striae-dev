@@ -1,3 +1,10 @@
+import {
+  decryptJsonFromUserKv,
+  encryptJsonForUserKv,
+  tryParseEncryptedRecord,
+  validateEncryptedRecord
+} from './encryption-utils';
+
 interface Env {
   USER_DB_AUTH: string;
   USER_DB: KVNamespace;
@@ -8,6 +15,9 @@ interface Env {
   PROJECT_ID: string;
   FIREBASE_SERVICE_ACCOUNT_EMAIL: string;
   FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY: string;
+  USER_KV_ENCRYPTION_PRIVATE_KEY: string;
+  USER_KV_ENCRYPTION_PUBLIC_KEY: string;
+  USER_KV_ENCRYPTION_KEY_ID: string;
 }
 
 interface UserData {
@@ -126,6 +136,45 @@ function resolveImageWorkerBaseUrl(env: Env): string {
   }
 
   return normalizeWorkerBaseUrl(DEFAULT_IMAGE_WORKER_BASE_URL);
+}
+
+function requireUserKvEncryptionConfig(env: Env): void {
+  if (
+    !env.USER_KV_ENCRYPTION_PRIVATE_KEY ||
+    !env.USER_KV_ENCRYPTION_PUBLIC_KEY ||
+    !env.USER_KV_ENCRYPTION_KEY_ID
+  ) {
+    throw new Error('User KV encryption is not fully configured');
+  }
+}
+
+async function readUserRecord(env: Env, userUid: string): Promise<UserData | null> {
+  const storedValue = await env.USER_DB.get(userUid);
+  if (storedValue === null) {
+    return null;
+  }
+
+  const encryptedRecord = tryParseEncryptedRecord(storedValue);
+  if (encryptedRecord) {
+    validateEncryptedRecord(encryptedRecord, env.USER_KV_ENCRYPTION_KEY_ID);
+    const decryptedJson = await decryptJsonFromUserKv(
+      encryptedRecord,
+      env.USER_KV_ENCRYPTION_PRIVATE_KEY
+    );
+    return JSON.parse(decryptedJson) as UserData;
+  }
+
+  throw new Error('User KV record is not encrypted');
+}
+
+async function writeUserRecord(env: Env, userUid: string, userData: UserData): Promise<void> {
+  const encryptedPayload = await encryptJsonForUserKv(
+    JSON.stringify(userData),
+    env.USER_KV_ENCRYPTION_PUBLIC_KEY,
+    env.USER_KV_ENCRYPTION_KEY_ID
+  );
+
+  await env.USER_DB.put(userUid, encryptedPayload);
 }
 
 function base64UrlEncode(value: string | Uint8Array): string {
@@ -266,14 +315,14 @@ async function deleteFirebaseAuthUser(env: Env, userUid: string): Promise<void> 
 
 async function handleGetUser(env: Env, userUid: string): Promise<Response> {
   try {
-    const value = await env.USER_DB.get(userUid);
-    if (value === null) {
+    const userData = await readUserRecord(env, userUid);
+    if (userData === null) {
       return new Response('User not found', { 
         status: 404, 
         headers: corsHeaders 
       });
     }
-    return new Response(value, { 
+    return new Response(JSON.stringify(userData), { 
       status: 200, 
       headers: corsHeaders 
     });
@@ -292,21 +341,20 @@ async function handleAddUser(request: Request, env: Env, userUid: string): Promi
     const normalizedBadgeId = typeof badgeId === 'string' ? badgeId.trim() : undefined;
     
     // Check for existing user
-    const value = await env.USER_DB.get(userUid);
+    const existingUser = await readUserRecord(env, userUid);
     
     let userData: UserData;
-    if (value !== null) {
+    if (existingUser !== null) {
       // Update existing user, preserving cases
-      const existing: UserData = JSON.parse(value);
       userData = {
-        ...existing,
+        ...existingUser,
         // Preserve all existing fields
-        email: email || existing.email,
-        firstName: firstName || existing.firstName,
-        lastName: lastName || existing.lastName,
-        company: company || existing.company,
-        badgeId: normalizedBadgeId !== undefined ? normalizedBadgeId : (existing.badgeId ?? ''),
-        permitted: permitted !== undefined ? permitted : existing.permitted,
+        email: email || existingUser.email,
+        firstName: firstName || existingUser.firstName,
+        lastName: lastName || existingUser.lastName,
+        company: company || existingUser.company,
+        badgeId: normalizedBadgeId !== undefined ? normalizedBadgeId : (existingUser.badgeId ?? ''),
+        permitted: permitted !== undefined ? permitted : existingUser.permitted,
         updatedAt: new Date().toISOString()
       };
       if (requestData.readOnlyCases !== undefined) {
@@ -331,10 +379,10 @@ async function handleAddUser(request: Request, env: Env, userUid: string): Promi
     }
 
     // Store value in KV
-    await env.USER_DB.put(userUid, JSON.stringify(userData));
+    await writeUserRecord(env, userUid, userData);
 
     return new Response(JSON.stringify(userData), {
-      status: value !== null ? 200 : 201,
+      status: existingUser !== null ? 200 : 201,
       headers: corsHeaders
     });
   } catch {
@@ -454,14 +502,13 @@ async function executeUserDeletion(
   userUid: string,
   reportProgress?: (progress: AccountDeletionProgressEvent) => void
 ): Promise<{ success: boolean; message: string; totalCases: number; completedCases: number }> {
-  const userData = await env.USER_DB.get(userUid);
+  const userData = await readUserRecord(env, userUid);
   if (userData === null) {
     throw new Error('User not found');
   }
 
-  const userObject: UserData = JSON.parse(userData);
-  const ownedCases = (userObject.cases || []).map((caseItem) => caseItem.caseNumber);
-  const readOnlyCases = (userObject.readOnlyCases || []).map((caseItem) => caseItem.caseNumber);
+  const ownedCases = (userData.cases || []).map((caseItem) => caseItem.caseNumber);
+  const readOnlyCases = (userData.readOnlyCases || []).map((caseItem) => caseItem.caseNumber);
   const allCaseNumbers = Array.from(new Set([...ownedCases, ...readOnlyCases]));
   const totalCases = allCaseNumbers.length;
   let completedCases = 0;
@@ -604,8 +651,8 @@ async function handleAddCases(request: Request, env: Env, userUid: string): Prom
     const { cases = [] }: AddCasesRequest = await request.json();
     
     // Get current user data
-    const value = await env.USER_DB.get(userUid);
-    if (!value) {
+    const userData = await readUserRecord(env, userUid);
+    if (!userData) {
       return new Response('User not found', { 
         status: 404, 
         headers: corsHeaders 
@@ -613,7 +660,6 @@ async function handleAddCases(request: Request, env: Env, userUid: string): Prom
     }
 
     // Update cases
-    const userData: UserData = JSON.parse(value);
     const existingCases = userData.cases || [];
     
     // Filter out duplicates
@@ -628,7 +674,7 @@ async function handleAddCases(request: Request, env: Env, userUid: string): Prom
     userData.updatedAt = new Date().toISOString();
 
     // Save to KV
-    await env.USER_DB.put(userUid, JSON.stringify(userData));
+    await writeUserRecord(env, userUid, userData);
 
     return new Response(JSON.stringify(userData), {
       status: 200,
@@ -647,8 +693,8 @@ async function handleDeleteCases(request: Request, env: Env, userUid: string): P
     const { casesToDelete }: DeleteCasesRequest = await request.json();
     
     // Get current user data
-    const value = await env.USER_DB.get(userUid);
-    if (!value) {
+    const userData = await readUserRecord(env, userUid);
+    if (!userData) {
       return new Response('User not found', { 
         status: 404, 
         headers: corsHeaders 
@@ -656,14 +702,13 @@ async function handleDeleteCases(request: Request, env: Env, userUid: string): P
     }
 
     // Update user data
-    const userData: UserData = JSON.parse(value);
     userData.cases = userData.cases.filter(c => 
       !casesToDelete.includes(c.caseNumber)
     );
     userData.updatedAt = new Date().toISOString();
 
     // Save to KV
-    await env.USER_DB.put(userUid, JSON.stringify(userData));
+    await writeUserRecord(env, userUid, userData);
 
     return new Response(JSON.stringify(userData), {
       status: 200,
@@ -685,6 +730,7 @@ export default {
 
     try {
       await authenticate(request, env);
+      requireUserKvEncryptionConfig(env);
       
       const url = new URL(request.url);
       const parts = url.pathname.split('/');
@@ -726,6 +772,13 @@ export default {
         return new Response('Forbidden', { 
           status: 403, 
           headers: corsHeaders 
+        });
+      }
+
+      if (errorMessage === 'User KV encryption is not fully configured') {
+        return new Response(errorMessage, {
+          status: 500,
+          headers: corsHeaders
         });
       }
       
