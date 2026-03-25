@@ -36,6 +36,7 @@ interface Env {
   DATA_AT_REST_ENCRYPTION_PUBLIC_KEY?: string;
   DATA_AT_REST_ENCRYPTION_KEY_ID?: string;
   DATA_AT_REST_ENCRYPTION_KEYS_JSON?: string;
+  DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID?: string;
   DATA_AT_REST_ACTIVE_ENCRYPTION_KEY_ID?: string;
 }
 
@@ -225,7 +226,7 @@ function logRegistryDecryptionTelemetry(input: {
 function getDataAtRestPrivateKeyRegistry(env: Env): PrivateKeyRegistry {
   return parsePrivateKeyRegistry({
     registryJson: env.DATA_AT_REST_ENCRYPTION_KEYS_JSON,
-    activeKeyId: env.DATA_AT_REST_ACTIVE_ENCRYPTION_KEY_ID,
+    activeKeyId: env.DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID ?? env.DATA_AT_REST_ACTIVE_ENCRYPTION_KEY_ID,
     legacyKeyId: env.DATA_AT_REST_ENCRYPTION_KEY_ID,
     legacyPrivateKey: env.DATA_AT_REST_ENCRYPTION_PRIVATE_KEY,
     context: 'Data-at-rest decryption'

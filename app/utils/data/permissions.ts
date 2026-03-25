@@ -42,8 +42,10 @@ export const getUserData = async (user: User): Promise<UserData | null> => {
     if (response.status === 404) {
       return null; // User not found
     }
-    
-    throw new Error('Failed to fetch user data');
+
+    const responseBody = await response.text().catch(() => '');
+    const detail = responseBody ? `: ${responseBody}` : '';
+    throw new Error(`Failed to fetch user data (${response.status} ${response.statusText})${detail}`);
   } catch (error) {
     console.error('Error fetching user data:', error);
     throw error;

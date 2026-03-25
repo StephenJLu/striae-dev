@@ -114,8 +114,8 @@ build_user_worker_secret_list() {
         secrets+=("USER_KV_ENCRYPTION_KEYS_JSON")
     fi
 
-    if [ -n "${USER_KV_ACTIVE_ENCRYPTION_KEY_ID:-}" ]; then
-        secrets+=("USER_KV_ACTIVE_ENCRYPTION_KEY_ID")
+    if [ -n "${USER_KV_ENCRYPTION_ACTIVE_KEY_ID:-}" ]; then
+        secrets+=("USER_KV_ENCRYPTION_ACTIVE_KEY_ID")
     fi
 
     printf '%s\n' "${secrets[@]}"
@@ -146,8 +146,8 @@ build_audit_worker_secret_list() {
         secrets+=("DATA_AT_REST_ENCRYPTION_KEYS_JSON")
     fi
 
-    if [ -n "${DATA_AT_REST_ACTIVE_ENCRYPTION_KEY_ID:-}" ]; then
-        secrets+=("DATA_AT_REST_ACTIVE_ENCRYPTION_KEY_ID")
+    if [ -n "${DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID")
     fi
 
     printf '%s\n' "${secrets[@]}"
@@ -230,8 +230,8 @@ build_data_worker_secret_list() {
         secrets+=("DATA_AT_REST_ENCRYPTION_KEYS_JSON")
     fi
 
-    if [ -n "${DATA_AT_REST_ACTIVE_ENCRYPTION_KEY_ID:-}" ]; then
-        secrets+=("DATA_AT_REST_ACTIVE_ENCRYPTION_KEY_ID")
+    if [ -n "${DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID")
     fi
 
     if [ -n "${EXPORT_ENCRYPTION_KEYS_JSON:-}" ]; then
@@ -258,8 +258,8 @@ build_images_worker_secret_list() {
         secrets+=("DATA_AT_REST_ENCRYPTION_KEYS_JSON")
     fi
 
-    if [ -n "${DATA_AT_REST_ACTIVE_ENCRYPTION_KEY_ID:-}" ]; then
-        secrets+=("DATA_AT_REST_ACTIVE_ENCRYPTION_KEY_ID")
+    if [ -n "${DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID")
     fi
 
     printf '%s\n' "${secrets[@]}"

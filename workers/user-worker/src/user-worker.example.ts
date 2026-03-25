@@ -20,7 +20,7 @@ interface Env {
   USER_KV_ENCRYPTION_PUBLIC_KEY: string;
   USER_KV_ENCRYPTION_KEY_ID: string;
   USER_KV_ENCRYPTION_KEYS_JSON?: string;
-  USER_KV_ACTIVE_ENCRYPTION_KEY_ID?: string;
+  USER_KV_ENCRYPTION_ACTIVE_KEY_ID?: string;
 }
 
 interface KeyRegistryPayload {
@@ -153,7 +153,16 @@ function resolveImageWorkerBaseUrl(env: Env): string {
   return normalizeWorkerBaseUrl(DEFAULT_IMAGE_WORKER_BASE_URL);
 }
 
-function requireUserKvEncryptionConfig(env: Env): void {
+function requireUserKvReadConfig(env: Env): void {
+  const hasLegacyPrivateKey = typeof env.USER_KV_ENCRYPTION_PRIVATE_KEY === 'string' && env.USER_KV_ENCRYPTION_PRIVATE_KEY.trim().length > 0;
+  const hasRegistryPrivateKeys = typeof env.USER_KV_ENCRYPTION_KEYS_JSON === 'string' && env.USER_KV_ENCRYPTION_KEYS_JSON.trim().length > 0;
+
+  if (!hasLegacyPrivateKey && !hasRegistryPrivateKeys) {
+    throw new Error('User KV encryption is not fully configured');
+  }
+}
+
+function requireUserKvWriteConfig(env: Env): void {
   const hasLegacyPrivateKey = typeof env.USER_KV_ENCRYPTION_PRIVATE_KEY === 'string' && env.USER_KV_ENCRYPTION_PRIVATE_KEY.trim().length > 0;
   const hasRegistryPrivateKeys = typeof env.USER_KV_ENCRYPTION_KEYS_JSON === 'string' && env.USER_KV_ENCRYPTION_KEYS_JSON.trim().length > 0;
 
@@ -176,7 +185,7 @@ function getNonEmptyString(value: unknown): string | null {
 
 function parseUserKvPrivateKeyRegistry(env: Env): PrivateKeyRegistry {
   const keys: Record<string, string> = {};
-  const configuredActiveKeyId = getNonEmptyString(env.USER_KV_ACTIVE_ENCRYPTION_KEY_ID);
+  const configuredActiveKeyId = getNonEmptyString(env.USER_KV_ENCRYPTION_ACTIVE_KEY_ID);
 
   if (getNonEmptyString(env.USER_KV_ENCRYPTION_KEYS_JSON)) {
     let parsedRegistry: unknown;
@@ -911,7 +920,12 @@ export default {
 
     try {
       await authenticate(request, env);
-      requireUserKvEncryptionConfig(env);
+
+      if (request.method === 'GET' || request.method === 'DELETE') {
+        requireUserKvReadConfig(env);
+      } else {
+        requireUserKvWriteConfig(env);
+      }
       
       const url = new URL(request.url);
       const parts = url.pathname.split('/');

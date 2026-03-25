@@ -6,6 +6,7 @@ interface Env {
   DATA_AT_REST_ENCRYPTION_PUBLIC_KEY?: string;
   DATA_AT_REST_ENCRYPTION_KEY_ID?: string;
   DATA_AT_REST_ENCRYPTION_KEYS_JSON?: string;
+  DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID?: string;
   DATA_AT_REST_ACTIVE_ENCRYPTION_KEY_ID?: string;
 }
 
@@ -82,7 +83,9 @@ function getNonEmptyString(value: unknown): string | null {
 
 function parseDataAtRestPrivateKeyRegistry(env: Env): PrivateKeyRegistry {
   const keys: Record<string, string> = {};
-  const configuredActiveKeyId = getNonEmptyString(env.DATA_AT_REST_ACTIVE_ENCRYPTION_KEY_ID);
+  const configuredActiveKeyId =
+    getNonEmptyString(env.DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID) ??
+    getNonEmptyString(env.DATA_AT_REST_ACTIVE_ENCRYPTION_KEY_ID);
   const registryJson = getNonEmptyString(env.DATA_AT_REST_ENCRYPTION_KEYS_JSON);
 
   if (registryJson) {
