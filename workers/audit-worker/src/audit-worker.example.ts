@@ -19,6 +19,8 @@ interface PrivateKeyRegistry {
   keys: Record<string, string>;
 }
 
+type DecryptionTelemetryOutcome = 'primary-hit' | 'fallback-hit' | 'all-failed';
+
 interface AuditEntry {
   timestamp: string;
   userId: string;
@@ -172,6 +174,31 @@ function buildPrivateKeyCandidates(
   return candidates;
 }
 
+function logAuditDecryptionTelemetry(input: {
+  recordKeyId: string;
+  selectedKeyId: string | null;
+  attemptCount: number;
+  outcome: DecryptionTelemetryOutcome;
+  reason?: string;
+}): void {
+  const details = {
+    scope: 'audit-at-rest',
+    recordKeyId: input.recordKeyId,
+    selectedKeyId: input.selectedKeyId,
+    attemptCount: input.attemptCount,
+    fallbackUsed: input.outcome === 'fallback-hit',
+    outcome: input.outcome,
+    reason: input.reason ?? null
+  };
+
+  if (input.outcome === 'all-failed') {
+    console.warn('Key registry decryption failed', details);
+    return;
+  }
+
+  console.info('Key registry decryption resolved', details);
+}
+
 async function decryptAuditJsonWithRegistry(
   ciphertext: ArrayBuffer,
   envelope: DataAtRestEnvelope,
@@ -179,15 +206,32 @@ async function decryptAuditJsonWithRegistry(
 ): Promise<string> {
   const keyRegistry = parseDataAtRestPrivateKeyRegistry(env);
   const candidates = buildPrivateKeyCandidates(envelope.keyId, keyRegistry);
+  const primaryKeyId = candidates[0]?.keyId ?? null;
   let lastError: unknown;
 
-  for (const candidate of candidates) {
+  for (let index = 0; index < candidates.length; index += 1) {
+    const candidate = candidates[index];
     try {
-      return await decryptJsonFromStorage(ciphertext, envelope, candidate.privateKeyPem);
+      const plaintext = await decryptJsonFromStorage(ciphertext, envelope, candidate.privateKeyPem);
+      logAuditDecryptionTelemetry({
+        recordKeyId: envelope.keyId,
+        selectedKeyId: candidate.keyId,
+        attemptCount: index + 1,
+        outcome: candidate.keyId === primaryKeyId ? 'primary-hit' : 'fallback-hit'
+      });
+      return plaintext;
     } catch (error) {
       lastError = error;
     }
   }
+
+  logAuditDecryptionTelemetry({
+    recordKeyId: envelope.keyId,
+    selectedKeyId: null,
+    attemptCount: candidates.length,
+    outcome: 'all-failed',
+    reason: lastError instanceof Error ? lastError.message : 'unknown decryption error'
+  });
 
   throw new Error(
     `Failed to decrypt audit record after ${candidates.length} key attempt(s): ${

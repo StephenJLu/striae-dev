@@ -26,6 +26,8 @@ interface PrivateKeyRegistry {
   keys: Record<string, string>;
 }
 
+type DecryptionTelemetryOutcome = 'primary-hit' | 'fallback-hit' | 'all-failed';
+
 interface UploadResult {
   id: string;
   filename: string;
@@ -211,6 +213,31 @@ function buildPrivateKeyCandidates(
   return candidates;
 }
 
+function logFileDecryptionTelemetry(input: {
+  recordKeyId: string;
+  selectedKeyId: string | null;
+  attemptCount: number;
+  outcome: DecryptionTelemetryOutcome;
+  reason?: string;
+}): void {
+  const details = {
+    scope: 'file-at-rest',
+    recordKeyId: input.recordKeyId,
+    selectedKeyId: input.selectedKeyId,
+    attemptCount: input.attemptCount,
+    fallbackUsed: input.outcome === 'fallback-hit',
+    outcome: input.outcome,
+    reason: input.reason ?? null
+  };
+
+  if (input.outcome === 'all-failed') {
+    console.warn('Key registry decryption failed', details);
+    return;
+  }
+
+  console.info('Key registry decryption resolved', details);
+}
+
 async function decryptBinaryWithRegistry(
   ciphertext: ArrayBuffer,
   envelope: DataAtRestEnvelope,
@@ -218,15 +245,32 @@ async function decryptBinaryWithRegistry(
 ): Promise<ArrayBuffer> {
   const keyRegistry = parseDataAtRestPrivateKeyRegistry(env);
   const candidates = buildPrivateKeyCandidates(envelope.keyId, keyRegistry);
+  const primaryKeyId = candidates[0]?.keyId ?? null;
   let lastError: unknown;
 
-  for (const candidate of candidates) {
+  for (let index = 0; index < candidates.length; index += 1) {
+    const candidate = candidates[index];
     try {
-      return await decryptBinaryFromStorage(ciphertext, envelope, candidate.privateKeyPem);
+      const plaintext = await decryptBinaryFromStorage(ciphertext, envelope, candidate.privateKeyPem);
+      logFileDecryptionTelemetry({
+        recordKeyId: envelope.keyId,
+        selectedKeyId: candidate.keyId,
+        attemptCount: index + 1,
+        outcome: candidate.keyId === primaryKeyId ? 'primary-hit' : 'fallback-hit'
+      });
+      return plaintext;
     } catch (error) {
       lastError = error;
     }
   }
+
+  logFileDecryptionTelemetry({
+    recordKeyId: envelope.keyId,
+    selectedKeyId: null,
+    attemptCount: candidates.length,
+    outcome: 'all-failed',
+    reason: lastError instanceof Error ? lastError.message : 'unknown decryption error'
+  });
 
   throw new Error(
     `Failed to decrypt stored file after ${candidates.length} key attempt(s): ${

@@ -49,6 +49,8 @@ interface PrivateKeyRegistry {
   keys: Record<string, string>;
 }
 
+type DecryptionTelemetryOutcome = 'primary-hit' | 'fallback-hit' | 'all-failed';
+
 interface SuccessResponse {
   success: boolean;
 }
@@ -194,6 +196,32 @@ function buildPrivateKeyCandidates(
   return candidates;
 }
 
+function logRegistryDecryptionTelemetry(input: {
+  scope: 'data-at-rest' | 'export-data' | 'export-image';
+  recordKeyId: string | null;
+  selectedKeyId: string | null;
+  attemptCount: number;
+  outcome: DecryptionTelemetryOutcome;
+  reason?: string;
+}): void {
+  const details = {
+    scope: input.scope,
+    recordKeyId: input.recordKeyId,
+    selectedKeyId: input.selectedKeyId,
+    attemptCount: input.attemptCount,
+    fallbackUsed: input.outcome === 'fallback-hit',
+    outcome: input.outcome,
+    reason: input.reason ?? null
+  };
+
+  if (input.outcome === 'all-failed') {
+    console.warn('Key registry decryption failed', details);
+    return;
+  }
+
+  console.info('Key registry decryption resolved', details);
+}
+
 function getDataAtRestPrivateKeyRegistry(env: Env): PrivateKeyRegistry {
   return parsePrivateKeyRegistry({
     registryJson: env.DATA_AT_REST_ENCRYPTION_KEYS_JSON,
@@ -221,15 +249,34 @@ async function decryptJsonFromStorageWithRegistry(
 ): Promise<string> {
   const keyRegistry = getDataAtRestPrivateKeyRegistry(env);
   const candidates = buildPrivateKeyCandidates(getNonEmptyString(envelope.keyId), keyRegistry);
+  const primaryKeyId = candidates[0]?.keyId ?? null;
   let lastError: unknown;
 
-  for (const candidate of candidates) {
+  for (let index = 0; index < candidates.length; index += 1) {
+    const candidate = candidates[index];
     try {
-      return await decryptJsonFromStorage(ciphertext, envelope, candidate.privateKeyPem);
+      const plaintext = await decryptJsonFromStorage(ciphertext, envelope, candidate.privateKeyPem);
+      logRegistryDecryptionTelemetry({
+        scope: 'data-at-rest',
+        recordKeyId: getNonEmptyString(envelope.keyId),
+        selectedKeyId: candidate.keyId,
+        attemptCount: index + 1,
+        outcome: candidate.keyId === primaryKeyId ? 'primary-hit' : 'fallback-hit'
+      });
+      return plaintext;
     } catch (error) {
       lastError = error;
     }
   }
+
+  logRegistryDecryptionTelemetry({
+    scope: 'data-at-rest',
+    recordKeyId: getNonEmptyString(envelope.keyId),
+    selectedKeyId: null,
+    attemptCount: candidates.length,
+    outcome: 'all-failed',
+    reason: lastError instanceof Error ? lastError.message : 'unknown decryption error'
+  });
 
   throw new Error(
     `Failed to decrypt stored data after ${candidates.length} key attempt(s): ${
@@ -247,20 +294,39 @@ async function decryptExportDataWithRegistry(
 ): Promise<string> {
   const keyRegistry = getExportPrivateKeyRegistry(env);
   const candidates = buildPrivateKeyCandidates(keyId, keyRegistry);
+  const primaryKeyId = candidates[0]?.keyId ?? null;
   let lastError: unknown;
 
-  for (const candidate of candidates) {
+  for (let index = 0; index < candidates.length; index += 1) {
+    const candidate = candidates[index];
     try {
-      return await decryptExportData(
+      const plaintext = await decryptExportData(
         encryptedDataBase64,
         wrappedKeyBase64,
         ivBase64,
         candidate.privateKeyPem
       );
+      logRegistryDecryptionTelemetry({
+        scope: 'export-data',
+        recordKeyId: keyId,
+        selectedKeyId: candidate.keyId,
+        attemptCount: index + 1,
+        outcome: candidate.keyId === primaryKeyId ? 'primary-hit' : 'fallback-hit'
+      });
+      return plaintext;
     } catch (error) {
       lastError = error;
     }
   }
+
+  logRegistryDecryptionTelemetry({
+    scope: 'export-data',
+    recordKeyId: keyId,
+    selectedKeyId: null,
+    attemptCount: candidates.length,
+    outcome: 'all-failed',
+    reason: lastError instanceof Error ? lastError.message : 'unknown decryption error'
+  });
 
   throw new Error(
     `Failed to decrypt export payload after ${candidates.length} key attempt(s): ${
@@ -278,20 +344,39 @@ async function decryptExportImageWithRegistry(
 ): Promise<Blob> {
   const keyRegistry = getExportPrivateKeyRegistry(env);
   const candidates = buildPrivateKeyCandidates(keyId, keyRegistry);
+  const primaryKeyId = candidates[0]?.keyId ?? null;
   let lastError: unknown;
 
-  for (const candidate of candidates) {
+  for (let index = 0; index < candidates.length; index += 1) {
+    const candidate = candidates[index];
     try {
-      return await decryptImageBlob(
+      const imageBlob = await decryptImageBlob(
         encryptedImageBase64,
         wrappedKeyBase64,
         ivBase64,
         candidate.privateKeyPem
       );
+      logRegistryDecryptionTelemetry({
+        scope: 'export-image',
+        recordKeyId: keyId,
+        selectedKeyId: candidate.keyId,
+        attemptCount: index + 1,
+        outcome: candidate.keyId === primaryKeyId ? 'primary-hit' : 'fallback-hit'
+      });
+      return imageBlob;
     } catch (error) {
       lastError = error;
     }
   }
+
+  logRegistryDecryptionTelemetry({
+    scope: 'export-image',
+    recordKeyId: keyId,
+    selectedKeyId: null,
+    attemptCount: candidates.length,
+    outcome: 'all-failed',
+    reason: lastError instanceof Error ? lastError.message : 'unknown decryption error'
+  });
 
   throw new Error(
     `Failed to decrypt export image after ${candidates.length} key attempt(s): ${

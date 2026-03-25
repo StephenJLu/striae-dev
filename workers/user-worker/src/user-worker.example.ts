@@ -33,6 +33,8 @@ interface PrivateKeyRegistry {
   keys: Record<string, string>;
 }
 
+type DecryptionTelemetryOutcome = 'primary-hit' | 'fallback-hit' | 'all-failed';
+
 interface UserData {
   uid: string;
   email: string;
@@ -265,20 +267,62 @@ function buildPrivateKeyCandidates(
   return candidates;
 }
 
+function logUserKvDecryptionTelemetry(input: {
+  recordKeyId: string;
+  selectedKeyId: string | null;
+  attemptCount: number;
+  outcome: DecryptionTelemetryOutcome;
+  reason?: string;
+}): void {
+  const details = {
+    scope: 'user-kv',
+    recordKeyId: input.recordKeyId,
+    selectedKeyId: input.selectedKeyId,
+    attemptCount: input.attemptCount,
+    fallbackUsed: input.outcome === 'fallback-hit',
+    outcome: input.outcome,
+    reason: input.reason ?? null
+  };
+
+  if (input.outcome === 'all-failed') {
+    console.warn('Key registry decryption failed', details);
+    return;
+  }
+
+  console.info('Key registry decryption resolved', details);
+}
+
 async function decryptUserKvRecord(
   encryptedRecord: UserKvEncryptedRecord,
   registry: PrivateKeyRegistry
 ): Promise<string> {
   const candidates = buildPrivateKeyCandidates(encryptedRecord.keyId, registry);
+  const primaryKeyId = candidates[0]?.keyId ?? null;
   let lastError: unknown;
 
-  for (const candidate of candidates) {
+  for (let index = 0; index < candidates.length; index += 1) {
+    const candidate = candidates[index];
     try {
-      return await decryptJsonFromUserKv(encryptedRecord, candidate.privateKeyPem);
+      const decryptedJson = await decryptJsonFromUserKv(encryptedRecord, candidate.privateKeyPem);
+      logUserKvDecryptionTelemetry({
+        recordKeyId: encryptedRecord.keyId,
+        selectedKeyId: candidate.keyId,
+        attemptCount: index + 1,
+        outcome: candidate.keyId === primaryKeyId ? 'primary-hit' : 'fallback-hit'
+      });
+      return decryptedJson;
     } catch (error) {
       lastError = error;
     }
   }
+
+  logUserKvDecryptionTelemetry({
+    recordKeyId: encryptedRecord.keyId,
+    selectedKeyId: null,
+    attemptCount: candidates.length,
+    outcome: 'all-failed',
+    reason: lastError instanceof Error ? lastError.message : 'unknown decryption error'
+  });
 
   throw new Error(
     `Failed to decrypt user KV record after ${candidates.length} key attempt(s): ${
