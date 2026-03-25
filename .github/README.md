@@ -62,6 +62,13 @@ npm run deploy:all
 
 ## 📋 Changelog
 
+## [2026-03-24] - *[Patch Release v5.1.1](https://github.com/striae-org/striae/releases/tag/v5.1.1)*
+
+- **🔗 Signed URL Generation Refinement** - Fixed signed URL generation and verification logic for consistent validation across image serving surfaces with follow-up deploy-config alignment for URL signing keys.
+- **🛡️ Image Access Control Hardening** - Improved image revoke handling to properly cascade revocation across dependent resources and enhanced image access validation flows.
+- **⚙️ Deploy Configuration and Secrets Alignment** - Updated deploy-config sequences and environment templates to reflect current secrets requirements and validation patterns with enhanced secrets validation prompting.
+- **🧪 Code Review Resolution and Maintenance** - Addressed targeted code review feedback and test infrastructure alignment from the patch release window.
+
 ## [2026-03-24] - *[Minor Release v5.1.0](https://github.com/striae-org/striae/releases/tag/v5.1.0)*
 
 - **🔐 Data-at-Rest Encryption Rollout** - Extended encryption work into storage/runtime pathways (including audit/image surfaces), with migration/backfill tooling and environment example updates for encrypted data handling.
