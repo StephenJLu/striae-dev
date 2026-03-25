@@ -29,10 +29,24 @@ interface Env {
   MANIFEST_SIGNING_KEY_ID: string;
   EXPORT_ENCRYPTION_PRIVATE_KEY?: string;
   EXPORT_ENCRYPTION_KEY_ID?: string;
+  EXPORT_ENCRYPTION_KEYS_JSON?: string;
+  EXPORT_ENCRYPTION_ACTIVE_KEY_ID?: string;
   DATA_AT_REST_ENCRYPTION_ENABLED?: string;
   DATA_AT_REST_ENCRYPTION_PRIVATE_KEY?: string;
   DATA_AT_REST_ENCRYPTION_PUBLIC_KEY?: string;
   DATA_AT_REST_ENCRYPTION_KEY_ID?: string;
+  DATA_AT_REST_ENCRYPTION_KEYS_JSON?: string;
+  DATA_AT_REST_ACTIVE_ENCRYPTION_KEY_ID?: string;
+}
+
+interface KeyRegistryPayload {
+  activeKeyId?: unknown;
+  keys?: unknown;
+}
+
+interface PrivateKeyRegistry {
+  activeKeyId: string | null;
+  keys: Record<string, string>;
 }
 
 interface SuccessResponse {
@@ -67,6 +81,224 @@ const DECRYPT_EXPORT_PATH = '/api/forensic/decrypt-export';
 const DATA_AT_REST_BACKFILL_PATH = '/api/admin/data-at-rest-backfill';
 const DATA_AT_REST_ENCRYPTION_ALGORITHM = 'RSA-OAEP-AES-256-GCM';
 const DATA_AT_REST_ENCRYPTION_VERSION = '1.0';
+
+function normalizePrivateKeyPem(rawValue: string): string {
+  return rawValue.trim().replace(/^['"]|['"]$/g, '').replace(/\\n/g, '\n');
+}
+
+function getNonEmptyString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function parsePrivateKeyRegistry(input: {
+  registryJson: string | undefined;
+  activeKeyId: string | undefined;
+  legacyKeyId: string | undefined;
+  legacyPrivateKey: string | undefined;
+  context: string;
+}): PrivateKeyRegistry {
+  const keys: Record<string, string> = {};
+  const configuredActiveKeyId = getNonEmptyString(input.activeKeyId);
+  const registryJson = getNonEmptyString(input.registryJson);
+
+  if (registryJson) {
+    let parsedRegistry: unknown;
+
+    try {
+      parsedRegistry = JSON.parse(registryJson) as unknown;
+    } catch {
+      throw new Error(`${input.context} registry JSON is invalid`);
+    }
+
+    if (!parsedRegistry || typeof parsedRegistry !== 'object') {
+      throw new Error(`${input.context} registry JSON must be an object`);
+    }
+
+    const payload = parsedRegistry as KeyRegistryPayload;
+    if (!payload.keys || typeof payload.keys !== 'object') {
+      throw new Error(`${input.context} registry JSON must include a keys object`);
+    }
+
+    for (const [keyId, pemValue] of Object.entries(payload.keys as Record<string, unknown>)) {
+      const normalizedKeyId = getNonEmptyString(keyId);
+      const normalizedPem = getNonEmptyString(pemValue);
+
+      if (!normalizedKeyId || !normalizedPem) {
+        continue;
+      }
+
+      keys[normalizedKeyId] = normalizePrivateKeyPem(normalizedPem);
+    }
+
+    const payloadActiveKeyId = getNonEmptyString(payload.activeKeyId);
+    const resolvedActiveKeyId = configuredActiveKeyId ?? payloadActiveKeyId;
+
+    if (Object.keys(keys).length === 0) {
+      throw new Error(`${input.context} registry does not contain any usable keys`);
+    }
+
+    if (resolvedActiveKeyId && !keys[resolvedActiveKeyId]) {
+      throw new Error(`${input.context} active key ID is not present in registry`);
+    }
+
+    return {
+      activeKeyId: resolvedActiveKeyId ?? null,
+      keys
+    };
+  }
+
+  const legacyKeyId = getNonEmptyString(input.legacyKeyId);
+  const legacyPrivateKey = getNonEmptyString(input.legacyPrivateKey);
+
+  if (!legacyKeyId || !legacyPrivateKey) {
+    throw new Error(`${input.context} private key registry is not configured`);
+  }
+
+  keys[legacyKeyId] = normalizePrivateKeyPem(legacyPrivateKey);
+  const resolvedActiveKeyId = configuredActiveKeyId ?? legacyKeyId;
+
+  return {
+    activeKeyId: resolvedActiveKeyId,
+    keys
+  };
+}
+
+function buildPrivateKeyCandidates(
+  recordKeyId: string | null,
+  registry: PrivateKeyRegistry
+): Array<{ keyId: string; privateKeyPem: string }> {
+  const candidates: Array<{ keyId: string; privateKeyPem: string }> = [];
+  const seen = new Set<string>();
+
+  const appendCandidate = (candidateKeyId: string | null): void => {
+    if (!candidateKeyId || seen.has(candidateKeyId)) {
+      return;
+    }
+
+    const privateKeyPem = registry.keys[candidateKeyId];
+    if (!privateKeyPem) {
+      return;
+    }
+
+    seen.add(candidateKeyId);
+    candidates.push({ keyId: candidateKeyId, privateKeyPem });
+  };
+
+  appendCandidate(recordKeyId);
+  appendCandidate(registry.activeKeyId);
+
+  for (const keyId of Object.keys(registry.keys)) {
+    appendCandidate(keyId);
+  }
+
+  return candidates;
+}
+
+function getDataAtRestPrivateKeyRegistry(env: Env): PrivateKeyRegistry {
+  return parsePrivateKeyRegistry({
+    registryJson: env.DATA_AT_REST_ENCRYPTION_KEYS_JSON,
+    activeKeyId: env.DATA_AT_REST_ACTIVE_ENCRYPTION_KEY_ID,
+    legacyKeyId: env.DATA_AT_REST_ENCRYPTION_KEY_ID,
+    legacyPrivateKey: env.DATA_AT_REST_ENCRYPTION_PRIVATE_KEY,
+    context: 'Data-at-rest decryption'
+  });
+}
+
+function getExportPrivateKeyRegistry(env: Env): PrivateKeyRegistry {
+  return parsePrivateKeyRegistry({
+    registryJson: env.EXPORT_ENCRYPTION_KEYS_JSON,
+    activeKeyId: env.EXPORT_ENCRYPTION_ACTIVE_KEY_ID,
+    legacyKeyId: env.EXPORT_ENCRYPTION_KEY_ID,
+    legacyPrivateKey: env.EXPORT_ENCRYPTION_PRIVATE_KEY,
+    context: 'Export decryption'
+  });
+}
+
+async function decryptJsonFromStorageWithRegistry(
+  ciphertext: ArrayBuffer,
+  envelope: DataAtRestEnvelope,
+  env: Env
+): Promise<string> {
+  const keyRegistry = getDataAtRestPrivateKeyRegistry(env);
+  const candidates = buildPrivateKeyCandidates(getNonEmptyString(envelope.keyId), keyRegistry);
+  let lastError: unknown;
+
+  for (const candidate of candidates) {
+    try {
+      return await decryptJsonFromStorage(ciphertext, envelope, candidate.privateKeyPem);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw new Error(
+    `Failed to decrypt stored data after ${candidates.length} key attempt(s): ${
+      lastError instanceof Error ? lastError.message : 'unknown decryption error'
+    }`
+  );
+}
+
+async function decryptExportDataWithRegistry(
+  encryptedDataBase64: string,
+  wrappedKeyBase64: string,
+  ivBase64: string,
+  keyId: string | null,
+  env: Env
+): Promise<string> {
+  const keyRegistry = getExportPrivateKeyRegistry(env);
+  const candidates = buildPrivateKeyCandidates(keyId, keyRegistry);
+  let lastError: unknown;
+
+  for (const candidate of candidates) {
+    try {
+      return await decryptExportData(
+        encryptedDataBase64,
+        wrappedKeyBase64,
+        ivBase64,
+        candidate.privateKeyPem
+      );
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw new Error(
+    `Failed to decrypt export payload after ${candidates.length} key attempt(s): ${
+      lastError instanceof Error ? lastError.message : 'unknown decryption error'
+    }`
+  );
+}
+
+async function decryptExportImageWithRegistry(
+  encryptedImageBase64: string,
+  wrappedKeyBase64: string,
+  ivBase64: string,
+  keyId: string | null,
+  env: Env
+): Promise<Blob> {
+  const keyRegistry = getExportPrivateKeyRegistry(env);
+  const candidates = buildPrivateKeyCandidates(keyId, keyRegistry);
+  let lastError: unknown;
+
+  for (const candidate of candidates) {
+    try {
+      return await decryptImageBlob(
+        encryptedImageBase64,
+        wrappedKeyBase64,
+        ivBase64,
+        candidate.privateKeyPem
+      );
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw new Error(
+    `Failed to decrypt export image after ${candidates.length} key attempt(s): ${
+      lastError instanceof Error ? lastError.message : 'unknown decryption error'
+    }`
+  );
+}
 
 function isDataAtRestEncryptionEnabled(env: Env): boolean {
   const value = env.DATA_AT_REST_ENCRYPTION_ENABLED;
@@ -409,13 +641,8 @@ async function handleSignAuditExport(request: Request, env: Env): Promise<Respon
 
 async function handleDecryptExport(request: Request, env: Env): Promise<Response> {
   try {
-    // Check if encryption is configured
-    if (!env.EXPORT_ENCRYPTION_PRIVATE_KEY || !env.EXPORT_ENCRYPTION_KEY_ID) {
-      return createResponse(
-        { error: 'Export decryption is not configured on this server' },
-        400
-      );
-    }
+    // Validate export decryption registry configuration.
+    getExportPrivateKeyRegistry(env);
 
     const requestBody = await request.json() as {
       wrappedKey?: string;
@@ -434,32 +661,25 @@ async function handleDecryptExport(request: Request, env: Env): Promise<Response
       !dataIv ||
       typeof dataIv !== 'string' ||
       !encryptedData ||
-      typeof encryptedData !== 'string' ||
-      !keyId ||
-      typeof keyId !== 'string'
+      typeof encryptedData !== 'string'
     ) {
       return createResponse(
-        { error: 'Missing or invalid required fields: wrappedKey, dataIv, encryptedData, keyId' },
+        { error: 'Missing or invalid required fields: wrappedKey, dataIv, encryptedData' },
         400
       );
     }
 
-    // Validate keyId matches configured key
-    if (keyId !== env.EXPORT_ENCRYPTION_KEY_ID) {
-      return createResponse(
-        { error: `Key ID mismatch: expected ${env.EXPORT_ENCRYPTION_KEY_ID}, got ${keyId}` },
-        400
-      );
-    }
+    const recordKeyId = getNonEmptyString(keyId);
 
     // Decrypt data file
     let plaintextData: string;
     try {
-      plaintextData = await decryptExportData(
+      plaintextData = await decryptExportDataWithRegistry(
         encryptedData,
         wrappedKey,
         dataIv,
-        env.EXPORT_ENCRYPTION_PRIVATE_KEY
+        recordKeyId,
+        env
       );
     } catch (error) {
       console.error('Data file decryption failed:', error);
@@ -482,11 +702,12 @@ async function handleDecryptExport(request: Request, env: Env): Promise<Response
             );
           }
 
-          const imageBlob = await decryptImageBlob(
+          const imageBlob = await decryptExportImageWithRegistry(
             imageEntry.encryptedData,
             wrappedKey,
             imageEntry.iv,
-            env.EXPORT_ENCRYPTION_PRIVATE_KEY
+            recordKeyId,
+            env
           );
 
           // Convert blob to base64 for transport
@@ -587,19 +808,12 @@ export default {
               return createResponse({ error: 'Unsupported data-at-rest encryption version' }, 500);
             }
 
-            if (!env.DATA_AT_REST_ENCRYPTION_PRIVATE_KEY) {
-              return createResponse(
-                { error: 'Data-at-rest decryption is not configured on this server' },
-                500
-              );
-            }
-
             try {
               const encryptedData = await file.arrayBuffer();
-              const plaintext = await decryptJsonFromStorage(
+              const plaintext = await decryptJsonFromStorageWithRegistry(
                 encryptedData,
                 atRestEnvelope,
-                env.DATA_AT_REST_ENCRYPTION_PRIVATE_KEY
+                env
               );
               const decryptedPayload = JSON.parse(plaintext);
               return createResponse(decryptedPayload);
