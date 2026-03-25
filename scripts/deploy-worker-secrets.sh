@@ -105,10 +105,11 @@ build_user_worker_secret_list() {
         "PROJECT_ID"
         "FIREBASE_SERVICE_ACCOUNT_EMAIL"
         "FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY"
-        "USER_KV_ENCRYPTION_PRIVATE_KEY"
-        "USER_KV_ENCRYPTION_KEY_ID"
-        "USER_KV_ENCRYPTION_PUBLIC_KEY"
     )
+
+    if [ -n "${USER_KV_ENCRYPTION_PRIVATE_KEY:-}" ]; then
+        secrets+=("USER_KV_ENCRYPTION_PRIVATE_KEY")
+    fi
 
     if [ -n "${USER_KV_ENCRYPTION_KEYS_JSON:-}" ]; then
         secrets+=("USER_KV_ENCRYPTION_KEYS_JSON")
@@ -116,6 +117,19 @@ build_user_worker_secret_list() {
 
     if [ -n "${USER_KV_ENCRYPTION_ACTIVE_KEY_ID:-}" ]; then
         secrets+=("USER_KV_ENCRYPTION_ACTIVE_KEY_ID")
+    fi
+
+    local write_endpoints_enabled_normalized
+    write_endpoints_enabled_normalized=$(printf '%s' "${USER_KV_WRITE_ENDPOINTS_ENABLED:-true}" | tr '[:upper:]' '[:lower:]')
+
+    if [ "$write_endpoints_enabled_normalized" = "1" ] || [ "$write_endpoints_enabled_normalized" = "true" ] || [ "$write_endpoints_enabled_normalized" = "yes" ] || [ "$write_endpoints_enabled_normalized" = "on" ]; then
+        if [ -n "${USER_KV_ENCRYPTION_KEY_ID:-}" ]; then
+            secrets+=("USER_KV_ENCRYPTION_KEY_ID")
+        fi
+
+        if [ -n "${USER_KV_ENCRYPTION_PUBLIC_KEY:-}" ]; then
+            secrets+=("USER_KV_ENCRYPTION_PUBLIC_KEY")
+        fi
     fi
 
     printf '%s\n' "${secrets[@]}"
@@ -248,11 +262,14 @@ build_data_worker_secret_list() {
 build_images_worker_secret_list() {
     local secrets=(
         "IMAGES_API_TOKEN"
-        "DATA_AT_REST_ENCRYPTION_PRIVATE_KEY"
         "DATA_AT_REST_ENCRYPTION_PUBLIC_KEY"
         "DATA_AT_REST_ENCRYPTION_KEY_ID"
         "IMAGE_SIGNED_URL_SECRET"
     )
+
+    if [ -n "${DATA_AT_REST_ENCRYPTION_PRIVATE_KEY:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_PRIVATE_KEY")
+    fi
 
     if [ -n "${DATA_AT_REST_ENCRYPTION_KEYS_JSON:-}" ]; then
         secrets+=("DATA_AT_REST_ENCRYPTION_KEYS_JSON")
