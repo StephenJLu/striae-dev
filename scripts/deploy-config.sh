@@ -415,7 +415,7 @@ write_env_var() {
     var_value=$(strip_carriage_returns "$var_value")
     env_file_value="$var_value"
 
-    if [ "$var_name" = "FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY" ] || [ "$var_name" = "MANIFEST_SIGNING_PRIVATE_KEY" ] || [ "$var_name" = "MANIFEST_SIGNING_PUBLIC_KEY" ] || [ "$var_name" = "EXPORT_ENCRYPTION_PRIVATE_KEY" ] || [ "$var_name" = "EXPORT_ENCRYPTION_PUBLIC_KEY" ] || [ "$var_name" = "DATA_AT_REST_ENCRYPTION_PRIVATE_KEY" ] || [ "$var_name" = "DATA_AT_REST_ENCRYPTION_PUBLIC_KEY" ] || [ "$var_name" = "USER_KV_ENCRYPTION_PRIVATE_KEY" ] || [ "$var_name" = "USER_KV_ENCRYPTION_PUBLIC_KEY" ]; then
+    if [ "$var_name" = "FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY" ] || [ "$var_name" = "MANIFEST_SIGNING_PRIVATE_KEY" ] || [ "$var_name" = "MANIFEST_SIGNING_PUBLIC_KEY" ] || [ "$var_name" = "EXPORT_ENCRYPTION_PRIVATE_KEY" ] || [ "$var_name" = "EXPORT_ENCRYPTION_PUBLIC_KEY" ] || [ "$var_name" = "DATA_AT_REST_ENCRYPTION_PRIVATE_KEY" ] || [ "$var_name" = "DATA_AT_REST_ENCRYPTION_PUBLIC_KEY" ] || [ "$var_name" = "USER_KV_ENCRYPTION_PRIVATE_KEY" ] || [ "$var_name" = "USER_KV_ENCRYPTION_PUBLIC_KEY" ] || [ "$var_name" = "EXPORT_ENCRYPTION_KEYS_JSON" ] || [ "$var_name" = "DATA_AT_REST_ENCRYPTION_KEYS_JSON" ] || [ "$var_name" = "USER_KV_ENCRYPTION_KEYS_JSON" ]; then
         # Store as a quoted string so sourced .env preserves escaped newline markers (\n)
         env_file_value=${env_file_value//\"/\\\"}
         env_file_value="\"$env_file_value\""
@@ -433,6 +433,48 @@ write_env_var() {
     else
         echo "$var_name=$env_file_value" >> .env
     fi
+}
+
+update_private_key_registry() {
+    local registry_var_name=$1
+    local active_key_var_name=$2
+    local current_key_id=$3
+    local private_key_value=$4
+    local registry_label=$5
+    local existing_registry_json=""
+    local updated_registry_json=""
+    local registry_entry_count=""
+
+    if [ -z "$registry_var_name" ] || [ -z "$active_key_var_name" ] || [ -z "$current_key_id" ] || [ -z "$private_key_value" ]; then
+        echo -e "${YELLOW}⚠️  Skipping $registry_label key registry update due to missing inputs${NC}"
+        return 0
+    fi
+
+    existing_registry_json="${!registry_var_name}"
+    existing_registry_json=$(strip_carriage_returns "$existing_registry_json")
+
+    if [ -z "$existing_registry_json" ] || is_placeholder "$existing_registry_json"; then
+        existing_registry_json="{}"
+    fi
+
+    updated_registry_json=$(node -e "const raw = process.argv[1] || '{}'; const keyId = process.argv[2] || ''; const privateKey = process.argv[3] || ''; if (!keyId || !privateKey) process.exit(1); let registry = {}; try { const parsed = JSON.parse(raw); if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) registry = parsed; } catch (_) {} registry[keyId] = privateKey; process.stdout.write(JSON.stringify(registry));" "$existing_registry_json" "$current_key_id" "$private_key_value" 2>/dev/null || true)
+
+    if [ -z "$updated_registry_json" ]; then
+        echo -e "${RED}❌ Error: Failed to update $registry_label key registry JSON${NC}"
+        exit 1
+    fi
+
+    printf -v "$registry_var_name" '%s' "$updated_registry_json"
+    export "$registry_var_name"
+    write_env_var "$registry_var_name" "$updated_registry_json"
+
+    printf -v "$active_key_var_name" '%s' "$current_key_id"
+    export "$active_key_var_name"
+    write_env_var "$active_key_var_name" "$current_key_id"
+
+    registry_entry_count=$(node -e "const raw = process.argv[1] || '{}'; try { const parsed = JSON.parse(raw); if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) { process.stdout.write('0'); } else { process.stdout.write(String(Object.keys(parsed).length)); } } catch (_) { process.stdout.write('0'); }" "$updated_registry_json")
+    echo -e "${GREEN}✅ Updated $registry_label key registry ($registry_entry_count key IDs tracked)${NC}"
+    echo -e "${GREEN}✅ $active_key_var_name: $current_key_id${NC}"
 }
 
 escape_for_sed_replacement() {
@@ -626,6 +668,8 @@ configure_export_encryption_credentials() {
     restore_env_var_from_backup_if_missing "EXPORT_ENCRYPTION_PRIVATE_KEY"
     restore_env_var_from_backup_if_missing "EXPORT_ENCRYPTION_PUBLIC_KEY"
     restore_env_var_from_backup_if_missing "EXPORT_ENCRYPTION_KEY_ID"
+    restore_env_var_from_backup_if_missing "EXPORT_ENCRYPTION_KEYS_JSON"
+    restore_env_var_from_backup_if_missing "EXPORT_ENCRYPTION_ACTIVE_KEY_ID"
 
     if [ -z "$EXPORT_ENCRYPTION_PRIVATE_KEY" ] || is_placeholder "$EXPORT_ENCRYPTION_PRIVATE_KEY" || [ -z "$EXPORT_ENCRYPTION_PUBLIC_KEY" ] || is_placeholder "$EXPORT_ENCRYPTION_PUBLIC_KEY"; then
         should_generate="true"
@@ -661,6 +705,8 @@ configure_export_encryption_credentials() {
     else
         echo -e "${GREEN}✅ EXPORT_ENCRYPTION_KEY_ID: $EXPORT_ENCRYPTION_KEY_ID${NC}"
     fi
+
+    update_private_key_registry "EXPORT_ENCRYPTION_KEYS_JSON" "EXPORT_ENCRYPTION_ACTIVE_KEY_ID" "$EXPORT_ENCRYPTION_KEY_ID" "$EXPORT_ENCRYPTION_PRIVATE_KEY" "export encryption"
 
     echo ""
 }
@@ -737,6 +783,8 @@ configure_user_kv_encryption_credentials() {
     restore_env_var_from_backup_if_missing "USER_KV_ENCRYPTION_PRIVATE_KEY"
     restore_env_var_from_backup_if_missing "USER_KV_ENCRYPTION_PUBLIC_KEY"
     restore_env_var_from_backup_if_missing "USER_KV_ENCRYPTION_KEY_ID"
+    restore_env_var_from_backup_if_missing "USER_KV_ENCRYPTION_KEYS_JSON"
+    restore_env_var_from_backup_if_missing "USER_KV_ENCRYPTION_ACTIVE_KEY_ID"
 
     if [ -z "$USER_KV_ENCRYPTION_PRIVATE_KEY" ] || is_placeholder "$USER_KV_ENCRYPTION_PRIVATE_KEY" || [ -z "$USER_KV_ENCRYPTION_PUBLIC_KEY" ] || is_placeholder "$USER_KV_ENCRYPTION_PUBLIC_KEY"; then
         should_generate="true"
@@ -773,6 +821,8 @@ configure_user_kv_encryption_credentials() {
         echo -e "${GREEN}✅ USER_KV_ENCRYPTION_KEY_ID: $USER_KV_ENCRYPTION_KEY_ID${NC}"
     fi
 
+    update_private_key_registry "USER_KV_ENCRYPTION_KEYS_JSON" "USER_KV_ENCRYPTION_ACTIVE_KEY_ID" "$USER_KV_ENCRYPTION_KEY_ID" "$USER_KV_ENCRYPTION_PRIVATE_KEY" "user KV encryption"
+
     echo ""
 }
 
@@ -791,6 +841,8 @@ configure_data_at_rest_encryption_credentials() {
     restore_env_var_from_backup_if_missing "DATA_AT_REST_ENCRYPTION_PRIVATE_KEY"
     restore_env_var_from_backup_if_missing "DATA_AT_REST_ENCRYPTION_PUBLIC_KEY"
     restore_env_var_from_backup_if_missing "DATA_AT_REST_ENCRYPTION_KEY_ID"
+    restore_env_var_from_backup_if_missing "DATA_AT_REST_ENCRYPTION_KEYS_JSON"
+    restore_env_var_from_backup_if_missing "DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID"
 
     if [ -z "$DATA_AT_REST_ENCRYPTION_PRIVATE_KEY" ] || is_placeholder "$DATA_AT_REST_ENCRYPTION_PRIVATE_KEY" || [ -z "$DATA_AT_REST_ENCRYPTION_PUBLIC_KEY" ] || is_placeholder "$DATA_AT_REST_ENCRYPTION_PUBLIC_KEY"; then
         should_generate="true"
@@ -826,6 +878,8 @@ configure_data_at_rest_encryption_credentials() {
     else
         echo -e "${GREEN}✅ DATA_AT_REST_ENCRYPTION_KEY_ID: $DATA_AT_REST_ENCRYPTION_KEY_ID${NC}"
     fi
+
+    update_private_key_registry "DATA_AT_REST_ENCRYPTION_KEYS_JSON" "DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID" "$DATA_AT_REST_ENCRYPTION_KEY_ID" "$DATA_AT_REST_ENCRYPTION_PRIVATE_KEY" "data-at-rest encryption"
 
     echo ""
 }
