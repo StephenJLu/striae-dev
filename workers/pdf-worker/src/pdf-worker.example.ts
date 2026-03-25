@@ -1,7 +1,6 @@
 import type { PDFGenerationData, PDFGenerationRequest, ReportModule, ReportPdfOptions } from './report-types';
 
 interface Env {
-  BROWSER: Fetcher;
   PDF_WORKER_AUTH: string;
   ACCOUNT_ID?: string;
   BROWSER_API_TOKEN?: string;
