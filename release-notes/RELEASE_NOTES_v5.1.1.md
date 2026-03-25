@@ -41,4 +41,3 @@ v5.1.1 is a focused patch addressing signed URL generation and serving behavior,
 **Build Status**: Succeeded (`npm run build`)
 **Typecheck Status**: Passed (`npm run typecheck`)
 **Lint Status**: Passed with 14 known worker configuration warnings and 0 errors (`npm run lint`)
-- **Lint Status**: Pending verification
