@@ -13,6 +13,7 @@ interface Env {
   IMAGES_API_TOKEN: string;
   DATA_WORKER_DOMAIN?: string;
   IMAGES_WORKER_DOMAIN?: string;
+  AUDIT_WORKER_DOMAIN?: string;
   PROJECT_ID: string;
   FIREBASE_SERVICE_ACCOUNT_EMAIL: string;
   FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY: string;
@@ -132,6 +133,7 @@ const corsHeaders: Record<string, string> = {
 // Worker URLs - configure these for deployment
 const DEFAULT_DATA_WORKER_BASE_URL = 'DATA_WORKER_DOMAIN';
 const DEFAULT_IMAGE_WORKER_BASE_URL = 'IMAGES_WORKER_DOMAIN';
+const DEFAULT_AUDIT_WORKER_BASE_URL = 'AUDIT_WORKER_DOMAIN';
 
 const GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const FIREBASE_IDENTITY_TOOLKIT_BASE_URL = 'https://identitytoolkit.googleapis.com/v1/projects';
@@ -168,6 +170,15 @@ function resolveImageWorkerBaseUrl(env: Env): string {
   }
 
   return normalizeWorkerBaseUrl(DEFAULT_IMAGE_WORKER_BASE_URL);
+}
+
+function resolveAuditWorkerBaseUrl(env: Env): string {
+  const configuredDomain = typeof env.AUDIT_WORKER_DOMAIN === 'string' ? env.AUDIT_WORKER_DOMAIN.trim() : '';
+  if (configuredDomain.length > 0) {
+    return normalizeWorkerBaseUrl(configuredDomain);
+  }
+
+  return normalizeWorkerBaseUrl(DEFAULT_AUDIT_WORKER_BASE_URL);
 }
 
 function requireUserKvReadConfig(env: Env): void {
@@ -740,6 +751,20 @@ async function deleteUserConfirmationSummary(env: Env, userUid: string): Promise
   }
 }
 
+async function deleteUserAuditLogs(env: Env, userUid: string): Promise<void> {
+  const auditWorkerBaseUrl = resolveAuditWorkerBaseUrl(env);
+  const encodedUserId = encodeURIComponent(userUid);
+
+  const response = await fetch(`${auditWorkerBaseUrl}/audit/?userId=${encodedUserId}`, {
+    method: 'DELETE',
+    headers: { 'X-Custom-Auth-Key': env.R2_KEY_SECRET }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to delete user audit logs: ${response.status}`);
+  }
+}
+
 async function executeUserDeletion(
   env: Env,
   userUid: string,
@@ -797,6 +822,13 @@ async function executeUserDeletion(
   }
 
   await deleteUserConfirmationSummary(env, userUid);
+
+  try {
+    await deleteUserAuditLogs(env, userUid);
+  } catch (error) {
+    console.error('Failed to delete user audit logs during account deletion (non-blocking):', error);
+  }
+
   await deleteFirebaseAuthUser(env, userUid);
 
   // Delete the user account from the database

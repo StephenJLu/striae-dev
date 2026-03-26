@@ -55,7 +55,7 @@ interface DataAtRestEnvelope {
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': 'PAGES_CUSTOM_DOMAIN',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, X-Custom-Auth-Key',
   'Content-Type': 'application/json'
 };
@@ -829,7 +829,36 @@ export default {
         }
       }
 
-      return createResponse({ error: 'Method not allowed for audit endpoints. Only GET and POST are supported.' }, 405);
+      if (request.method === 'DELETE') {
+        if (!userId) {
+          return createResponse({ error: 'userId parameter is required' }, 400);
+        }
+
+        try {
+          const prefix = `audit-trails/${userId}/`;
+          let deletedCount = 0;
+          let cursor: string | undefined;
+
+          do {
+            const listed = await bucket.list({ prefix, cursor, limit: 1000 });
+
+            const keys = listed.objects.map((obj) => obj.key);
+            if (keys.length > 0) {
+              await bucket.delete(keys);
+              deletedCount += keys.length;
+            }
+
+            cursor = listed.truncated ? listed.cursor : undefined;
+          } while (cursor !== undefined);
+
+          return createResponse({ success: true, deletedCount });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+          return createResponse({ error: `Failed to delete audit entries: ${errorMessage}` }, 500);
+        }
+      }
+
+      return createResponse({ error: 'Method not allowed for audit endpoints. Only GET, POST, and DELETE are supported.' }, 405);
 
     } catch (error) {
       console.error('Audit Worker error:', error);
