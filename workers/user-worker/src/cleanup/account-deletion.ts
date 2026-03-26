@@ -1,15 +1,207 @@
 import { resolveAuditWorkerBaseUrl } from '../config';
+import { decryptJsonFromStorage, type DataAtRestEnvelope } from '../encryption-utils';
 import { deleteFirebaseAuthUser } from '../firebase/admin';
 import { readUserRecord } from '../storage/user-records';
-import type { AccountDeletionProgressEvent, Env } from '../types';
+import type {
+  AccountDeletionProgressEvent,
+  Env,
+  KeyRegistryPayload,
+  PrivateKeyRegistry,
+  StoredCaseData
+} from '../types';
+
+function getNonEmptyString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function normalizePrivateKeyPem(rawValue: string): string {
+  return rawValue.trim().replace(/^['"]|['"]$/g, '').replace(/\\n/g, '\n');
+}
+
+function parseDataAtRestPrivateKeyRegistry(env: Env): PrivateKeyRegistry {
+  const keys: Record<string, string> = {};
+  const configuredActiveKeyId = getNonEmptyString(env.DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID);
+  const registryJson = getNonEmptyString(env.DATA_AT_REST_ENCRYPTION_KEYS_JSON);
+
+  if (registryJson) {
+    let parsedRegistry: unknown;
+
+    try {
+      parsedRegistry = JSON.parse(registryJson) as unknown;
+    } catch {
+      throw new Error('DATA_AT_REST_ENCRYPTION_KEYS_JSON is not valid JSON');
+    }
+
+    if (!parsedRegistry || typeof parsedRegistry !== 'object') {
+      throw new Error('DATA_AT_REST_ENCRYPTION_KEYS_JSON must be an object');
+    }
+
+    const payload = parsedRegistry as KeyRegistryPayload;
+    const payloadActiveKeyId = getNonEmptyString(payload.activeKeyId);
+    const rawKeys = payload.keys && typeof payload.keys === 'object'
+      ? payload.keys as Record<string, unknown>
+      : parsedRegistry as Record<string, unknown>;
+
+    for (const [keyId, pemValue] of Object.entries(rawKeys)) {
+      if (keyId === 'activeKeyId' || keyId === 'keys') {
+        continue;
+      }
+
+      const normalizedKeyId = getNonEmptyString(keyId);
+      const normalizedPem = getNonEmptyString(pemValue);
+
+      if (!normalizedKeyId || !normalizedPem) {
+        continue;
+      }
+
+      keys[normalizedKeyId] = normalizePrivateKeyPem(normalizedPem);
+    }
+
+    const resolvedActiveKeyId = configuredActiveKeyId ?? payloadActiveKeyId;
+
+    if (Object.keys(keys).length === 0) {
+      throw new Error('DATA_AT_REST_ENCRYPTION_KEYS_JSON does not contain any usable keys');
+    }
+
+    if (resolvedActiveKeyId && !keys[resolvedActiveKeyId]) {
+      throw new Error('DATA_AT_REST_ENCRYPTION active key ID is not present in registry');
+    }
+
+    return {
+      activeKeyId: resolvedActiveKeyId ?? null,
+      keys
+    };
+  }
+
+  const legacyKeyId = getNonEmptyString(env.DATA_AT_REST_ENCRYPTION_KEY_ID);
+  const legacyPrivateKey = getNonEmptyString(env.DATA_AT_REST_ENCRYPTION_PRIVATE_KEY);
+
+  if (!legacyKeyId || !legacyPrivateKey) {
+    throw new Error('Data-at-rest decryption key registry is not configured');
+  }
+
+  keys[legacyKeyId] = normalizePrivateKeyPem(legacyPrivateKey);
+
+  return {
+    activeKeyId: configuredActiveKeyId ?? legacyKeyId,
+    keys
+  };
+}
+
+function buildPrivateKeyCandidates(
+  recordKeyId: string | null,
+  registry: PrivateKeyRegistry
+): Array<{ keyId: string; privateKeyPem: string }> {
+  const candidates: Array<{ keyId: string; privateKeyPem: string }> = [];
+  const seen = new Set<string>();
+
+  const appendCandidate = (candidateKeyId: string | null): void => {
+    if (!candidateKeyId || seen.has(candidateKeyId)) {
+      return;
+    }
+
+    const privateKeyPem = registry.keys[candidateKeyId];
+    if (!privateKeyPem) {
+      return;
+    }
+
+    seen.add(candidateKeyId);
+    candidates.push({ keyId: candidateKeyId, privateKeyPem });
+  };
+
+  appendCandidate(recordKeyId);
+  appendCandidate(registry.activeKeyId);
+
+  for (const keyId of Object.keys(registry.keys)) {
+    appendCandidate(keyId);
+  }
+
+  return candidates;
+}
+
+function extractDataAtRestEnvelope(file: R2ObjectBody): DataAtRestEnvelope | null {
+  const metadata = file.customMetadata;
+
+  if (!metadata) {
+    return null;
+  }
+
+  const algorithm = getNonEmptyString(metadata.algorithm);
+  const encryptionVersion = getNonEmptyString(metadata.encryptionVersion);
+  const keyId = getNonEmptyString(metadata.keyId);
+  const dataIv = getNonEmptyString(metadata.dataIv);
+  const wrappedKey = getNonEmptyString(metadata.wrappedKey);
+
+  if (!algorithm || !encryptionVersion || !keyId || !dataIv || !wrappedKey) {
+    return null;
+  }
+
+  return {
+    algorithm,
+    encryptionVersion,
+    keyId,
+    dataIv,
+    wrappedKey
+  };
+}
+
+async function decryptCaseDataWithRegistry(
+  ciphertext: ArrayBuffer,
+  envelope: DataAtRestEnvelope,
+  env: Env
+): Promise<string> {
+  const keyRegistry = parseDataAtRestPrivateKeyRegistry(env);
+  const candidates = buildPrivateKeyCandidates(getNonEmptyString(envelope.keyId), keyRegistry);
+  let lastError: unknown;
+
+  for (const candidate of candidates) {
+    try {
+      return await decryptJsonFromStorage(ciphertext, envelope, candidate.privateKeyPem);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw new Error(
+    `Failed to decrypt case data after ${candidates.length} key attempt(s): ${
+      lastError instanceof Error ? lastError.message : 'unknown decryption error'
+    }`
+  );
+}
+
+function extractFileIdsFromCaseData(caseData: StoredCaseData): string[] {
+  if (!Array.isArray(caseData.files)) {
+    return [];
+  }
+
+  return caseData.files
+    .map((file) => getNonEmptyString(file?.id))
+    .filter((fileId): fileId is string => fileId !== null);
+}
+
+async function readCaseFileIds(env: Env, caseDataKey: string): Promise<string[]> {
+  const file = await env.STRIAE_DATA.get(caseDataKey);
+  if (!file) {
+    return [];
+  }
+
+  const atRestEnvelope = extractDataAtRestEnvelope(file);
+  const fileText = atRestEnvelope
+    ? await decryptCaseDataWithRegistry(await file.arrayBuffer(), atRestEnvelope, env)
+    : await file.text();
+
+  const parsed = JSON.parse(fileText) as StoredCaseData;
+  return extractFileIdsFromCaseData(parsed);
+}
 
 async function deleteSingleCase(env: Env, userUid: string, caseNumber: string): Promise<void> {
   const encodedUserId = encodeURIComponent(userUid);
   const encodedCaseNumber = encodeURIComponent(caseNumber);
   const casePrefix = `${encodedUserId}/${encodedCaseNumber}/`;
+  const caseDataKey = `${casePrefix}data.json`;
   const deletionErrors: string[] = [];
   const dataKeys: string[] = [];
-  const fileIds: string[] = [];
+  const fileIds = new Set<string>();
   let dataCursor: string | undefined;
 
   do {
@@ -21,15 +213,26 @@ async function deleteSingleCase(env: Env, userUid: string, caseNumber: string): 
       const segments = obj.key.split('/');
       if (segments.length === 4 && segments[3] === 'data.json') {
         try {
-          fileIds.push(decodeURIComponent(segments[2]));
+          fileIds.add(decodeURIComponent(segments[2]));
         } catch {
-          fileIds.push(segments[2]);
+          fileIds.add(segments[2]);
         }
       }
     }
 
     dataCursor = listed.truncated ? listed.cursor : undefined;
   } while (dataCursor !== undefined);
+
+  if (dataKeys.includes(caseDataKey)) {
+    try {
+      for (const fileId of await readCaseFileIds(env, caseDataKey)) {
+        fileIds.add(fileId);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown case data read error';
+      throw new Error(`Failed to read case file references for ${caseNumber}: ${message}`);
+    }
+  }
 
   for (const fileId of fileIds) {
     try {

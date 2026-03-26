@@ -7,6 +7,14 @@ export interface UserKvEncryptedRecord {
   ciphertext: string;
 }
 
+export interface DataAtRestEnvelope {
+  algorithm: string;
+  encryptionVersion: string;
+  keyId: string;
+  dataIv: string;
+  wrappedKey: string;
+}
+
 const USER_KV_ENCRYPTION_ALGORITHM = 'RSA-OAEP-AES-256-GCM';
 const USER_KV_ENCRYPTION_VERSION = '1.0';
 
@@ -233,6 +241,23 @@ export async function decryptJsonFromUserKv(
   const aesKey = await unwrapAesKey(record.wrappedKey, privateKeyPem);
   const iv = base64UrlDecode(record.dataIv);
   const ciphertext = base64UrlDecode(record.ciphertext);
+
+  const plaintext = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: iv as BufferSource },
+    aesKey,
+    ciphertext as BufferSource
+  );
+
+  return new TextDecoder().decode(plaintext);
+}
+
+export async function decryptJsonFromStorage(
+  ciphertext: ArrayBuffer,
+  envelope: DataAtRestEnvelope,
+  privateKeyPem: string
+): Promise<string> {
+  const aesKey = await unwrapAesKey(envelope.wrappedKey, privateKeyPem);
+  const iv = base64UrlDecode(envelope.dataIv);
 
   const plaintext = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: iv as BufferSource },

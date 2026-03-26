@@ -5,6 +5,10 @@ export interface Env {
   STRIAE_FILES: R2Bucket;
   R2_KEY_SECRET: string;
   AUDIT_WORKER_DOMAIN?: string;
+  DATA_AT_REST_ENCRYPTION_PRIVATE_KEY?: string;
+  DATA_AT_REST_ENCRYPTION_KEY_ID?: string;
+  DATA_AT_REST_ENCRYPTION_KEYS_JSON?: string;
+  DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID?: string;
   PROJECT_ID: string;
   FIREBASE_SERVICE_ACCOUNT_EMAIL: string;
   FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY: string;
@@ -51,6 +55,14 @@ export interface UserData {
   readOnlyCases?: ReadOnlyCaseItem[];
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface StoredCaseFileData {
+  id: string;
+}
+
+export interface StoredCaseData {
+  files?: StoredCaseFileData[];
 }
 
 export interface UserRequestData {
