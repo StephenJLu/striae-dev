@@ -23,7 +23,7 @@ prompt_for_secrets() {
     is_auto_generated_secret_var() {
         local var_name=$1
         case "$var_name" in
-            USER_DB_AUTH|R2_KEY_SECRET|KEYS_AUTH|PDF_WORKER_AUTH|IMAGES_API_TOKEN|IMAGE_SIGNED_URL_SECRET)
+            USER_DB_AUTH|R2_KEY_SECRET|PDF_WORKER_AUTH|IMAGES_API_TOKEN|IMAGE_SIGNED_URL_SECRET)
                 return 0
                 ;;
             *)
@@ -41,9 +41,6 @@ prompt_for_secrets() {
                 ;;
             R2_KEY_SECRET)
                 [ "$value" = "your_custom_r2_secret_here" ]
-                ;;
-            KEYS_AUTH)
-                [ "$value" = "your_custom_keys_auth_token_here" ]
                 ;;
             PDF_WORKER_AUTH)
                 [ "$value" = "your_custom_pdf_worker_auth_token_here" ]
@@ -277,10 +274,7 @@ prompt_for_secrets() {
     local shared_worker_subdomain_default=""
     local shared_worker_subdomain_input=""
 
-    shared_worker_subdomain_default=$(infer_worker_subdomain_from_domain "$KEYS_WORKER_NAME" "$KEYS_WORKER_DOMAIN")
-    if [ -z "$shared_worker_subdomain_default" ]; then
-        shared_worker_subdomain_default=$(infer_worker_subdomain_from_domain "$USER_WORKER_NAME" "$USER_WORKER_DOMAIN")
-    fi
+    shared_worker_subdomain_default=$(infer_worker_subdomain_from_domain "$USER_WORKER_NAME" "$USER_WORKER_DOMAIN")
     if [ -z "$shared_worker_subdomain_default" ]; then
         shared_worker_subdomain_default=$(infer_worker_subdomain_from_domain "$DATA_WORKER_NAME" "$DATA_WORKER_DOMAIN")
     fi
@@ -330,14 +324,12 @@ prompt_for_secrets() {
         break
     done
 
-    prompt_for_var "KEYS_WORKER_NAME" "Keys worker name"
     prompt_for_var "USER_WORKER_NAME" "User worker name"
     prompt_for_var "DATA_WORKER_NAME" "Data worker name"
     prompt_for_var "AUDIT_WORKER_NAME" "Audit worker name"
     prompt_for_var "IMAGES_WORKER_NAME" "Images worker name"
     prompt_for_var "PDF_WORKER_NAME" "PDF worker name"
 
-    set_worker_domain_from_shared_subdomain "KEYS_WORKER_NAME" "KEYS_WORKER_DOMAIN"
     set_worker_domain_from_shared_subdomain "USER_WORKER_NAME" "USER_WORKER_DOMAIN"
     set_worker_domain_from_shared_subdomain "DATA_WORKER_NAME" "DATA_WORKER_DOMAIN"
     set_worker_domain_from_shared_subdomain "AUDIT_WORKER_NAME" "AUDIT_WORKER_DOMAIN"
@@ -354,7 +346,6 @@ prompt_for_secrets() {
 
     echo -e "${BLUE}🔐 SERVICE-SPECIFIC SECRETS${NC}"
     echo "============================"
-    prompt_for_var "KEYS_AUTH" "Keys worker authentication token (generate with: openssl rand -hex 16)"
     prompt_for_var "PDF_WORKER_AUTH" "PDF worker authentication token (generate with: openssl rand -hex 16)"
     prompt_for_var "IMAGE_SIGNED_URL_SECRET" "Image signed URL secret (generate with: openssl rand -base64 48 | tr '+/' '-_' | tr -d '=')"
     prompt_for_var "BROWSER_API_TOKEN" "Cloudflare Browser Rendering API token (for PDF Worker)"

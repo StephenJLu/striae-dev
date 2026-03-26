@@ -286,7 +286,7 @@ echo -e "\n${BLUE}🔐 Deploying secrets to workers...${NC}"
 # Check if workers are configured
 echo -e "${YELLOW}🔍 Checking worker configurations...${NC}"
 workers_configured=0
-total_workers=6
+total_workers=5
 
 for worker_dir in workers/*/; do
     if [ -f "$worker_dir/wrangler.jsonc" ] || [ -f "$worker_dir/wrangler.toml" ]; then
@@ -312,12 +312,6 @@ done < <(build_audit_worker_secret_list)
 
 if ! set_worker_secrets "Audit Worker" "workers/audit-worker" "${audit_worker_secrets[@]}"; then
     echo -e "${YELLOW}⚠️  Skipping Audit Worker (not configured)${NC}"
-fi
-
-# Keys Worker
-if ! set_worker_secrets "Keys Worker" "workers/keys-worker" \
-    "KEYS_AUTH" "USER_DB_AUTH" "R2_KEY_SECRET" "IMAGES_API_TOKEN" "PDF_WORKER_AUTH"; then
-    echo -e "${YELLOW}⚠️  Skipping Keys Worker (not configured)${NC}"
 fi
 
 # User Worker

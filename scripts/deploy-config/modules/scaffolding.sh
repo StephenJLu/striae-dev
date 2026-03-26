@@ -83,15 +83,7 @@ copy_example_configs() {
     # Navigate to each worker directory and copy the example file
     echo -e "${YELLOW}  Copying worker configuration files...${NC}"
 
-    cd workers/keys-worker
-    if [ -f "wrangler.jsonc.example" ] && { [ "$update_env" = "true" ] || [ ! -f "wrangler.jsonc" ]; }; then
-        cp wrangler.jsonc.example wrangler.jsonc
-        echo -e "${GREEN}    ✅ keys-worker: wrangler.jsonc created from example${NC}"
-    elif [ -f "wrangler.jsonc" ]; then
-        echo -e "${YELLOW}    ⚠️  keys-worker: wrangler.jsonc already exists, skipping copy${NC}"
-    fi
-
-    cd ../user-worker
+    cd workers/user-worker
     if [ -f "wrangler.jsonc.example" ] && { [ "$update_env" = "true" ] || [ ! -f "wrangler.jsonc" ]; }; then
         cp wrangler.jsonc.example wrangler.jsonc
         echo -e "${GREEN}    ✅ user-worker: wrangler.jsonc created from example${NC}"
@@ -136,13 +128,6 @@ copy_example_configs() {
 
     # Copy worker source template files
     echo -e "${YELLOW}  Copying worker source template files...${NC}"
-
-    if [ -f "workers/keys-worker/src/keys.example.ts" ] && { [ "$update_env" = "true" ] || [ ! -f "workers/keys-worker/src/keys.ts" ]; }; then
-        cp workers/keys-worker/src/keys.example.ts workers/keys-worker/src/keys.ts
-        echo -e "${GREEN}    ✅ keys-worker: keys.ts created from example${NC}"
-    elif [ -f "workers/keys-worker/src/keys.ts" ]; then
-        echo -e "${YELLOW}    ⚠️  keys-worker: keys.ts already exists, skipping copy${NC}"
-    fi
 
     if [ -f "workers/user-worker/src/user-worker.example.ts" ] && { [ "$update_env" = "true" ] || [ ! -f "workers/user-worker/src/user-worker.ts" ]; }; then
         cp workers/user-worker/src/user-worker.example.ts workers/user-worker/src/user-worker.ts
@@ -251,19 +236,6 @@ update_wrangler_configs() {
         echo -e "${YELLOW}  Updating image-worker source placeholders...${NC}"
         sed -i "s|'Access-Control-Allow-Origin': '[^']*'|'Access-Control-Allow-Origin': 'https://$escaped_pages_custom_domain'|g" workers/image-worker/src/image-worker.ts
         echo -e "${GREEN}    ✅ image-worker source placeholders updated${NC}"
-    fi
-
-    if [ -f "workers/keys-worker/wrangler.jsonc" ]; then
-        echo -e "${YELLOW}  Updating keys-worker/wrangler.jsonc...${NC}"
-        sed -i "s/\"KEYS_WORKER_NAME\"/\"$KEYS_WORKER_NAME\"/g" workers/keys-worker/wrangler.jsonc
-        sed -i "s/\"ACCOUNT_ID\"/\"$escaped_account_id\"/g" workers/keys-worker/wrangler.jsonc
-        echo -e "${GREEN}    ✅ keys-worker configuration updated${NC}"
-    fi
-
-    if [ -f "workers/keys-worker/src/keys.ts" ]; then
-        echo -e "${YELLOW}  Updating keys-worker source placeholders...${NC}"
-        sed -i "s|'Access-Control-Allow-Origin': '[^']*'|'Access-Control-Allow-Origin': 'https://$escaped_pages_custom_domain'|g" workers/keys-worker/src/keys.ts
-        echo -e "${GREEN}    ✅ keys-worker source placeholders updated${NC}"
     fi
 
     if [ -f "workers/pdf-worker/wrangler.jsonc" ]; then
