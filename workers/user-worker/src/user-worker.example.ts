@@ -9,8 +9,10 @@ import {
 interface Env {
   USER_DB_AUTH: string;
   USER_DB: KVNamespace;
+  STRIAE_DATA: R2Bucket;
+  STRIAE_FILES: R2Bucket;
   R2_KEY_SECRET: string;
-  IMAGES_API_TOKEN: string;
+  IMAGES_API_TOKEN?: string;
   DATA_WORKER_DOMAIN?: string;
   IMAGES_WORKER_DOMAIN?: string;
   AUDIT_WORKER_DOMAIN?: string;
@@ -97,11 +99,6 @@ interface DeleteCasesRequest {
   casesToDelete: string[];
 }
 
-interface CaseData {
-  files?: Array<{ id: string; [key: string]: unknown }>;
-  [key: string]: unknown;
-}
-
 interface AccountDeletionProgressEvent {
   event: 'start' | 'case-start' | 'case-complete' | 'complete' | 'error';
   totalCases: number;
@@ -131,8 +128,6 @@ const corsHeaders: Record<string, string> = {
 };
 
 // Worker URLs - configure these for deployment
-const DEFAULT_DATA_WORKER_BASE_URL = 'DATA_WORKER_DOMAIN';
-const DEFAULT_IMAGE_WORKER_BASE_URL = 'IMAGES_WORKER_DOMAIN';
 const DEFAULT_AUDIT_WORKER_BASE_URL = 'AUDIT_WORKER_DOMAIN';
 
 const GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -152,24 +147,6 @@ function normalizeWorkerBaseUrl(workerDomain: string): string {
   }
 
   return `https://${trimmedDomain}`;
-}
-
-function resolveDataWorkerBaseUrl(env: Env): string {
-  const configuredDomain = typeof env.DATA_WORKER_DOMAIN === 'string' ? env.DATA_WORKER_DOMAIN.trim() : '';
-  if (configuredDomain.length > 0) {
-    return normalizeWorkerBaseUrl(configuredDomain);
-  }
-
-  return normalizeWorkerBaseUrl(DEFAULT_DATA_WORKER_BASE_URL);
-}
-
-function resolveImageWorkerBaseUrl(env: Env): string {
-  const configuredDomain = typeof env.IMAGES_WORKER_DOMAIN === 'string' ? env.IMAGES_WORKER_DOMAIN.trim() : '';
-  if (configuredDomain.length > 0) {
-    return normalizeWorkerBaseUrl(configuredDomain);
-  }
-
-  return normalizeWorkerBaseUrl(DEFAULT_IMAGE_WORKER_BASE_URL);
 }
 
 function resolveAuditWorkerBaseUrl(env: Env): string {
@@ -647,87 +624,56 @@ async function handleAddUser(request: Request, env: Env, userUid: string): Promi
   }
 }
 
-// Function to delete a single case (similar to case-manage.ts deleteCase)
+// Delete all data and files for a single case directly from R2 buckets
 async function deleteSingleCase(env: Env, userUid: string, caseNumber: string): Promise<void> {
-  const dataApiKey = env.R2_KEY_SECRET;
-  const imageApiKey = env.IMAGES_API_TOKEN;
-
-  const dataWorkerBaseUrl = resolveDataWorkerBaseUrl(env);
-  const imageWorkerBaseUrl = resolveImageWorkerBaseUrl(env);
   const encodedUserId = encodeURIComponent(userUid);
   const encodedCaseNumber = encodeURIComponent(caseNumber);
-
-  const caseResponse = await fetch(`${dataWorkerBaseUrl}/${encodedUserId}/${encodedCaseNumber}/data.json`, {
-    headers: { 'X-Custom-Auth-Key': dataApiKey }
-  });
-
-  if (caseResponse.status === 404) {
-    return;
-  }
-
-  if (!caseResponse.ok) {
-    throw new Error(`Failed to load case data for deletion (${caseNumber}): ${caseResponse.status}`);
-  }
-
-  const caseData = await caseResponse.json() as CaseData;
+  const casePrefix = `${encodedUserId}/${encodedCaseNumber}/`;
   const deletionErrors: string[] = [];
 
-  // Delete all files associated with this case
-  if (caseData.files && caseData.files.length > 0) {
-    for (const file of caseData.files) {
-      const encodedFileId = encodeURIComponent(file.id);
+  // List all objects under this case prefix in STRIAE_DATA
+  const dataKeys: string[] = [];
+  const fileIds: string[] = [];
+  let dataCursor: string | undefined;
 
-      try {
-        const imageDeleteResponse = await fetch(`${imageWorkerBaseUrl}/${encodedFileId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${imageApiKey}`
-          }
-        });
+  do {
+    const listed = await env.STRIAE_DATA.list({ prefix: casePrefix, cursor: dataCursor, limit: 1000 });
 
-        if (!imageDeleteResponse.ok && imageDeleteResponse.status !== 404) {
-          deletionErrors.push(`image ${file.id} delete failed (${imageDeleteResponse.status})`);
+    for (const obj of listed.objects) {
+      dataKeys.push(obj.key);
+
+      // Extract fileId from annotation paths: {uid}/{caseNumber}/{fileId}/data.json (4 segments)
+      const segments = obj.key.split('/');
+      if (segments.length === 4 && segments[3] === 'data.json') {
+        try {
+          fileIds.push(decodeURIComponent(segments[2]));
+        } catch {
+          fileIds.push(segments[2]);
         }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'unknown image delete error';
-        deletionErrors.push(`image ${file.id} delete threw (${message})`);
       }
+    }
 
-      try {
-        const notesDeleteResponse = await fetch(
-          `${dataWorkerBaseUrl}/${encodedUserId}/${encodedCaseNumber}/${encodedFileId}/data.json`,
-          {
-            method: 'DELETE',
-            headers: { 'X-Custom-Auth-Key': dataApiKey }
-          }
-        );
+    dataCursor = listed.truncated ? listed.cursor : undefined;
+  } while (dataCursor !== undefined);
 
-        if (!notesDeleteResponse.ok && notesDeleteResponse.status !== 404) {
-          deletionErrors.push(`annotation ${file.id} delete failed (${notesDeleteResponse.status})`);
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'unknown annotation delete error';
-        deletionErrors.push(`annotation ${file.id} delete threw (${message})`);
-      }
+  // Delete file binaries from STRIAE_FILES
+  for (const fileId of fileIds) {
+    try {
+      await env.STRIAE_FILES.delete(fileId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown file delete error';
+      deletionErrors.push(`file ${fileId} delete threw (${message})`);
     }
   }
 
-  // Delete case data file
-  try {
-    const caseDeleteResponse = await fetch(
-      `${dataWorkerBaseUrl}/${encodedUserId}/${encodedCaseNumber}/data.json`,
-      {
-        method: 'DELETE',
-        headers: { 'X-Custom-Auth-Key': dataApiKey }
-      }
-    );
-
-    if (!caseDeleteResponse.ok && caseDeleteResponse.status !== 404) {
-      deletionErrors.push(`case ${caseNumber} delete failed (${caseDeleteResponse.status})`);
+  // Delete all case data objects from STRIAE_DATA
+  if (dataKeys.length > 0) {
+    try {
+      await env.STRIAE_DATA.delete(dataKeys);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown data delete error';
+      deletionErrors.push(`case data delete threw (${message})`);
     }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'unknown case delete error';
-    deletionErrors.push(`case ${caseNumber} delete threw (${message})`);
   }
 
   if (deletionErrors.length > 0) {
@@ -736,18 +682,13 @@ async function deleteSingleCase(env: Env, userUid: string, caseNumber: string): 
 }
 
 async function deleteUserConfirmationSummary(env: Env, userUid: string): Promise<void> {
-  const dataApiKey = env.R2_KEY_SECRET;
-  const dataWorkerBaseUrl = resolveDataWorkerBaseUrl(env);
   const encodedUserId = encodeURIComponent(userUid);
-  const confirmationSummaryPath = `${dataWorkerBaseUrl}/${encodedUserId}/meta/confirmation-status.json`;
+  const key = `${encodedUserId}/meta/confirmation-status.json`;
 
-  const response = await fetch(confirmationSummaryPath, {
-    method: 'DELETE',
-    headers: { 'X-Custom-Auth-Key': dataApiKey }
-  });
-
-  if (!response.ok && response.status !== 404) {
-    throw new Error(`Failed to delete confirmation summary metadata: ${response.status}`);
+  try {
+    await env.STRIAE_DATA.delete(key);
+  } catch (error) {
+    throw new Error(`Failed to delete confirmation summary metadata: ${error instanceof Error ? error.message : 'unknown error'}`);
   }
 }
 

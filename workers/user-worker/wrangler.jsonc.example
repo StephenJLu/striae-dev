@@ -18,5 +18,16 @@
     }
   ],
 
+  "r2_buckets": [
+    {
+      "binding": "STRIAE_DATA",
+      "bucket_name": "DATA_BUCKET_NAME"
+    },
+    {
+      "binding": "STRIAE_FILES",
+      "bucket_name": "FILES_BUCKET_NAME"
+    }
+  ],
+
   "placement": { "mode": "smart" }
 }
