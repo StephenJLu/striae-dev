@@ -4,9 +4,6 @@ export interface Env {
   STRIAE_DATA: R2Bucket;
   STRIAE_FILES: R2Bucket;
   R2_KEY_SECRET: string;
-  IMAGES_API_TOKEN?: string;
-  DATA_WORKER_DOMAIN?: string;
-  IMAGES_WORKER_DOMAIN?: string;
   AUDIT_WORKER_DOMAIN?: string;
   PROJECT_ID: string;
   FIREBASE_SERVICE_ACCOUNT_EMAIL: string;
