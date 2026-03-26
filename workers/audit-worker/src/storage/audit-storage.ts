@@ -5,8 +5,7 @@ import {
 import {
   decryptAuditJsonWithRegistry,
   encryptJsonForStorage,
-  extractDataAtRestEnvelope,
-  isDataAtRestEncryptionEnabled
+  extractDataAtRestEnvelope
 } from '../crypto/data-at-rest';
 import type { AuditEntry, Env } from '../types';
 
@@ -30,8 +29,7 @@ export function isValidAuditEntry(entry: unknown): entry is AuditEntry {
 export async function readAuditEntriesFromObject(file: R2ObjectBody, env: Env): Promise<AuditEntry[]> {
   const atRestEnvelope = extractDataAtRestEnvelope(file);
   if (!atRestEnvelope) {
-    const fileText = await file.text();
-    return JSON.parse(fileText) as AuditEntry[];
+    throw new Error('Audit record is not encrypted');
   }
 
   if (atRestEnvelope.algorithm !== DATA_AT_REST_ENCRYPTION_ALGORITHM) {
@@ -56,13 +54,8 @@ export async function writeAuditEntriesToObject(
 ): Promise<void> {
   const serializedData = JSON.stringify(entries);
 
-  if (!isDataAtRestEncryptionEnabled(env)) {
-    await bucket.put(filename, serializedData);
-    return;
-  }
-
   if (!env.DATA_AT_REST_ENCRYPTION_PUBLIC_KEY || !env.DATA_AT_REST_ENCRYPTION_KEY_ID) {
-    throw new Error('Data-at-rest encryption is enabled but not fully configured');
+    throw new Error('Audit encryption is not fully configured');
   }
 
   const encryptedPayload = await encryptJsonForStorage(

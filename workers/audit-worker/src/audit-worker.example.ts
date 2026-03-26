@@ -1,6 +1,5 @@
-import { DATA_AT_REST_BACKFILL_PATH, hasValidHeader } from './config';
+import { hasValidHeader } from './config';
 import { handleAuditRequest } from './handlers/audit-routes';
-import { handleDataAtRestBackfill } from './handlers/backfill';
 import type { CreateResponse, Env } from './types';
 
 const corsHeaders: Record<string, string> = {
@@ -28,10 +27,6 @@ export default {
     try {
       const url = new URL(request.url);
       const pathname = url.pathname;
-
-      if (request.method === 'POST' && pathname === DATA_AT_REST_BACKFILL_PATH) {
-        return await handleDataAtRestBackfill(request, env, createWorkerResponse);
-      }
 
       if (!pathname.startsWith('/audit/')) {
         return createWorkerResponse({ error: 'This worker only handles audit endpoints. Use /audit/ path.' }, 404);

@@ -1,6 +1,5 @@
 import type { Env } from './types';
 
-export const DATA_AT_REST_BACKFILL_PATH = '/api/admin/data-at-rest-backfill';
 export const DATA_AT_REST_ENCRYPTION_ALGORITHM = 'RSA-OAEP-AES-256-GCM';
 export const DATA_AT_REST_ENCRYPTION_VERSION = '1.0';
 
