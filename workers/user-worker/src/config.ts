@@ -1,5 +1,3 @@
-import type { Env } from './types';
-
 export const USER_CASES_SEGMENT = 'cases';
 export const GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 export const FIREBASE_IDENTITY_TOOLKIT_BASE_URL = 'https://identitytoolkit.googleapis.com/v1/projects';
