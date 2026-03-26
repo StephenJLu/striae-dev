@@ -366,17 +366,3 @@ export function extractDataAtRestEnvelope(file: R2ObjectBody): DataAtRestEnvelop
     wrappedKey
   };
 }
-
-export function hasDataAtRestMetadata(metadata: Record<string, string> | undefined): boolean {
-  if (!metadata) {
-    return false;
-  }
-
-  return (
-    typeof metadata.algorithm === 'string' &&
-    typeof metadata.encryptionVersion === 'string' &&
-    typeof metadata.keyId === 'string' &&
-    typeof metadata.dataIv === 'string' &&
-    typeof metadata.wrappedKey === 'string'
-  );
-}

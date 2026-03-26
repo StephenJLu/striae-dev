@@ -1,12 +1,10 @@
 import {
-  DATA_AT_REST_BACKFILL_PATH,
   DECRYPT_EXPORT_PATH,
   SIGN_AUDIT_EXPORT_PATH,
   SIGN_CONFIRMATION_PATH,
   SIGN_MANIFEST_PATH,
   hasValidHeader
 } from './config';
-import { handleDataAtRestBackfill } from './handlers/backfill';
 import { handleDecryptExport } from './handlers/decrypt-export';
 import {
   handleSignAuditExport,
@@ -56,10 +54,6 @@ export default {
 
       if (request.method === 'POST' && pathname === DECRYPT_EXPORT_PATH) {
         return await handleDecryptExport(request, env, createWorkerResponse);
-      }
-
-      if (request.method === 'POST' && pathname === DATA_AT_REST_BACKFILL_PATH) {
-        return await handleDataAtRestBackfill(request, env, createWorkerResponse);
       }
 
       return await handleStorageRequest(request, env, pathname, createWorkerResponse);
