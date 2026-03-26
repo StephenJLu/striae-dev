@@ -1,6 +1,5 @@
 {    
-  "url": "PAGES_CUSTOM_DOMAIN",
-  "account_hash": "ACCOUNT_HASH",
+  "url": "PAGES_CUSTOM_DOMAIN",  
   "manifest_signing_key_id": "MANIFEST_SIGNING_KEY_ID",
   "manifest_signing_public_key": "MANIFEST_SIGNING_PUBLIC_KEY",
   "manifest_signing_public_keys": {
