@@ -89,10 +89,10 @@ export const SHOTSHELL_BUCKSHOT_OPTIONS = [
 
 export const ALL_CALIBERS: string[] = [...PISTOL_CALIBERS, ...RIFLE_CALIBERS];
 export const BULLET_JACKET_METAL_OPTIONS = ['Cu', 'Brass', 'Ni-plated', 'Al', 'Steel', 'None'] as const;
-export const BULLET_CORE_METAL_OPTIONS = ['Pb', 'Steel'] as const;
+export const BULLET_CORE_METAL_OPTIONS = ['Pb', 'Steel', 'Solid Cu', 'Frangible'] as const;
 export const BULLET_TYPE_OPTIONS = ['FMJ', 'TMJ', 'HP', 'WC'] as const;
 export const BULLET_BARREL_TYPE_OPTIONS = ['Conventional', 'Polygonal'] as const;
-export const CARTRIDGE_METAL_OPTIONS = ['Brass', 'Ni-plated', 'Al', 'Steel'] as const;
+export const CARTRIDGE_METAL_OPTIONS = ['Brass', 'Ni-plated', 'Al', 'Steel', 'Bi-metal'] as const;
 export const CARTRIDGE_PRIMER_TYPE_OPTIONS = ['CF', 'RF'] as const;
 export const CARTRIDGE_FPI_SHAPE_OPTIONS = ['Circular', 'Elliptical', 'Rectangular/Square', 'Tear-drop'] as const;
 export const CARTRIDGE_APERTURE_SHAPE_OPTIONS = ['Circular', 'Rectangular'] as const;
