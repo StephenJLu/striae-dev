@@ -6,7 +6,7 @@
 # This script deploys the entire Striae application:
 # 1. Configuration setup (copy configs, replace placeholders)
 # 2. Worker dependencies installation
-# 3. Workers (all 7 workers)
+# 3. Workers (all 5 workers)
 # 4. Worker secrets/environment variables
 # 5. Pages secrets/environment variables
 # 6. Pages (frontend)
@@ -105,7 +105,7 @@ echo ""
 # Step 3: Deploy Workers
 echo -e "${PURPLE}Step 3/6: Deploying Workers${NC}"
 echo "----------------------------"
-echo -e "${YELLOW}🔧 Deploying all 7 Cloudflare Workers...${NC}"
+echo -e "${YELLOW}🔧 Deploying all 5 Cloudflare Workers...${NC}"
 if ! npm run deploy-workers; then
     echo -e "${RED}❌ Worker deployment failed!${NC}"
     exit 1
@@ -127,8 +127,8 @@ echo ""
 # Step 5: Deploy Pages Secrets
 echo -e "${PURPLE}Step 5/6: Deploying Pages Secrets${NC}"
 echo "----------------------------------"
-echo -e "${YELLOW}🔐 Deploying Pages environment variables...${NC}"
-if ! bash "$SCRIPT_DIR/deploy-pages-secrets.sh --production-only"; then
+echo -e "${YELLOW}🔐 Deploying Pages environment variables to production only...${NC}"
+if ! bash "$SCRIPT_DIR/deploy-pages-secrets.sh" --production-only; then
     echo -e "${RED}❌ Pages secrets deployment failed!${NC}"
     exit 1
 fi
@@ -153,7 +153,7 @@ echo "=========================================="
 echo ""
 echo -e "${BLUE}Deployed Components:${NC}"
 echo "  ✅ Worker dependencies (npm install)"
-echo "  ✅ 7 Cloudflare Workers"
+echo "  ✅ 5 Cloudflare Workers"
 echo "  ✅ Worker environment variables"
 echo "  ✅ Pages environment variables"
 echo "  ✅ Cloudflare Pages frontend"
