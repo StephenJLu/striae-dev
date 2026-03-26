@@ -39,5 +39,6 @@ firebase-debug.log
 *.dev.vars
 *.toml
 *.jsonc
+scripts/
 app/config
 primershear.emails

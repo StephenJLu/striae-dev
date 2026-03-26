@@ -1,7 +1,6 @@
 import type { LinksFunction } from 'react-router';
 import {
   Links,
-  Meta,
   Outlet,
   Scripts,
   ScrollRestoration,
@@ -29,8 +28,6 @@ export const links: LinksFunction = () => [
     rel: "stylesheet",
     href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
   },
-  { rel: 'manifest', href: '/manifest.json' },
-  { rel: 'icon', href: '/favicon.ico' },
 ];
 
 type AppTheme = 'dark' | 'light';
@@ -60,17 +57,13 @@ const resolveRouteTheme = (matches: ReturnType<typeof useMatches>): AppTheme => 
 export function Layout({ children }: { children: React.ReactNode }) {
   const matches = useMatches();
   const theme = resolveRouteTheme(matches);
-  const themeColor = theme === 'dark' ? '#000000' : '#377087';
 
   return (
     <html lang="en" data-theme={theme}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content={themeColor} />
-        <meta name="color-scheme" content={theme} />
         <style dangerouslySetInnerHTML={{ __html: themeStyles }} />        
-        <Meta />
         <Links />
       </head>
       <body className="flex flex-col h-screen w-full overflow-x-hidden">
