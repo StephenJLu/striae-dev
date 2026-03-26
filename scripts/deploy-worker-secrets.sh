@@ -105,6 +105,22 @@ build_user_worker_secret_list() {
         "FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY"
     )
 
+    if [ -n "${DATA_AT_REST_ENCRYPTION_PRIVATE_KEY:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_PRIVATE_KEY")
+    fi
+
+    if [ -n "${DATA_AT_REST_ENCRYPTION_KEY_ID:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_KEY_ID")
+    fi
+
+    if [ -n "${DATA_AT_REST_ENCRYPTION_KEYS_JSON:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_KEYS_JSON")
+    fi
+
+    if [ -n "${DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID:-}" ]; then
+        secrets+=("DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID")
+    fi
+
     if [ -n "${USER_KV_ENCRYPTION_PRIVATE_KEY:-}" ]; then
         secrets+=("USER_KV_ENCRYPTION_PRIVATE_KEY")
     fi
