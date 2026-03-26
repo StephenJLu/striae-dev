@@ -99,7 +99,6 @@ build_user_worker_secret_list() {
     local secrets=(
         "USER_DB_AUTH"
         "R2_KEY_SECRET"
-        "AUDIT_WORKER_DOMAIN"
         "PROJECT_ID"
         "FIREBASE_SERVICE_ACCOUNT_EMAIL"
         "FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY"

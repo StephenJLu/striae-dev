@@ -4,7 +4,6 @@ export interface Env {
   STRIAE_DATA: R2Bucket;
   STRIAE_FILES: R2Bucket;
   R2_KEY_SECRET: string;
-  AUDIT_WORKER_DOMAIN?: string;
   DATA_AT_REST_ENCRYPTION_PRIVATE_KEY?: string;
   DATA_AT_REST_ENCRYPTION_KEY_ID?: string;
   DATA_AT_REST_ENCRYPTION_KEYS_JSON?: string;

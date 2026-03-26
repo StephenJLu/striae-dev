@@ -17,8 +17,6 @@ const corsHeaders: Record<string, string> = {
   'Content-Type': 'application/json'
 };
 
-const DEFAULT_AUDIT_WORKER_BASE_URL = 'AUDIT_WORKER_DOMAIN';
-
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method === 'OPTIONS') {
@@ -64,8 +62,8 @@ export default {
         case 'GET': return handleGetUser(env, userUid, corsHeaders);
         case 'PUT': return handleAddUser(request, env, userUid, corsHeaders);
         case 'DELETE': return streamProgress
-          ? handleDeleteUserWithProgress(env, userUid, corsHeaders, DEFAULT_AUDIT_WORKER_BASE_URL)
-          : handleDeleteUser(env, userUid, corsHeaders, DEFAULT_AUDIT_WORKER_BASE_URL);
+          ? handleDeleteUserWithProgress(env, userUid, corsHeaders)
+          : handleDeleteUser(env, userUid, corsHeaders);
         default: return new Response('Method not allowed', {
           status: 405,
           headers: corsHeaders

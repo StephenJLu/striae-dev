@@ -1,4 +1,3 @@
-import { resolveAuditWorkerBaseUrl } from '../config';
 import { decryptJsonFromStorage, type DataAtRestEnvelope } from '../encryption-utils';
 import { deleteFirebaseAuthUser } from '../firebase/admin';
 import { readUserRecord } from '../storage/user-records';
@@ -268,28 +267,9 @@ async function deleteUserConfirmationSummary(env: Env, userUid: string): Promise
   }
 }
 
-async function deleteUserAuditLogs(
-  env: Env,
-  userUid: string,
-  defaultAuditWorkerBaseUrl: string
-): Promise<void> {
-  const auditWorkerBaseUrl = resolveAuditWorkerBaseUrl(env, defaultAuditWorkerBaseUrl);
-  const encodedUserId = encodeURIComponent(userUid);
-
-  const response = await fetch(`${auditWorkerBaseUrl}/audit/?userId=${encodedUserId}`, {
-    method: 'DELETE',
-    headers: { 'X-Custom-Auth-Key': env.R2_KEY_SECRET }
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to delete user audit logs: ${response.status}`);
-  }
-}
-
 export async function executeUserDeletion(
   env: Env,
   userUid: string,
-  defaultAuditWorkerBaseUrl: string,
   reportProgress?: (progress: AccountDeletionProgressEvent) => void
 ): Promise<{ success: boolean; message: string; totalCases: number; completedCases: number }> {
   const userData = await readUserRecord(env, userUid);
@@ -344,12 +324,6 @@ export async function executeUserDeletion(
   }
 
   await deleteUserConfirmationSummary(env, userUid);
-
-  try {
-    await deleteUserAuditLogs(env, userUid, defaultAuditWorkerBaseUrl);
-  } catch (error) {
-    console.error('Failed to delete user audit logs during account deletion (non-blocking):', error);
-  }
 
   await deleteFirebaseAuthUser(env, userUid);
   await env.USER_DB.delete(userUid);

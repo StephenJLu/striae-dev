@@ -101,11 +101,10 @@ export async function handleAddUser(
 export async function handleDeleteUser(
   env: Env,
   userUid: string,
-  corsHeaders: ResponseHeaders,
-  defaultAuditWorkerBaseUrl: string
+  corsHeaders: ResponseHeaders
 ): Promise<Response> {
   try {
-    const result = await executeUserDeletion(env, userUid, defaultAuditWorkerBaseUrl);
+    const result = await executeUserDeletion(env, userUid);
 
     return createJsonResponse({
       success: result.success,
@@ -132,8 +131,7 @@ export async function handleDeleteUser(
 export function handleDeleteUserWithProgress(
   env: Env,
   userUid: string,
-  corsHeaders: ResponseHeaders,
-  defaultAuditWorkerBaseUrl: string
+  corsHeaders: ResponseHeaders
 ): Response {
   const sseHeaders: ResponseHeaders = {
     ...corsHeaders,
@@ -150,7 +148,7 @@ export function handleDeleteUserWithProgress(
       };
 
       try {
-        const result = await executeUserDeletion(env, userUid, defaultAuditWorkerBaseUrl, sendEvent);
+        const result = await executeUserDeletion(env, userUid, sendEvent);
         sendEvent({
           event: 'complete',
           totalCases: result.totalCases,

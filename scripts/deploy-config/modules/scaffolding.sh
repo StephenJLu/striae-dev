@@ -264,7 +264,6 @@ update_wrangler_configs() {
     if [ -f "workers/user-worker/src/user-worker.ts" ]; then
         echo -e "${YELLOW}  Updating user-worker source placeholders...${NC}"
         sed -i "s|'Access-Control-Allow-Origin': '[^']*'|'Access-Control-Allow-Origin': 'https://$escaped_pages_custom_domain'|g" workers/user-worker/src/user-worker.ts
-        sed -i "s|'AUDIT_WORKER_DOMAIN'|'https://$AUDIT_WORKER_DOMAIN'|g" workers/user-worker/src/user-worker.ts
         echo -e "${GREEN}    ✅ user-worker source placeholders updated${NC}"
     fi
 
