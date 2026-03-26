@@ -62,6 +62,12 @@ npm run deploy:all
 
 ## 📋 Changelog
 
+## [2026-03-25] - *[Patch Release v5.2.1](https://github.com/striae-org/striae/releases/tag/v5.2.1)*
+
+- **🛠️ Deploy Script Reliability Fixes** - Fixed deployment-script issues, including account ID replacement behavior and related setup-path corrections to reduce config drift risk.
+- **🧾 Environment and Key-Config Cleanup** - Reorganized environment example structure and corrected keys JSON entry handling for cleaner deployment preparation.
+- **📦 Tooling Maintenance** - Applied Wrangler version bumps in the same patch window.
+
 ## [2026-03-25] - *[Minor Release v5.2.0](https://github.com/striae-org/striae/releases/tag/v5.2.0)*
 
 - **🧹 Runtime and Legacy Cleanup** - Removed deprecated `requireSignedURLs` handling and additional Cloudflare holdover remnants that were no longer part of the active architecture.
