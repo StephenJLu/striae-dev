@@ -2,9 +2,11 @@ import { useEffect, type ReactNode } from 'react';
 import { useOverlayDismiss } from '~/hooks/useOverlayDismiss';
 import styles from './toast.module.css';
 
+export type ToastType = 'success' | 'error' | 'warning' | 'loading';
+
 interface ToastProps {
   message: ReactNode;
-  type: 'success' | 'error' | 'warning';
+  type: ToastType;
   isVisible: boolean;
   onClose: () => void;
   duration?: number;
@@ -45,7 +47,9 @@ export const Toast = ({ message, type, isVisible, onClose, duration = 4000 }: To
       ></div>
       <div className={`${styles.toast} ${styles[type]} ${isVisible ? styles.show : ''}`}>
         <div className={styles.icon}>
-          {type === 'success' ? '✓' : type === 'warning' ? '!' : '✗'}
+          {type === 'loading' ? (
+            <span className={styles.spinner} aria-hidden="true" />
+          ) : type === 'success' ? '✓' : type === 'warning' ? '!' : '✗'}
         </div>
         <span className={styles.message}>{message}</span>
         <button 

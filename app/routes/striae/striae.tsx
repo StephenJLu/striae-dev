@@ -7,7 +7,7 @@ import { ArchiveCaseModal } from '~/components/navbar/case-modals/archive-case-m
 import { OpenCaseModal } from '~/components/navbar/case-modals/open-case-modal';
 import { Toolbar } from '~/components/toolbar/toolbar';
 import { Canvas } from '~/components/canvas/canvas';
-import { Toast } from '~/components/toast/toast';
+import { Toast, type ToastType } from '~/components/toast/toast';
 import { getImageUrl, fetchFiles, deleteFile } from '~/components/actions/image-manage';
 import { getNotes, saveNotes } from '~/components/actions/notes-manage';
 import { generatePDF } from '~/components/actions/generate-pdf';
@@ -77,7 +77,8 @@ export const Striae = ({ user }: StriaePage) => {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState<'success' | 'error' | 'warning'>('success');
+  const [toastType, setToastType] = useState<ToastType>('success');
+  const [toastDuration, setToastDuration] = useState(4000);
   const [isAuditTrailOpen, setIsAuditTrailOpen] = useState(false);
   const [isRenameCaseModalOpen, setIsRenameCaseModalOpen] = useState(false);
   const [isOpenCaseModalOpen, setIsOpenCaseModalOpen] = useState(false);
@@ -252,13 +253,19 @@ export const Striae = ({ user }: StriaePage) => {
       setIsGeneratingPDF,
       setToastType,
       setToastMessage,
-      setShowToast
+      setShowToast,
+      setToastDuration
     });
   };
 
-  const showNotification = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
+  const showNotification = (
+    message: string,
+    type: ToastType = 'success',
+    duration = 4000
+  ) => {
     setToastType(type);
     setToastMessage(message);
+    setToastDuration(duration);
     setShowToast(true);
   };
 
@@ -271,18 +278,37 @@ export const Striae = ({ user }: StriaePage) => {
     exportCaseNumber: string,
     onProgress?: (progress: number, label: string) => void
   ) => {
-    const caseExportActions = await loadCaseExportActions();
+    if (!exportCaseNumber) {
+      showNotification('Select a case before exporting.', 'error');
+      return;
+    }
 
-    await caseExportActions.downloadCaseAsZip(user, exportCaseNumber, (progress) => {
-      const label = getExportProgressLabel(progress);
-      onProgress?.(Math.round(progress), label);
-    });
+    showNotification(`Exporting case ${exportCaseNumber}...`, 'loading', 0);
 
-    showNotification(`Case ${exportCaseNumber} exported successfully.`, 'success');
+    try {
+      const caseExportActions = await loadCaseExportActions();
+
+      await caseExportActions.downloadCaseAsZip(user, exportCaseNumber, (progress) => {
+        const roundedProgress = Math.round(progress);
+        const label = getExportProgressLabel(progress);
+        setToastType('loading');
+        setToastMessage(`Exporting case ${exportCaseNumber}... ${label} (${roundedProgress}%)`);
+        setToastDuration(0);
+        setShowToast(true);
+        onProgress?.(roundedProgress, label);
+      });
+
+      showNotification(`Case ${exportCaseNumber} exported successfully.`, 'success');
+    } catch (error) {
+      showNotification(error instanceof Error ? error.message : 'Export failed. Please try again.', 'error');
+    }
   };
 
   const handleExportConfirmations = async () => {
     if (!currentCase || !user) return;
+
+    showNotification(`Exporting confirmations for case ${currentCase}...`, 'loading', 0);
+
     try {
       await exportConfirmationData(user, currentCase);
       showNotification(`Confirmations for case ${currentCase} exported successfully.`, 'success');
@@ -335,6 +361,8 @@ export const Striae = ({ user }: StriaePage) => {
     }
 
     setIsDeletingCase(true);
+    showNotification(`Deleting case ${currentCase}...`, 'loading', 0);
+
     try {
       const deleteResult = await deleteCase(user, currentCase);
       clearLoadedCaseState();
@@ -439,6 +467,8 @@ export const Striae = ({ user }: StriaePage) => {
     }
 
     setIsArchivingCase(true);
+    showNotification(`Archiving case ${currentCase}... Preparing archive package.`, 'loading', 0);
+
     try {
       await archiveCase(user, currentCase, archiveReason);
       setIsReadOnlyCase(true);
@@ -736,9 +766,7 @@ export const Striae = ({ user }: StriaePage) => {
           if (isReadOnlyCase) {
             void handleExportConfirmations();
           } else {
-            handleExport(currentCase || '').catch((e) => {
-              showNotification(e instanceof Error ? e.message : 'Export failed. Please try again.', 'error');
-            });
+            void handleExport(currentCase || '');
           }
         }}
         onOpenAuditTrail={() => setIsAuditTrailOpen(true)}
@@ -881,6 +909,7 @@ export const Striae = ({ user }: StriaePage) => {
         type={toastType}
         isVisible={showToast}
         onClose={closeToast}
+        duration={toastDuration}
       />
     </div>
   );
