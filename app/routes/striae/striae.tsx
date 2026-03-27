@@ -11,7 +11,7 @@ import { Toast } from '~/components/toast/toast';
 import { getImageUrl, fetchFiles, deleteFile } from '~/components/actions/image-manage';
 import { getNotes, saveNotes } from '~/components/actions/notes-manage';
 import { generatePDF } from '~/components/actions/generate-pdf';
-import { CaseExport } from '~/components/sidebar/case-export/case-export';
+import { exportConfirmationData } from '~/components/actions/confirm-export';
 import { CasesModal } from '~/components/sidebar/cases/cases-modal';
 import { FilesModal } from '~/components/sidebar/files/files-modal';
 import { NotesEditorModal } from '~/components/sidebar/notes/notes-editor-modal';
@@ -78,7 +78,6 @@ export const Striae = ({ user }: StriaePage) => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'warning'>('success');
-  const [isCaseExportModalOpen, setIsCaseExportModalOpen] = useState(false);
   const [isAuditTrailOpen, setIsAuditTrailOpen] = useState(false);
   const [isRenameCaseModalOpen, setIsRenameCaseModalOpen] = useState(false);
   const [isOpenCaseModalOpen, setIsOpenCaseModalOpen] = useState(false);
@@ -280,6 +279,16 @@ export const Striae = ({ user }: StriaePage) => {
     });
 
     showNotification(`Case ${exportCaseNumber} exported successfully.`, 'success');
+  };
+
+  const handleExportConfirmations = async () => {
+    if (!currentCase || !user) return;
+    try {
+      await exportConfirmationData(user, currentCase);
+      showNotification(`Confirmations for case ${currentCase} exported successfully.`, 'success');
+    } catch (e) {
+      showNotification(e instanceof Error ? e.message : 'Confirmation export failed. Please try again.', 'error');
+    }
   };
 
   const handleRenameCaseSubmit = async (newCaseName: string) => {
@@ -723,7 +732,15 @@ export const Striae = ({ user }: StriaePage) => {
           void handleOpenCaseModal();
         }}
         onOpenListAllCases={() => setIsListCasesModalOpen(true)}
-        onOpenCaseExport={() => setIsCaseExportModalOpen(true)}
+        onOpenCaseExport={() => {
+          if (isReadOnlyCase) {
+            void handleExportConfirmations();
+          } else {
+            handleExport(currentCase || '').catch((e) => {
+              showNotification(e instanceof Error ? e.message : 'Export failed. Please try again.', 'error');
+            });
+          }
+        }}
         onOpenAuditTrail={() => setIsAuditTrailOpen(true)}
         onOpenRenameCase={() => setIsRenameCaseModalOpen(true)}
         onDeleteCase={() => {
@@ -746,7 +763,7 @@ export const Striae = ({ user }: StriaePage) => {
           onOpenCase={() => {
             void handleOpenCaseModal();
           }}
-          onOpenCaseExport={() => setIsCaseExportModalOpen(true)}
+          onOpenCaseExport={() => void handleExportConfirmations()}
           imageId={imageId}
           currentCase={currentCase}
           imageLoaded={imageLoaded}
@@ -838,13 +855,6 @@ export const Striae = ({ user }: StriaePage) => {
         originalFileName={files.find(file => file.id === imageId)?.originalFilename}
         isUploading={isUploading}
         showNotification={showNotification}
-      />
-      <CaseExport
-        isOpen={isCaseExportModalOpen}
-        onClose={() => setIsCaseExportModalOpen(false)}
-        onExport={handleExport}
-        currentCaseNumber={currentCase}
-        isReadOnly={isReadOnlyCase}
       />
       <UserAuditViewer
         caseNumber={currentCase || ''}
