@@ -24,7 +24,7 @@ export const ConfirmationPreviewSection = ({ confirmationPreview, isLoadingPrevi
     <div className={styles.previewSection}>
       <h3 className={styles.previewTitle}>Confirmation Import Preview</h3>
       <p className={styles.previewMessage}>
-        Confirmation package detected. Details are hidden until import verification completes.
+        Encrypted confirmation package detected.
       </p>
     </div>
   );
