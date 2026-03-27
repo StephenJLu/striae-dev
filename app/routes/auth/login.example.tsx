@@ -164,7 +164,6 @@ export const Login = () => {
       }      
       
       // Check if user exists in the USER_DB
-      let hasBadgeId = true;
       setIsCheckingUser(true);
       try {
         const userData = await checkUserExists(currentUser);
@@ -175,8 +174,6 @@ export const Login = () => {
           setError('This account does not exist or has been deleted');
           return;
         }
-
-        hasBadgeId = Boolean(userData.badgeId?.trim());
       } catch (error) {
         setIsCheckingUser(false);
         handleSignOut();
@@ -195,13 +192,8 @@ export const Login = () => {
       setShowMfaEnrollment(false);
 
       if (shouldShowWelcomeToastRef.current) {
-        if (hasBadgeId) {
-          setWelcomeToastType('success');
-          setWelcomeToastMessage(`Welcome to Striae, ${getUserFirstName(currentUser)}!`);
-        } else {
-          setWelcomeToastType('warning');
-          setWelcomeToastMessage('Your badge or ID number is not set. You can set one in Manage Profile.');
-        }
+        setWelcomeToastType('success');
+        setWelcomeToastMessage(`Welcome to Striae, ${getUserFirstName(currentUser)}!`);
         setIsWelcomeToastVisible(true);
         shouldShowWelcomeToastRef.current = false;
       }
