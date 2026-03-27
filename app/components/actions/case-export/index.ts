@@ -2,35 +2,16 @@
 // This maintains backward compatibility with existing imports
 
 // Types and constants
-export { CSV_HEADERS, formatDateForFilename } from './types-constants';
+export { formatDateForFilename } from './types-constants';
 
-// Metadata and protection helpers
-export {
-  getUserExportMetadata,
-  addForensicDataWarning,
-  generateRandomPassword,
-  protectExcelWorksheet
-} from './metadata-helpers';
-
-// Data processing functions
-export {
-  generateMetadataRows,
-  processFileDataForTabular,
-  generateCSVContent
-} from './data-processing';
+// Metadata helpers
+export { getUserExportMetadata } from './metadata-helpers';
 
 // Core export functions
-export {
-  exportAllCases,
-  exportCaseData
-} from './core-export';
+export { exportCaseData } from './core-export';
 
 // Download handlers
-export {
-  downloadCaseAsZip
-} from './download-handlers';
+export { downloadCaseAsZip } from './download-handlers';
 
 // Validation utilities
-export {
-  validateCaseNumberForExport
-} from './validation-utils';
+export { validateCaseNumberForExport } from './validation-utils';

@@ -65,66 +65,6 @@
   overflow-x: hidden;
 }
 
-.formatSelector {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--spaceM);
-  background: var(--backgroundLight);
-  border-radius: var(--spaceXS);
-  border: 1px solid color-mix(in lab, var(--text) 10%, transparent);
-  margin-top: var(--spaceM);
-}
-
-.formatLabel {
-  font-size: var(--fontSizeBodyS);
-  font-weight: var(--fontWeightMedium);
-  color: var(--textTitle);
-  margin: 0;
-}
-
-.formatToggle {
-  display: flex;
-  background: color-mix(in lab, var(--primary) 10%, transparent);
-  border: 1px solid color-mix(in lab, var(--primary) 20%, transparent);
-  border-radius: var(--spaceXS);
-  overflow: hidden;
-  box-shadow: 0 1px 3px color-mix(in lab, var(--primary) 15%, transparent);
-}
-
-.formatOption {
-  background: transparent;
-  border: none;
-  padding: var(--spaceS) var(--spaceM);
-  font-size: var(--fontSizeBodyS);
-  font-weight: var(--fontWeightMedium);
-  color: var(--primary);
-  cursor: pointer;
-  transition: all var(--durationS) var(--bezierFastoutSlowin);
-  position: relative;
-  min-width: 60px;
-}
-
-.formatOption:hover:not(:disabled) {
-  background: color-mix(in lab, var(--primary) 15%, transparent);
-  color: var(--primary);
-}
-
-.formatOption:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.formatOptionActive {
-  background: var(--primary) !important;
-  color: white !important;
-  box-shadow: 0 1px 3px color-mix(in lab, var(--primary) 30%, transparent);
-}
-
-.formatOptionActive:hover:not(:disabled) {
-  background: color-mix(in lab, var(--primary) 85%, var(--black)) !important;
-}
-
 .imageOption {
   display: flex;
   align-items: center;
@@ -316,64 +256,6 @@
 .publicKeyButton:hover {
   background: color-mix(in lab, var(--primary) 10%, transparent);
   border-color: color-mix(in lab, var(--primary) 55%, transparent);
-}
-
-.divider {
-  margin: var(--spaceL) 0;
-  text-align: center;
-  position: relative;
-  color: var(--textLight);
-  font-size: var(--fontSizeBodyS);
-  font-weight: var(--fontWeightMedium);
-}
-
-.divider::before {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: color-mix(in lab, var(--text) 10%, transparent);
-  z-index: 1;
-}
-
-.divider span {
-  background: var(--backgroundLight);
-  padding: 0 var(--spaceM);
-  position: relative;
-  z-index: 2;
-}
-
-.exportAllSection {
-  text-align: center;
-  margin-bottom: var(--spaceM);
-}
-
-.exportAllButton {
-  background: var(--primary);
-  color: white;
-  border: none;
-  border-radius: var(--spaceXS);
-  padding: var(--spaceM) var(--spaceL);
-  font-size: var(--fontSizeBodyS);
-  font-weight: var(--fontWeightMedium);
-  cursor: pointer;
-  transition: all var(--durationS) var(--bezierFastoutSlowin);
-  width: 100%;
-  box-shadow: 0 1px 3px color-mix(in lab, var(--primary) 30%, transparent);
-}
-
-.exportAllButton:hover:not(:disabled) {
-  background: color-mix(in lab, var(--primary) 85%, var(--black));
-  box-shadow: 0 2px 6px color-mix(in lab, var(--primary) 40%, transparent);
-}
-
-.exportAllButton:disabled {
-  background: color-mix(in lab, var(--background) 95%, transparent);
-  color: var(--textLight);
-  cursor: not-allowed;
-  box-shadow: none;
 }
 
 .progressSection {
