@@ -2,7 +2,6 @@
 // This maintains backward compatibility with existing imports
 
 // Types and constants
-export type { ExportFormat } from './types-constants';
 export { CSV_HEADERS, formatDateForFilename } from './types-constants';
 
 // Metadata and protection helpers
@@ -28,10 +27,6 @@ export {
 
 // Download handlers
 export {
-  downloadAllCasesAsJSON,
-  downloadAllCasesAsCSV,
-  downloadCaseAsJSON,
-  downloadCaseAsCSV,
   downloadCaseAsZip
 } from './download-handlers';
 

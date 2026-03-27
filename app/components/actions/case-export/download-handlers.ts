@@ -12,7 +12,7 @@ import {
   encryptExportDataWithAllImages
 } from '~/utils/forensics';
 import { signForensicManifest } from '~/utils/data';
-import { type ExportFormat, formatDateForFilename, CSV_HEADERS } from './types-constants';
+import { formatDateForFilename, CSV_HEADERS } from './types-constants';
 import { protectExcelWorksheet, addForensicDataWarning } from './metadata-helpers';
 import { generateMetadataRows, generateCSVContent, processFileDataForTabular, sanitizeTabularMatrix } from './data-processing';
 import { exportCaseData } from './core-export';
@@ -637,14 +637,14 @@ export async function downloadCaseAsCSV(
 export async function downloadCaseAsZip(
   user: User,
   caseNumber: string,
-  format: ExportFormat,
   onProgress?: (progress: number) => void,
-  options: ExportOptions = { protectForensicData: true }
+  options: ExportOptions = {}
 ): Promise<void> {
   const startTime = Date.now();
   let manifestSignatureKeyId: string | undefined;
   let manifestSigned = false;
   let publicKeyFileName: string | undefined;
+  const protectForensicData = true;
   
   try {
     // Start audit workflow
@@ -660,14 +660,8 @@ export async function downloadCaseAsZip(
     const JSZip = (await import('jszip')).default;
     const zip = new JSZip();
     
-    // Add data file with forensic protection if enabled
-    if (format === 'json') {
-      const jsonContent = generateJSONContent(exportData, options.includeUserInfo, options.protectForensicData);
-      zip.file(`${caseNumber}_data.json`, jsonContent);
-    } else {
-      const csvContent = generateCSVContent(exportData, options.protectForensicData);
-      zip.file(`${caseNumber}_data.csv`, csvContent);
-    }
+    const jsonContent = await generateJSONContent(exportData, options.includeUserInfo, protectForensicData);
+    zip.file(`${caseNumber}_data.json`, jsonContent);
     onProgress?.(50);
     
     // Add images and collect them for manifest generation
@@ -691,86 +685,66 @@ export async function downloadCaseAsZip(
       }
     }
     
-    // Add forensic metadata file if protection is enabled
-    if (options.protectForensicData) {
-      // CRITICAL: Get the content that will be used for hash calculation
-      // This MUST match exactly what gets saved in the actual data file
-      // So we use the same includeUserInfo setting for both
-      const contentForHash = format === 'json' 
-        ? await generateJSONContent(exportData, options.includeUserInfo, false) // Raw content without warnings but same includeUserInfo
-        : await generateCSVContent(exportData, false); // Raw content without warnings
+    // CRITICAL: Get the content that will be used for hash calculation.
+    // This must match the exported package content before encryption.
+    const contentForHash = await generateJSONContent(exportData, options.includeUserInfo, false);
 
-      // Generate comprehensive forensic manifest with individual file hashes using secure SHA256
-      const forensicManifest = await generateForensicManifestSecure(contentForHash, imageFiles);
+    const forensicManifest = await generateForensicManifestSecure(contentForHash, imageFiles);
 
-      // Request server-side signature to prevent tamper-by-rehash attacks
-      const signingResult = await signForensicManifest(user, caseNumber, forensicManifest);
-      manifestSignatureKeyId = signingResult.signature.keyId;
-      manifestSigned = true;
+    const signingResult = await signForensicManifest(user, caseNumber, forensicManifest);
+    manifestSignatureKeyId = signingResult.signature.keyId;
+    manifestSigned = true;
 
-      publicKeyFileName = addPublicSigningKeyPemToZip(zip, signingResult.signature.keyId);
+    publicKeyFileName = addPublicSigningKeyPemToZip(zip, signingResult.signature.keyId);
 
-      const signedForensicManifest = {
-        ...forensicManifest,
-        manifestVersion: signingResult.manifestVersion,
-        signature: signingResult.signature
-      };
-      
-      // Add dedicated forensic manifest file for validation
-      zip.file('FORENSIC_MANIFEST.json', JSON.stringify(signedForensicManifest, null, 2));
-      
-      // Export encryption is mandatory
-      const encKeyDetails = getCurrentEncryptionPublicKeyDetails();
-      
-      if (!encKeyDetails.publicKeyPem || !encKeyDetails.keyId) {
-        throw new Error(
-          'Export encryption is mandatory. Your Striae instance does not have a configured encryption public key. ' +
-          'Please contact your administrator to set up export encryption.'
-        );
-      }
-      
-      let encryptionManifestJson: string | null = null;
-      const isEncrypted = true;
-      
-      try {
-        // Build image blobs array from the collected imageFiles
-        const imagesToEncrypt = Object.entries(imageFiles).map(([filename, blob]) => ({
-          filename,
-          blob
-        }));
+    const signedForensicManifest = {
+      ...forensicManifest,
+      manifestVersion: signingResult.manifestVersion,
+      signature: signingResult.signature
+    };
 
-        // Encrypt data file and all images with shared AES key
-        const encryptionResult = await encryptExportDataWithAllImages(
-          contentForHash,
-          imagesToEncrypt,
-          encKeyDetails.publicKeyPem,
-          encKeyDetails.keyId
-        );
+    zip.file('FORENSIC_MANIFEST.json', JSON.stringify(signedForensicManifest, null, 2));
 
-        // Replace data file with encrypted ciphertext
-        zip.file(`${caseNumber}_data.${format}`, encryptionResult.ciphertext);
+    const encKeyDetails = getCurrentEncryptionPublicKeyDetails();
 
-        // Replace images in the ZIP with encrypted versions
-        if (imageFolder && encryptionResult.encryptedImages.length > 0) {
-          for (let i = 0; i < imagesToEncrypt.length; i++) {
-            const originalFilename = imagesToEncrypt[i].filename;
-            // Remove the original file and add encrypted version
-            imageFolder.file(originalFilename, encryptionResult.encryptedImages[i]);
-          }
+    if (!encKeyDetails.publicKeyPem || !encKeyDetails.keyId) {
+      throw new Error(
+        'Export encryption is mandatory. Your Striae instance does not have a configured encryption public key. ' +
+        'Please contact your administrator to set up export encryption.'
+      );
+    }
+
+    try {
+      const imagesToEncrypt = Object.entries(imageFiles).map(([filename, blob]) => ({
+        filename,
+        blob
+      }));
+
+      const encryptionResult = await encryptExportDataWithAllImages(
+        contentForHash,
+        imagesToEncrypt,
+        encKeyDetails.publicKeyPem,
+        encKeyDetails.keyId
+      );
+
+      zip.file(`${caseNumber}_data.json`, encryptionResult.ciphertext);
+
+      if (imageFolder && encryptionResult.encryptedImages.length > 0) {
+        for (let i = 0; i < imagesToEncrypt.length; i++) {
+          const originalFilename = imagesToEncrypt[i].filename;
+          imageFolder.file(originalFilename, encryptionResult.encryptedImages[i]);
         }
-
-        // Add encryption manifest
-        encryptionManifestJson = JSON.stringify(encryptionResult.encryptionManifest, null, 2);
-        zip.file('ENCRYPTION_MANIFEST.json', encryptionManifestJson);
-
-        onProgress?.(80);
-      } catch (error) {
-        console.error('Export encryption failed:', error);
-        throw new Error(`Failed to encrypt export: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
-      
-      // Add read-only instruction file
-      const instructionContent = `EVIDENCE ARCHIVE - READ ONLY
+
+      zip.file('ENCRYPTION_MANIFEST.json', JSON.stringify(encryptionResult.encryptionManifest, null, 2));
+
+      onProgress?.(80);
+    } catch (error) {
+      console.error('Export encryption failed:', error);
+      throw new Error(`Failed to encrypt export: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    const instructionContent = `EVIDENCE ARCHIVE - READ ONLY
 
 This ZIP archive contains evidence data exported from Striae.
 
@@ -779,13 +753,13 @@ IMPORTANT WARNINGS:
 - Do not modify, rename, or delete any files in this archive
 - Any modifications may compromise evidence integrity
 - Maintain proper chain of custody procedures
-${isEncrypted ? '- This archive is encrypted. Only Striae can decrypt and re-import it.\n' : ''}
+- This archive is encrypted. Only Striae can decrypt and re-import it.
 
 Archive Contents:
-- ${caseNumber}_data.${format}: Complete case data in ${format.toUpperCase()} format${isEncrypted ? ' (encrypted)' : ''}
-- images/: Image files with annotations${isEncrypted ? ' (encrypted)' : ''}
+- ${caseNumber}_data.json: Complete case data manifest (encrypted)
+- images/: Image files with annotations (encrypted)
 - FORENSIC_MANIFEST.json: File integrity validation manifest
-${isEncrypted ? '- ENCRYPTION_MANIFEST.json: Encryption metadata and encrypted file hashes\n' : ''}
+- ENCRYPTION_MANIFEST.json: Encryption metadata and encrypted file hashes
 - ${publicKeyFileName}: Public signing key PEM for verification
 - README.txt: General information about this export
 
@@ -797,107 +771,35 @@ Case Information:
 - Total Annotations: ${(exportData.summary?.filesWithAnnotations || 0) + (exportData.summary?.totalBoxAnnotations || 0)}
 - Total Confirmations: ${exportData.summary?.filesWithConfirmations || 0}
 - Confirmations Requested: ${exportData.summary?.filesWithConfirmationsRequested || 0}
-${isEncrypted ? `- Encryption Status: ENCRYPTED (key ID: ${encKeyDetails.keyId})\n` : ''}
+- Encryption Status: ENCRYPTED (key ID: ${encKeyDetails.keyId})
 
 For questions about this export, contact your Striae system administrator.
 `;
-      
-      zip.file('READ_ONLY_INSTRUCTIONS.txt', instructionContent);
-      
-      // Add README 
-      const readme = generateZipReadme(
-        exportData,
-        options.protectForensicData,
-        publicKeyFileName
-      );
-      zip.file('README.txt', readme);
-      onProgress?.(85);
-      
-      // Generate ZIP blob
-      const zipBlob = await zip.generateAsync({ 
-        type: 'blob',
-        compression: 'DEFLATE',
-        compressionOptions: { level: 6 }
-      });
-      onProgress?.(95);
-      
-      // Download
-      const url = URL.createObjectURL(zipBlob);
-      const protectionSuffix = options.protectForensicData ? '-protected' : '';
-      const encryptedSuffix = isEncrypted ? '-encrypted' : '';
-      const exportFileName = `striae-case-${caseNumber}-export${protectionSuffix}${encryptedSuffix}-${formatDateForFilename(new Date())}.zip`;
-      
-      const linkElement = document.createElement('a');
-      linkElement.href = url;
-      linkElement.setAttribute('download', exportFileName);
-      
-      if (options.protectForensicData) {
-        linkElement.setAttribute('title', 'Evidence archive with forensic protection enabled');
-      }
-      
-      linkElement.click();
-      
-      URL.revokeObjectURL(url);
-      onProgress?.(100);
-      
-      // Log successful export audit event (forensic protected case)
-      const endTime = Date.now();
-      await auditService.logCaseExport(
-        user,
-        caseNumber,
-        exportFileName,
-        'success',
-        [],
-        {
-          processingTimeMs: endTime - startTime,
-          fileSizeBytes: zipBlob.size,
-          validationStepsCompleted: exportData.files?.length || 0,
-          validationStepsFailed: 0
-        },
-        'zip',
-        options.protectForensicData || false,
-        {
-          present: true,
-          valid: true,
-          keyId: manifestSignatureKeyId
-        }
-      );
-      
-      // End audit workflow
-      auditService.endWorkflow();
-      
-      return; // Exit early as we've handled the forensic case
-    }
 
-    publicKeyFileName = addPublicSigningKeyPemToZip(zip);
+    zip.file('READ_ONLY_INSTRUCTIONS.txt', instructionContent);
 
-    // Add README (standard or enhanced for forensic)
     const readme = generateZipReadme(
       exportData,
-      options.protectForensicData,
+      protectForensicData,
       publicKeyFileName
     );
     zip.file('README.txt', readme);
     onProgress?.(85);
     
-    // Generate ZIP blob for non-forensic case
     const zipBlob = await zip.generateAsync({ 
       type: 'blob',
       compression: 'DEFLATE',
       compressionOptions: { level: 6 }
     });
-    onProgress?.(95);    // Download
+    onProgress?.(95);
+
     const url = URL.createObjectURL(zipBlob);
-    const protectionSuffix = options.protectForensicData ? '-protected' : '';
-    const exportFileName = `striae-case-${caseNumber}-export${protectionSuffix}-${formatDateForFilename(new Date())}.zip`;
+    const exportFileName = `striae-case-${caseNumber}-encrypted-package-${formatDateForFilename(new Date())}.zip`;
     
     const linkElement = document.createElement('a');
     linkElement.href = url;
     linkElement.setAttribute('download', exportFileName);
-    
-    if (options.protectForensicData) {
-      linkElement.setAttribute('data-forensic-protected', 'true');
-    }
+    linkElement.setAttribute('title', 'Encrypted Striae case package');
     
     linkElement.click();
     
@@ -919,7 +821,12 @@ For questions about this export, contact your Striae system administrator.
         validationStepsFailed: 0
       },
       'zip',
-      options.protectForensicData || false
+      protectForensicData,
+      {
+        present: true,
+        valid: true,
+        keyId: manifestSignatureKeyId
+      }
     );
     
     // End audit workflow
@@ -943,20 +850,18 @@ For questions about this export, contact your Striae system administrator.
         validationStepsFailed: 1
       },
       'zip',
-      options.protectForensicData || false,
-      options.protectForensicData
-        ? {
-            present: manifestSigned,
-            valid: manifestSigned,
-            keyId: manifestSignatureKeyId
-          }
-        : undefined
+      protectForensicData,
+      {
+        present: manifestSigned,
+        valid: manifestSigned,
+        keyId: manifestSignatureKeyId
+      }
     );
     
     // End audit workflow
     auditService.endWorkflow();
     
-    throw new Error('Failed to export ZIP file');
+    throw new Error('Failed to export encrypted case package');
   }
 }
 
@@ -1034,8 +939,8 @@ Summary:
 - Latest Annotation Date: ${exportData.summary?.latestAnnotationDate || 'N/A'}
 
 Contents:
-- ${exportData.metadata.caseNumber}_data.json/.csv: Case data and annotations
-- images/: Original uploaded images
+- ${exportData.metadata.caseNumber}_data.json: Encrypted case data and annotations
+- images/: Encrypted uploaded images
 - ${publicKeyFileName}: Public signing key PEM for verification
 - README.txt: This file`;
 

@@ -4,13 +4,10 @@ import { AuthContext } from '~/contexts/auth.context';
 import { useOverlayDismiss } from '~/hooks/useOverlayDismiss';
 import { getCaseConfirmations, exportConfirmationData } from '../../actions/confirm-export';
 
-export type ExportFormat = 'json' | 'csv';
-
 interface CaseExportProps {
   isOpen: boolean;
   onClose: () => void;
-  onExport: (caseNumber: string, format: ExportFormat, includeImages?: boolean, onProgress?: (progress: number, label: string) => void) => Promise<void>;
-  onExportAll: (onProgress: (current: number, total: number, caseName: string) => void, format: ExportFormat) => Promise<void>;
+  onExport: (caseNumber: string, onProgress?: (progress: number, label: string) => void) => Promise<void>;
   currentCaseNumber?: string;
   isReadOnly?: boolean;
 }
@@ -19,19 +16,15 @@ export const CaseExport = ({
   isOpen, 
   onClose, 
   onExport, 
-  onExportAll,
   currentCaseNumber = '',
   isReadOnly = false
 }: CaseExportProps) => {
   const { user } = useContext(AuthContext);
   const [caseNumber, setCaseNumber] = useState(currentCaseNumber);
   const [isExporting, setIsExporting] = useState(false);
-  const [isExportingAll, setIsExportingAll] = useState(false);
   const [isExportingConfirmations, setIsExportingConfirmations] = useState(false);
   const [error, setError] = useState<string>('');
-  const [exportProgress, setExportProgress] = useState<{ current: number; total: number; caseName: string; mode?: 'single' | 'all' } | null>(null);
-  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('json');
-  const [includeImages, setIncludeImages] = useState(false);
+  const [exportProgress, setExportProgress] = useState<{ current: number; total: number; caseName: string } | null>(null);
   const [hasConfirmationData, setHasConfirmationData] = useState(false);
   const {
     requestClose,
@@ -46,13 +39,6 @@ export const CaseExport = ({
   useEffect(() => {
     setCaseNumber(currentCaseNumber);
   }, [currentCaseNumber]);
-
-  // Disable images option when exporting all cases or when no case number is entered
-  useEffect(() => {
-    if ((isExportingAll || !caseNumber.trim()) && includeImages) {
-      setIncludeImages(false);
-    }
-  }, [isExportingAll, caseNumber, includeImages]);
 
   // Check for confirmation data when case changes (for read-only cases)
   useEffect(() => {
@@ -91,14 +77,6 @@ export const CaseExport = ({
     }
   }, [isOpen, isReadOnly, user, caseNumber]);
 
-  // Force JSON format and disable images for read-only cases
-  useEffect(() => {
-    if (isReadOnly) {
-      setSelectedFormat('json');
-      setIncludeImages(false);
-    }
-  }, [isReadOnly]);
-
   if (!isOpen) return null;
 
   const handleExport = async () => {
@@ -112,8 +90,8 @@ export const CaseExport = ({
     setExportProgress(null);
     
     try {
-      await onExport(caseNumber.trim(), selectedFormat, includeImages, (progress, label) => {
-        setExportProgress({ current: progress, total: 100, caseName: label, mode: 'single' });
+      await onExport(caseNumber.trim(), (progress, label) => {
+        setExportProgress({ current: progress, total: 100, caseName: label });
       });
       requestClose();
     } catch (error) {
@@ -121,25 +99,6 @@ export const CaseExport = ({
       setError(error instanceof Error ? error.message : 'Export failed. Please try again.');
     } finally {
       setIsExporting(false);
-      setExportProgress(null);
-    }
-  };
-
-  const handleExportAll = async () => {
-    setIsExportingAll(true);
-    setError('');
-    setExportProgress(null); // Don't show progress until we have real data
-    
-    try {
-      await onExportAll((current: number, total: number, caseName: string) => {
-        setExportProgress({ current, total, caseName });
-      }, selectedFormat);
-      requestClose();
-    } catch (error) {
-      console.error('Export all failed:', error);
-      setError(error instanceof Error ? error.message : 'Export all cases failed. Please try again.');
-    } finally {
-      setIsExportingAll(false);
       setExportProgress(null);
     }
   };
@@ -172,7 +131,7 @@ export const CaseExport = ({
     >
       <div className={styles.modal}>
         <div className={styles.header}>
-          <h2 className={styles.title}>Export Case Data</h2>
+          <h2 className={styles.title}>Export Case Package</h2>
           <button className={styles.closeButton} {...getCloseButtonProps({ ariaLabel: 'Close case export dialog' })}>
             ×
           </button>
@@ -192,93 +151,37 @@ export const CaseExport = ({
                   if (error) setError('');
                 }}
                 placeholder="Enter case number"
-                disabled={isExporting || isExportingAll || isReadOnly}
+                disabled={isExporting || isReadOnly}
               />
             </div>
-            
-            {/* 2. Format choice - disabled for read-only cases */}
-            <div className={styles.formatSelector}>
-              <span className={styles.formatLabel}>Data Format:</span>
-              <div className={styles.formatToggle}>
-                <button
-                  type="button"
-                  className={`${styles.formatOption} ${selectedFormat === 'json' ? styles.formatOptionActive : ''}`}
-                  onClick={() => setSelectedFormat('json')}
-                  disabled={isExporting || isExportingAll || isReadOnly}
-                  title="JSON for case imports"
-                >
-                  JSON
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.formatOption} ${selectedFormat === 'csv' ? styles.formatOptionActive : ''}`}
-                  onClick={() => setSelectedFormat('csv')}
-                  disabled={isExporting || isExportingAll || isReadOnly}
-                  title="CSV for single case, Excel (.xlsx) with multiple worksheets for all cases"
-                >
-                  CSV/Excel
-                </button>
+            {!isReadOnly && (
+              <div className={styles.imageOption}>
+                <div className={styles.checkboxLabel}>
+                  <div className={styles.checkboxText}>
+                    <span>Encrypted package export</span>
+                    <span className={styles.checkboxTooltip}>
+                      Case exports always include all images and are downloaded as encrypted ZIP archives.
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
-
-            {/* 3. Image inclusion option - disabled for read-only cases */}
-            <div className={styles.imageOption}>
-              <div className={styles.checkboxLabel}>
-                <input
-                  id="includeImagesOption"
-                  type="checkbox"
-                  className={styles.checkbox}
-                  checked={includeImages}
-                  onChange={(e) => setIncludeImages(e.target.checked)}
-                  disabled={!caseNumber.trim() || isExporting || isExportingAll || isReadOnly}
-                  aria-label="Include images in ZIP export"
-                />
-                <label htmlFor="includeImagesOption" className={styles.checkboxText}>
-                  <span>Include Images (ZIP)</span>
-                  <span className={styles.checkboxTooltip}>
-                    Available for single case exports only. Downloads a ZIP file containing data and all associated image files. Case imports support only JSON data format.
-                  </span>
-                </label>
-              </div>
-            </div>
+            )}
             
-            {/* 4. Export buttons (case OR all cases) */}
             <div className={styles.inputGroup}>
               <button
                 className={isReadOnly ? styles.confirmationExportButton : styles.exportButton}
                 onClick={isReadOnly ? handleExportConfirmations : handleExport}
-                disabled={!caseNumber.trim() || isExporting || isExportingAll || isExportingConfirmations || (isReadOnly && !hasConfirmationData)}
+                disabled={!caseNumber.trim() || isExporting || isExportingConfirmations || (isReadOnly && !hasConfirmationData)}
               >
                 {isExporting || isExportingConfirmations ? 'Exporting...' : 
-                 isReadOnly ? 'Export Confirmation Data' : 'Export Case Data'}
+                 isReadOnly ? 'Export Confirmation Data' : 'Export Encrypted Case Package'}
               </button>
             </div>
-            
-            {/* Hide "Export All Cases" for read-only cases */}
-            {!isReadOnly && (
-              <>
-                <div className={styles.divider}>
-                  <span>OR</span>
-                </div>
-                
-                <div className={styles.exportAllSection}>
-                  <button
-                    className={styles.exportAllButton}
-                    onClick={handleExportAll}
-                    disabled={isExporting || isExportingAll}
-                  >
-                    {isExportingAll ? 'Exporting All Cases...' : 'Export All Cases'}
-                  </button>              
-                </div>
-              </>
-            )}
 
             {exportProgress && exportProgress.total > 0 && (
               <div className={styles.progressSection}>
                 <div className={styles.progressText}>
-                  {exportProgress.mode === 'single'
-                    ? `${exportProgress.caseName} (${exportProgress.current}%)`
-                    : `Exporting case ${exportProgress.current} of ${exportProgress.total}: ${exportProgress.caseName}`}
+                  {`${exportProgress.caseName} (${exportProgress.current}%)`}
                 </div>
                 <div className={styles.progressBar}>
                   <div 
@@ -289,7 +192,7 @@ export const CaseExport = ({
               </div>
             )}
 
-            {(isExporting || isExportingAll) && !exportProgress && (
+            {isExporting && !exportProgress && (
               <div className={styles.progressSection}>
                 <div className={styles.progressText}>
                   Preparing export...

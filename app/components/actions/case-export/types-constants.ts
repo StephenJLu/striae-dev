@@ -1,5 +1,3 @@
-export type ExportFormat = 'json' | 'csv';
-
 // Shared CSV headers for all tabular exports
 export const CSV_HEADERS = [
   'File ID',

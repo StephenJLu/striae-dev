@@ -11,7 +11,7 @@ import { Toast } from '~/components/toast/toast';
 import { getImageUrl, fetchFiles, deleteFile } from '~/components/actions/image-manage';
 import { getNotes, saveNotes } from '~/components/actions/notes-manage';
 import { generatePDF } from '~/components/actions/generate-pdf';
-import { CaseExport, type ExportFormat } from '~/components/sidebar/case-export/case-export';
+import { CaseExport } from '~/components/sidebar/case-export/case-export';
 import { CasesModal } from '~/components/sidebar/cases/cases-modal';
 import { FilesModal } from '~/components/sidebar/files/files-modal';
 import { NotesEditorModal } from '~/components/sidebar/notes/notes-editor-modal';
@@ -270,60 +270,16 @@ export const Striae = ({ user }: StriaePage) => {
 
   const handleExport = async (
     exportCaseNumber: string,
-    format: ExportFormat,
-    includeImages?: boolean,
     onProgress?: (progress: number, label: string) => void
   ) => {
     const caseExportActions = await loadCaseExportActions();
 
-    if (includeImages) {
-      await caseExportActions.downloadCaseAsZip(user, exportCaseNumber, format, (progress) => {
-        const label = getExportProgressLabel(progress);
-        onProgress?.(Math.round(progress), label);
-      });
-      showNotification(`Case ${exportCaseNumber} exported successfully.`, 'success');
-      return;
-    }
+    await caseExportActions.downloadCaseAsZip(user, exportCaseNumber, (progress) => {
+      const label = getExportProgressLabel(progress);
+      onProgress?.(Math.round(progress), label);
+    });
 
-    onProgress?.(5, 'Loading case data');
-    const exportData = await caseExportActions.exportCaseData(
-      user,
-      exportCaseNumber,
-      { includeMetadata: true },
-      (current, total, label) => {
-        const progress = total > 0 ? Math.round(10 + (current / total) * 60) : 10;
-        onProgress?.(progress, label);
-      }
-    );
-
-    onProgress?.(75, 'Preparing download');
-    if (format === 'json') {
-      await caseExportActions.downloadCaseAsJSON(user, exportData);
-    } else {
-      await caseExportActions.downloadCaseAsCSV(user, exportData);
-    }
-    onProgress?.(100, 'Complete');
     showNotification(`Case ${exportCaseNumber} exported successfully.`, 'success');
-  };
-
-  const handleExportAll = async (
-    onProgress: (current: number, total: number, caseName: string) => void,
-    format: ExportFormat
-  ) => {
-    const caseExportActions = await loadCaseExportActions();
-    const exportData = await caseExportActions.exportAllCases(
-      user,
-      { includeMetadata: true },
-      onProgress
-    );
-
-    if (format === 'json') {
-      await caseExportActions.downloadAllCasesAsJSON(user, exportData);
-    } else {
-      await caseExportActions.downloadAllCasesAsCSV(user, exportData);
-    }
-
-    showNotification('All cases exported successfully.', 'success');
   };
 
   const handleRenameCaseSubmit = async (newCaseName: string) => {
@@ -887,7 +843,6 @@ export const Striae = ({ user }: StriaePage) => {
         isOpen={isCaseExportModalOpen}
         onClose={() => setIsCaseExportModalOpen(false)}
         onExport={handleExport}
-        onExportAll={handleExportAll}
         currentCaseNumber={currentCase}
         isReadOnly={isReadOnlyCase}
       />
