@@ -1,6 +1,5 @@
 import type { User } from 'firebase/auth';
-import type * as ExcelJSModule from 'exceljs';
-import { type FileData, type AllCasesExportData, type CaseExportData, type ExportOptions } from '~/types';
+import { type FileData, type CaseExportData, type ExportOptions } from '~/types';
 import { getImageUrl } from '../image-manage';
 import {
   generateForensicManifestSecure,
@@ -12,97 +11,10 @@ import {
   encryptExportDataWithAllImages
 } from '~/utils/forensics';
 import { signForensicManifest } from '~/utils/data';
-import { type ExportFormat, formatDateForFilename, CSV_HEADERS } from './types-constants';
-import { protectExcelWorksheet, addForensicDataWarning } from './metadata-helpers';
-import { generateMetadataRows, generateCSVContent, processFileDataForTabular, sanitizeTabularMatrix } from './data-processing';
+import { formatDateForFilename } from './types-constants';
+import { addForensicDataWarning } from './metadata-helpers';
 import { exportCaseData } from './core-export';
 import { auditService } from '~/services/audit';
-
-type TabularRow = Array<string | number | boolean | null | undefined>;
-type ExcelJsBrowserBundle = typeof ExcelJSModule;
-
-const EXCELJS_BROWSER_BUNDLE_SRC = '/vendor/exceljs.bare.min.js';
-let excelJsBundlePromise: Promise<ExcelJsBrowserBundle> | null = null;
-
-async function loadExcelJsBrowserBundle(): Promise<ExcelJsBrowserBundle> {
-  if (typeof window === 'undefined') {
-    throw new Error('Excel export is only available in a browser context.');
-  }
-
-  if (window.ExcelJS?.Workbook) {
-    return window.ExcelJS;
-  }
-
-  if (!excelJsBundlePromise) {
-    excelJsBundlePromise = new Promise((resolve, reject) => {
-      const resolveFromWindow = () => {
-        if (window.ExcelJS?.Workbook) {
-          resolve(window.ExcelJS);
-          return;
-        }
-
-        excelJsBundlePromise = null;
-        reject(new Error('ExcelJS bundle loaded but Workbook API is unavailable.'));
-      };
-
-      const failLoad = () => {
-        excelJsBundlePromise = null;
-        reject(new Error('Failed to load ExcelJS browser bundle.'));
-      };
-
-      const existingScript = document.querySelector<HTMLScriptElement>('script[data-exceljs-bundle="true"]');
-
-      if (existingScript) {
-        if (existingScript.dataset.loaded === 'true') {
-          resolveFromWindow();
-          return;
-        }
-
-        existingScript.addEventListener('load', resolveFromWindow, { once: true });
-        existingScript.addEventListener('error', failLoad, { once: true });
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = EXCELJS_BROWSER_BUNDLE_SRC;
-      script.async = true;
-      script.dataset.exceljsBundle = 'true';
-      script.addEventListener(
-        'load',
-        () => {
-          script.dataset.loaded = 'true';
-          resolveFromWindow();
-        },
-        { once: true }
-      );
-      script.addEventListener('error', failLoad, { once: true });
-      document.head.appendChild(script);
-    });
-  }
-
-  return excelJsBundlePromise;
-}
-
-function sanitizeWorksheetName(name: string): string {
-  const cleaned = name.replace(/[\\/?*:\x5B\x5D]/g, '_').trim();
-  const normalized = cleaned.length > 0 ? cleaned : 'Sheet';
-  return normalized.substring(0, 31);
-}
-
-function createUniqueWorksheetName(existingNames: Set<string>, desiredName: string): string {
-  const baseName = sanitizeWorksheetName(desiredName);
-  let candidate = baseName;
-  let suffix = 1;
-
-  while (existingNames.has(candidate)) {
-    const suffixText = `_${suffix}`;
-    candidate = `${baseName.substring(0, 31 - suffixText.length)}${suffixText}`;
-    suffix += 1;
-  }
-
-  existingNames.add(candidate);
-  return candidate;
-}
 
 /**
  * Generate export filename with embedded ID to prevent collisions
@@ -148,503 +60,19 @@ function addPublicSigningKeyPemToZip(
 }
 
 /**
- * Download all cases data as JSON file
- */
-export async function downloadAllCasesAsJSON(user: User, exportData: AllCasesExportData): Promise<void> {
-  const startTime = Date.now();
-  
-  try {
-    // Start audit workflow
-    auditService.startWorkflow('all-cases');
-    
-    const dataStr = JSON.stringify(exportData, null, 2);
-    
-    // Calculate hash for integrity verification
-    const hash = await calculateSHA256Secure(dataStr);
-    
-    // Create final export with hash included
-    const finalExportData = {
-      ...exportData,
-      metadata: {
-        ...exportData.metadata,
-        hash: hash.toUpperCase(),
-        integrityNote: 'Verify by recalculating SHA256 of this entire JSON content'
-      }
-    };
-    
-    const finalDataStr = JSON.stringify(finalExportData, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(finalDataStr);
-    
-    const exportFileName = `striae-all-cases-export-${formatDateForFilename(new Date())}.json`;
-    
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileName);
-    linkElement.click();
-    
-    // Log successful export audit event
-    const endTime = Date.now();
-    await auditService.logCaseExport(
-      user,
-      'all-cases',
-      exportFileName,
-      'success',
-      [],
-      {
-        processingTimeMs: endTime - startTime,
-        fileSizeBytes: finalDataStr.length,
-        validationStepsCompleted: exportData.cases.length,
-        validationStepsFailed: exportData.cases.filter(c => c.summary?.exportError).length
-      },
-      'json',
-      false // JSON format is not protected
-    );
-    
-    // End audit workflow
-    auditService.endWorkflow();
-    
-  } catch (error) {
-    console.error('Download failed:', error);
-    
-    // Log failed export audit event
-    const endTime = Date.now();
-    await auditService.logCaseExport(
-      user,
-      'all-cases',
-      'striae-all-cases-export.json',
-      'failure',
-      [error instanceof Error ? error.message : 'Unknown error'],
-      {
-        processingTimeMs: endTime - startTime,
-        fileSizeBytes: 0,
-        validationStepsCompleted: 0,
-        validationStepsFailed: 1
-      },
-      'json',
-      false
-    );
-    
-    // End audit workflow
-    auditService.endWorkflow();
-    
-    throw new Error('Failed to download all cases export file');
-  }
-}
-
-/**
- * Download all cases data as Excel file with multiple worksheets
- */
-export async function downloadAllCasesAsCSV(user: User, exportData: AllCasesExportData, protectForensicData: boolean = true): Promise<void> {
-  const startTime = Date.now();
-  
-  try {
-    // Start audit workflow
-    auditService.startWorkflow('all-cases');
-    
-    const ExcelJS = await loadExcelJsBrowserBundle();
-    
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = exportData.metadata.exportedBy || 'Striae';
-    workbook.lastModifiedBy = exportData.metadata.exportedBy || 'Striae';
-    workbook.created = new Date();
-    workbook.modified = new Date();
-
-    const existingWorksheetNames = new Set<string>();
-
-    const appendRowsToWorksheet = (worksheet: { addRow: (row: TabularRow) => unknown }, rows: TabularRow[]) => {
-      rows.forEach((row) => {
-        worksheet.addRow(row);
-      });
-    };
-
-    let exportPassword: string | undefined;
-
-    // Create summary worksheet
-    const summaryDataRows = [
-      ['Export Date', new Date().toISOString()],
-      ['Exported By (Email)', exportData.metadata.exportedBy || 'N/A'],
-      ['Exported By (UID)', exportData.metadata.exportedByUid || 'N/A'],
-      ['Exported By (Name)', exportData.metadata.exportedByName || 'N/A'],
-      ['Exported By (Company)', exportData.metadata.exportedByCompany || 'N/A'],
-      ['Exported By (Badge/ID)', exportData.metadata.exportedByBadgeId || 'N/A'],
-      ['Striae Export Schema Version', '1.0'],
-      ['Total Cases', exportData.cases.length],
-      ['Successful Exports', exportData.cases.filter(c => !c.summary?.exportError).length],
-      ['Failed Exports', exportData.cases.filter(c => c.summary?.exportError).length],
-      ['Total Files (All Cases)', exportData.metadata.totalFiles],
-      ['Total Annotations (All Cases)', exportData.metadata.totalAnnotations],
-      ['Total Confirmations (All Cases)', exportData.metadata.totalConfirmations || 0],
-      ['Total Confirmations Requested (All Cases)', exportData.metadata.totalConfirmationsRequested || 0]
-    ];
-    
-    // XLSX files are inherently protected, no hash validation needed
-    const summaryData = sanitizeTabularMatrix([
-      protectForensicData ? ['CASE DATA - PROTECTED EXPORT'] : ['Striae - All Cases Export Summary'],
-      protectForensicData ? ['WARNING: This workbook contains evidence data and is protected from editing.'] : [''],
-      [''],
-      ...summaryDataRows,
-      [''],
-      ['Case Details'],
-      [
-        'Case Number', 
-        'Case Created Date',
-        'Export Status', 
-        'Export Date', 
-        'Exported By (Email)', 
-        'Exported By (UID)',
-        'Exported By (Name)',
-        'Exported By (Company)',
-        'Exported By (Badge/ID)',
-        'Schema Version',
-        'Total Files', 
-        'Files with Annotations', 
-        'Files without Annotations', 
-        'Total Box Annotations',
-        'Files with Confirmations',
-        'Files with Confirmations Requested',
-        'Last Modified',
-        'Earliest Annotation Date',
-        'Latest Annotation Date', 
-        'Export Error'
-      ],
-      ...exportData.cases.map(caseData => [
-        caseData.metadata.caseNumber,
-        caseData.metadata.caseCreatedDate,
-        caseData.summary?.exportError ? 'Failed' : 'Success',
-        caseData.metadata.exportDate,
-        caseData.metadata.exportedBy || 'N/A',
-        caseData.metadata.exportedByUid || 'N/A',
-        caseData.metadata.exportedByName || 'N/A',
-        caseData.metadata.exportedByCompany || 'N/A',
-        caseData.metadata.exportedByBadgeId || 'N/A',
-        caseData.metadata.striaeExportSchemaVersion,
-        caseData.metadata.totalFiles,
-        caseData.summary?.filesWithAnnotations || 0,
-        caseData.summary?.filesWithoutAnnotations || 0,
-        caseData.summary?.totalBoxAnnotations || 0,
-        caseData.summary?.filesWithConfirmations || 0,
-        caseData.summary?.filesWithConfirmationsRequested || 0,
-        caseData.summary?.lastModified || '',
-        caseData.summary?.earliestAnnotationDate || '',
-        caseData.summary?.latestAnnotationDate || '',
-        caseData.summary?.exportError || ''
-      ])
-    ]);
-
-    const summaryWorksheetName = createUniqueWorksheetName(existingWorksheetNames, 'Summary');
-    const summaryWorksheet = workbook.addWorksheet(summaryWorksheetName);
-    appendRowsToWorksheet(summaryWorksheet, summaryData);
-    
-    // Protect summary worksheet if forensic protection is enabled
-    if (protectForensicData) {
-      exportPassword = await protectExcelWorksheet(summaryWorksheet);
-    }
-
-    // Create a worksheet for each case
-    for (const caseData of exportData.cases) {
-      if (caseData.summary?.exportError) {
-        // For failed cases, create a simple error sheet
-        const errorData = sanitizeTabularMatrix([
-          [`Case ${caseData.metadata.caseNumber} - Export Failed`],
-          [''],
-          ['Error:', caseData.summary.exportError],
-          ['Case Number:', caseData.metadata.caseNumber],
-          ['Total Files:', caseData.metadata.totalFiles]
-        ]);
-        const errorSheetName = createUniqueWorksheetName(existingWorksheetNames, `Case_${caseData.metadata.caseNumber}_Error`);
-        const errorWorksheet = workbook.addWorksheet(errorSheetName);
-        appendRowsToWorksheet(errorWorksheet, errorData);
-        
-        if (protectForensicData && exportPassword) {
-          await protectExcelWorksheet(errorWorksheet, exportPassword);
-        }
-
-        continue;
-      }
-
-      // For successful cases, create detailed worksheets
-      const metadataRows = generateMetadataRows(caseData);
-      
-      // Create case details with headers
-      const caseDetailsData: Array<Array<string | number | boolean | null | undefined>> = [
-        protectForensicData 
-          ? [`CASE DATA - ${caseData.metadata.caseNumber} - PROTECTED`]
-          : [`Case ${caseData.metadata.caseNumber} - Detailed Export`],
-        protectForensicData ? ['WARNING: This worksheet is protected to maintain data integrity.'] : [''],
-        [''],
-        ...metadataRows.slice(2, -1), // Skip title and "File Details" header
-        [''],
-        ['File Details'],
-        CSV_HEADERS
-      ];
-
-      // Add file data if available
-      if (caseData.files && caseData.files.length > 0) {
-        const fileRows: Array<Array<string | number | boolean | null | undefined>> = [];
-        
-        caseData.files.forEach(fileEntry => {
-          const processedRows = processFileDataForTabular(fileEntry);
-          fileRows.push(...processedRows);
-        });
-        
-        caseDetailsData.push(...fileRows);
-      } else {
-        caseDetailsData.push(['No detailed file data available for this case']);
-      }
-
-      const sanitizedCaseDetailsData = sanitizeTabularMatrix(caseDetailsData);
-
-      // Clean sheet name for Excel compatibility and uniqueness
-      const sheetName = createUniqueWorksheetName(existingWorksheetNames, `Case_${caseData.metadata.caseNumber}`);
-      const caseWorksheet = workbook.addWorksheet(sheetName);
-      appendRowsToWorksheet(caseWorksheet, sanitizedCaseDetailsData);
-      
-      // Protect worksheet if forensic protection is enabled
-      if (protectForensicData && exportPassword) {
-        await protectExcelWorksheet(caseWorksheet, exportPassword);
-      }
-
-    }
-
-    // Generate Excel file
-    const excelBuffer = await workbook.xlsx.writeBuffer();
-    
-    // Create blob and download
-    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = window.URL.createObjectURL(blob);
-    
-    const protectionSuffix = protectForensicData ? '-protected' : '';
-    const exportFileName = `striae-all-cases-detailed${protectionSuffix}-${formatDateForFilename(new Date())}.xlsx`;
-    
-    const linkElement = document.createElement('a');
-    linkElement.href = url;
-    linkElement.download = exportFileName;
-    linkElement.click();
-    
-    // Clean up
-    window.URL.revokeObjectURL(url);
-    
-    // Log successful export audit event
-    const endTime = Date.now();
-    await auditService.logCaseExport(
-      user,
-      'all-cases',
-      exportFileName,
-      'success',
-      [],
-      {
-        processingTimeMs: endTime - startTime,
-        fileSizeBytes: blob.size,
-        validationStepsCompleted: exportData.cases.length,
-        validationStepsFailed: exportData.cases.filter(c => c.summary?.exportError).length
-      },
-      'xlsx',
-      protectForensicData
-    );
-    
-    // End audit workflow
-    auditService.endWorkflow();
-    
-  } catch (error) {
-    console.error('Excel export failed:', error);
-    
-    // Log failed export audit event
-    const endTime = Date.now();
-    await auditService.logCaseExport(
-      user,
-      'all-cases',
-      'striae-all-cases-detailed.xlsx',
-      'failure',
-      [error instanceof Error ? error.message : 'Unknown error'],
-      {
-        processingTimeMs: endTime - startTime,
-        fileSizeBytes: 0,
-        validationStepsCompleted: 0,
-        validationStepsFailed: 1
-      },
-      'xlsx',
-      protectForensicData
-    );
-    
-    // End audit workflow
-    auditService.endWorkflow();
-    
-    throw new Error('Failed to export Excel file');
-  }
-}
-
-/**
- * Download case data as JSON file with forensic protection options
- */
-export async function downloadCaseAsJSON(
-  user: User,
-  exportData: CaseExportData, 
-  options: ExportOptions = { protectForensicData: true }
-): Promise<void> {
-  const startTime = Date.now();
-  
-  try {
-    // Start audit workflow
-    auditService.startWorkflow(exportData.metadata.caseNumber);
-    
-    const jsonContent = await generateJSONContent(exportData, options.includeUserInfo, options.protectForensicData);
-    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(jsonContent);
-    
-    const protectionSuffix = options.protectForensicData ? '-protected' : '';
-    const exportFileName = `striae-case-${exportData.metadata.caseNumber}-export${protectionSuffix}-${formatDateForFilename(new Date())}.json`;
-    
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileName);
-    
-    if (options.protectForensicData) {
-      linkElement.setAttribute('data-forensic-protected', 'true');
-    }
-    
-    linkElement.click();
-    
-    // Log successful export audit event
-    const endTime = Date.now();
-    await auditService.logCaseExport(
-      user,
-      exportData.metadata.caseNumber,
-      exportFileName,
-      'success',
-      [],
-      {
-        processingTimeMs: endTime - startTime,
-        fileSizeBytes: jsonContent.length,
-        validationStepsCompleted: exportData.files?.length || 0,
-        validationStepsFailed: 0
-      },
-      'json',
-      options.protectForensicData || false
-    );
-    
-    // End audit workflow
-    auditService.endWorkflow();
-    
-  } catch (error) {
-    console.error('JSON export failed:', error);
-    
-    // Log failed export audit event
-    const endTime = Date.now();
-    await auditService.logCaseExport(
-      user,
-      exportData.metadata.caseNumber,
-      `striae-case-${exportData.metadata.caseNumber}-export.json`,
-      'failure',
-      [error instanceof Error ? error.message : 'Unknown error'],
-      {
-        processingTimeMs: endTime - startTime,
-        fileSizeBytes: 0,
-        validationStepsCompleted: 0,
-        validationStepsFailed: 1
-      },
-      'json',
-      options.protectForensicData || false
-    );
-    
-    // End audit workflow
-    auditService.endWorkflow();
-    
-    throw new Error('Failed to download JSON export file');
-  }
-}
-
-/**
- * Download case data as comprehensive CSV file with forensic protection options
- */
-export async function downloadCaseAsCSV(
-  user: User,
-  exportData: CaseExportData,
-  options: ExportOptions = { protectForensicData: true }
-): Promise<void> {
-  const startTime = Date.now();
-  
-  try {
-    // Start audit workflow
-    auditService.startWorkflow(exportData.metadata.caseNumber);
-    
-    const csvContent = await generateCSVContent(exportData, options.protectForensicData);
-    const dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvContent);
-    
-    const protectionSuffix = options.protectForensicData ? '-protected' : '';
-    const exportFileName = `striae-case-${exportData.metadata.caseNumber}-detailed${protectionSuffix}-${formatDateForFilename(new Date())}.csv`;
-    
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileName);
-    
-    if (options.protectForensicData) {
-      linkElement.setAttribute('data-forensic-protected', 'true');
-    }
-    
-    linkElement.click();
-    
-    // Log successful export audit event
-    const endTime = Date.now();
-    await auditService.logCaseExport(
-      user,
-      exportData.metadata.caseNumber,
-      exportFileName,
-      'success',
-      [],
-      {
-        processingTimeMs: endTime - startTime,
-        fileSizeBytes: csvContent.length,
-        validationStepsCompleted: exportData.files?.length || 0,
-        validationStepsFailed: 0
-      },
-      'csv',
-      options.protectForensicData || false
-    );
-    
-    // End audit workflow
-    auditService.endWorkflow();
-    
-  } catch (error) {
-    console.error('CSV export failed:', error);
-    
-    // Log failed export audit event
-    const endTime = Date.now();
-    await auditService.logCaseExport(
-      user,
-      exportData.metadata.caseNumber,
-      `striae-case-${exportData.metadata.caseNumber}-detailed.csv`,
-      'failure',
-      [error instanceof Error ? error.message : 'Unknown error'],
-      {
-        processingTimeMs: endTime - startTime,
-        fileSizeBytes: 0,
-        validationStepsCompleted: 0,
-        validationStepsFailed: 1
-      },
-      'csv',
-      options.protectForensicData || false
-    );
-    
-    // End audit workflow
-    auditService.endWorkflow();
-    
-    throw new Error('Failed to export CSV file');
-  }
-}
-
-/**
  * Download case data as ZIP file including images with forensic protection options
  */
 export async function downloadCaseAsZip(
   user: User,
   caseNumber: string,
-  format: ExportFormat,
   onProgress?: (progress: number) => void,
-  options: ExportOptions = { protectForensicData: true }
+  options: ExportOptions = {}
 ): Promise<void> {
   const startTime = Date.now();
   let manifestSignatureKeyId: string | undefined;
   let manifestSigned = false;
   let publicKeyFileName: string | undefined;
+  const protectForensicData = true;
   
   try {
     // Start audit workflow
@@ -660,14 +88,8 @@ export async function downloadCaseAsZip(
     const JSZip = (await import('jszip')).default;
     const zip = new JSZip();
     
-    // Add data file with forensic protection if enabled
-    if (format === 'json') {
-      const jsonContent = generateJSONContent(exportData, options.includeUserInfo, options.protectForensicData);
-      zip.file(`${caseNumber}_data.json`, jsonContent);
-    } else {
-      const csvContent = generateCSVContent(exportData, options.protectForensicData);
-      zip.file(`${caseNumber}_data.csv`, csvContent);
-    }
+    const jsonContent = await generateJSONContent(exportData, options.includeUserInfo, protectForensicData);
+    zip.file(`${caseNumber}_data.json`, jsonContent);
     onProgress?.(50);
     
     // Add images and collect them for manifest generation
@@ -691,86 +113,66 @@ export async function downloadCaseAsZip(
       }
     }
     
-    // Add forensic metadata file if protection is enabled
-    if (options.protectForensicData) {
-      // CRITICAL: Get the content that will be used for hash calculation
-      // This MUST match exactly what gets saved in the actual data file
-      // So we use the same includeUserInfo setting for both
-      const contentForHash = format === 'json' 
-        ? await generateJSONContent(exportData, options.includeUserInfo, false) // Raw content without warnings but same includeUserInfo
-        : await generateCSVContent(exportData, false); // Raw content without warnings
+    // CRITICAL: Get the content that will be used for hash calculation.
+    // This must match the exported package content before encryption.
+    const contentForHash = await generateJSONContent(exportData, options.includeUserInfo, false);
 
-      // Generate comprehensive forensic manifest with individual file hashes using secure SHA256
-      const forensicManifest = await generateForensicManifestSecure(contentForHash, imageFiles);
+    const forensicManifest = await generateForensicManifestSecure(contentForHash, imageFiles);
 
-      // Request server-side signature to prevent tamper-by-rehash attacks
-      const signingResult = await signForensicManifest(user, caseNumber, forensicManifest);
-      manifestSignatureKeyId = signingResult.signature.keyId;
-      manifestSigned = true;
+    const signingResult = await signForensicManifest(user, caseNumber, forensicManifest);
+    manifestSignatureKeyId = signingResult.signature.keyId;
+    manifestSigned = true;
 
-      publicKeyFileName = addPublicSigningKeyPemToZip(zip, signingResult.signature.keyId);
+    publicKeyFileName = addPublicSigningKeyPemToZip(zip, signingResult.signature.keyId);
 
-      const signedForensicManifest = {
-        ...forensicManifest,
-        manifestVersion: signingResult.manifestVersion,
-        signature: signingResult.signature
-      };
-      
-      // Add dedicated forensic manifest file for validation
-      zip.file('FORENSIC_MANIFEST.json', JSON.stringify(signedForensicManifest, null, 2));
-      
-      // Export encryption is mandatory
-      const encKeyDetails = getCurrentEncryptionPublicKeyDetails();
-      
-      if (!encKeyDetails.publicKeyPem || !encKeyDetails.keyId) {
-        throw new Error(
-          'Export encryption is mandatory. Your Striae instance does not have a configured encryption public key. ' +
-          'Please contact your administrator to set up export encryption.'
-        );
-      }
-      
-      let encryptionManifestJson: string | null = null;
-      const isEncrypted = true;
-      
-      try {
-        // Build image blobs array from the collected imageFiles
-        const imagesToEncrypt = Object.entries(imageFiles).map(([filename, blob]) => ({
-          filename,
-          blob
-        }));
+    const signedForensicManifest = {
+      ...forensicManifest,
+      manifestVersion: signingResult.manifestVersion,
+      signature: signingResult.signature
+    };
 
-        // Encrypt data file and all images with shared AES key
-        const encryptionResult = await encryptExportDataWithAllImages(
-          contentForHash,
-          imagesToEncrypt,
-          encKeyDetails.publicKeyPem,
-          encKeyDetails.keyId
-        );
+    zip.file('FORENSIC_MANIFEST.json', JSON.stringify(signedForensicManifest, null, 2));
 
-        // Replace data file with encrypted ciphertext
-        zip.file(`${caseNumber}_data.${format}`, encryptionResult.ciphertext);
+    const encKeyDetails = getCurrentEncryptionPublicKeyDetails();
 
-        // Replace images in the ZIP with encrypted versions
-        if (imageFolder && encryptionResult.encryptedImages.length > 0) {
-          for (let i = 0; i < imagesToEncrypt.length; i++) {
-            const originalFilename = imagesToEncrypt[i].filename;
-            // Remove the original file and add encrypted version
-            imageFolder.file(originalFilename, encryptionResult.encryptedImages[i]);
-          }
+    if (!encKeyDetails.publicKeyPem || !encKeyDetails.keyId) {
+      throw new Error(
+        'Export encryption is mandatory. Your Striae instance does not have a configured encryption public key. ' +
+        'Please contact your administrator to set up export encryption.'
+      );
+    }
+
+    try {
+      const imagesToEncrypt = Object.entries(imageFiles).map(([filename, blob]) => ({
+        filename,
+        blob
+      }));
+
+      const encryptionResult = await encryptExportDataWithAllImages(
+        contentForHash,
+        imagesToEncrypt,
+        encKeyDetails.publicKeyPem,
+        encKeyDetails.keyId
+      );
+
+      zip.file(`${caseNumber}_data.json`, encryptionResult.ciphertext);
+
+      if (imageFolder && encryptionResult.encryptedImages.length > 0) {
+        for (let i = 0; i < imagesToEncrypt.length; i++) {
+          const originalFilename = imagesToEncrypt[i].filename;
+          imageFolder.file(originalFilename, encryptionResult.encryptedImages[i]);
         }
-
-        // Add encryption manifest
-        encryptionManifestJson = JSON.stringify(encryptionResult.encryptionManifest, null, 2);
-        zip.file('ENCRYPTION_MANIFEST.json', encryptionManifestJson);
-
-        onProgress?.(80);
-      } catch (error) {
-        console.error('Export encryption failed:', error);
-        throw new Error(`Failed to encrypt export: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
-      
-      // Add read-only instruction file
-      const instructionContent = `EVIDENCE ARCHIVE - READ ONLY
+
+      zip.file('ENCRYPTION_MANIFEST.json', JSON.stringify(encryptionResult.encryptionManifest, null, 2));
+
+      onProgress?.(80);
+    } catch (error) {
+      console.error('Export encryption failed:', error);
+      throw new Error(`Failed to encrypt export: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    const instructionContent = `EVIDENCE ARCHIVE - READ ONLY
 
 This ZIP archive contains evidence data exported from Striae.
 
@@ -779,13 +181,13 @@ IMPORTANT WARNINGS:
 - Do not modify, rename, or delete any files in this archive
 - Any modifications may compromise evidence integrity
 - Maintain proper chain of custody procedures
-${isEncrypted ? '- This archive is encrypted. Only Striae can decrypt and re-import it.\n' : ''}
+- This archive is encrypted. Only Striae can decrypt and re-import it.
 
 Archive Contents:
-- ${caseNumber}_data.${format}: Complete case data in ${format.toUpperCase()} format${isEncrypted ? ' (encrypted)' : ''}
-- images/: Image files with annotations${isEncrypted ? ' (encrypted)' : ''}
+- ${caseNumber}_data.json: Complete case data manifest (encrypted)
+- images/: Image files with annotations (encrypted)
 - FORENSIC_MANIFEST.json: File integrity validation manifest
-${isEncrypted ? '- ENCRYPTION_MANIFEST.json: Encryption metadata and encrypted file hashes\n' : ''}
+- ENCRYPTION_MANIFEST.json: Encryption metadata and encrypted file hashes
 - ${publicKeyFileName}: Public signing key PEM for verification
 - README.txt: General information about this export
 
@@ -797,107 +199,35 @@ Case Information:
 - Total Annotations: ${(exportData.summary?.filesWithAnnotations || 0) + (exportData.summary?.totalBoxAnnotations || 0)}
 - Total Confirmations: ${exportData.summary?.filesWithConfirmations || 0}
 - Confirmations Requested: ${exportData.summary?.filesWithConfirmationsRequested || 0}
-${isEncrypted ? `- Encryption Status: ENCRYPTED (key ID: ${encKeyDetails.keyId})\n` : ''}
+- Encryption Status: ENCRYPTED (key ID: ${encKeyDetails.keyId})
 
 For questions about this export, contact your Striae system administrator.
 `;
-      
-      zip.file('READ_ONLY_INSTRUCTIONS.txt', instructionContent);
-      
-      // Add README 
-      const readme = generateZipReadme(
-        exportData,
-        options.protectForensicData,
-        publicKeyFileName
-      );
-      zip.file('README.txt', readme);
-      onProgress?.(85);
-      
-      // Generate ZIP blob
-      const zipBlob = await zip.generateAsync({ 
-        type: 'blob',
-        compression: 'DEFLATE',
-        compressionOptions: { level: 6 }
-      });
-      onProgress?.(95);
-      
-      // Download
-      const url = URL.createObjectURL(zipBlob);
-      const protectionSuffix = options.protectForensicData ? '-protected' : '';
-      const encryptedSuffix = isEncrypted ? '-encrypted' : '';
-      const exportFileName = `striae-case-${caseNumber}-export${protectionSuffix}${encryptedSuffix}-${formatDateForFilename(new Date())}.zip`;
-      
-      const linkElement = document.createElement('a');
-      linkElement.href = url;
-      linkElement.setAttribute('download', exportFileName);
-      
-      if (options.protectForensicData) {
-        linkElement.setAttribute('title', 'Evidence archive with forensic protection enabled');
-      }
-      
-      linkElement.click();
-      
-      URL.revokeObjectURL(url);
-      onProgress?.(100);
-      
-      // Log successful export audit event (forensic protected case)
-      const endTime = Date.now();
-      await auditService.logCaseExport(
-        user,
-        caseNumber,
-        exportFileName,
-        'success',
-        [],
-        {
-          processingTimeMs: endTime - startTime,
-          fileSizeBytes: zipBlob.size,
-          validationStepsCompleted: exportData.files?.length || 0,
-          validationStepsFailed: 0
-        },
-        'zip',
-        options.protectForensicData || false,
-        {
-          present: true,
-          valid: true,
-          keyId: manifestSignatureKeyId
-        }
-      );
-      
-      // End audit workflow
-      auditService.endWorkflow();
-      
-      return; // Exit early as we've handled the forensic case
-    }
 
-    publicKeyFileName = addPublicSigningKeyPemToZip(zip);
+    zip.file('READ_ONLY_INSTRUCTIONS.txt', instructionContent);
 
-    // Add README (standard or enhanced for forensic)
     const readme = generateZipReadme(
       exportData,
-      options.protectForensicData,
+      protectForensicData,
       publicKeyFileName
     );
     zip.file('README.txt', readme);
     onProgress?.(85);
     
-    // Generate ZIP blob for non-forensic case
     const zipBlob = await zip.generateAsync({ 
       type: 'blob',
       compression: 'DEFLATE',
       compressionOptions: { level: 6 }
     });
-    onProgress?.(95);    // Download
+    onProgress?.(95);
+
     const url = URL.createObjectURL(zipBlob);
-    const protectionSuffix = options.protectForensicData ? '-protected' : '';
-    const exportFileName = `striae-case-${caseNumber}-export${protectionSuffix}-${formatDateForFilename(new Date())}.zip`;
+    const exportFileName = `striae-case-${caseNumber}-encrypted-package-${formatDateForFilename(new Date())}.zip`;
     
     const linkElement = document.createElement('a');
     linkElement.href = url;
     linkElement.setAttribute('download', exportFileName);
-    
-    if (options.protectForensicData) {
-      linkElement.setAttribute('data-forensic-protected', 'true');
-    }
+    linkElement.setAttribute('title', 'Encrypted Striae case package');
     
     linkElement.click();
     
@@ -919,7 +249,12 @@ For questions about this export, contact your Striae system administrator.
         validationStepsFailed: 0
       },
       'zip',
-      options.protectForensicData || false
+      protectForensicData,
+      {
+        present: true,
+        valid: true,
+        keyId: manifestSignatureKeyId
+      }
     );
     
     // End audit workflow
@@ -943,20 +278,18 @@ For questions about this export, contact your Striae system administrator.
         validationStepsFailed: 1
       },
       'zip',
-      options.protectForensicData || false,
-      options.protectForensicData
-        ? {
-            present: manifestSigned,
-            valid: manifestSigned,
-            keyId: manifestSignatureKeyId
-          }
-        : undefined
+      protectForensicData,
+      {
+        present: manifestSigned,
+        valid: manifestSigned,
+        keyId: manifestSignatureKeyId
+      }
     );
     
     // End audit workflow
     auditService.endWorkflow();
     
-    throw new Error('Failed to export ZIP file');
+    throw new Error('Failed to export encrypted case package');
   }
 }
 
@@ -1034,8 +367,8 @@ Summary:
 - Latest Annotation Date: ${exportData.summary?.latestAnnotationDate || 'N/A'}
 
 Contents:
-- ${exportData.metadata.caseNumber}_data.json/.csv: Case data and annotations
-- images/: Original uploaded images
+- ${exportData.metadata.caseNumber}_data.json: Encrypted case data and annotations
+- images/: Encrypted uploaded images
 - ${publicKeyFileName}: Public signing key PEM for verification
 - README.txt: This file`;
 

@@ -31,14 +31,6 @@ updates:
           - "eslint-*"
           - "@typescript-eslint/*"
 
-      # exceljs is pinned with sub-dependency overrides in package.json:
-      #   archiver, fast-csv, unzipper, glob
-      # When a new exceljs release bundles updated versions of those internally,
-      # review the exceljs changelog and remove the corresponding overrides.
-      exceljs-ecosystem:
-        patterns:
-          - "exceljs"
-
       # wrangler transitively pulls in undici, which has a security pin override.
       # When wrangler ships a release that internally requires a newer undici
       # (>= the pinned version), the override in package.json can be removed.

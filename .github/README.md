@@ -62,6 +62,13 @@ npm run deploy:all
 
 ## 📋 Changelog
 
+## [2026-03-26] - *[Minor Release v5.3.0](https://github.com/striae-org/striae/releases/tag/v5.3.0)*
+
+- **🔐 Export Workflow Consolidation** - Removed legacy and unencrypted export paths, retired the old case-export modal surface, and aligned the published/package export surface with current secure workflow expectations.
+- **🧱 Worker and Account-Deletion Refactor** - Refactored audit, data, and user worker internals, removed obsolete backfill and keys-worker surfaces, and tightened account-deletion file cleanup behavior.
+- **⚙️ Deployment and Runtime Cleanup** - Corrected deployment and secrets scripts, refreshed Wrangler type outputs, and removed inactive runtime/public repository artifacts uncovered during the cleanup cycle.
+- **🧭 Import and Profile Follow-Ups** - Improved case import preview behavior, corrected confirmation-import audit entry handling, added Badge/ID capture in registration/profile flows, and expanded class-details options.
+
 ## [2026-03-25] - *[Patch Release v5.2.1](https://github.com/striae-org/striae/releases/tag/v5.2.1)*
 
 - **🛠️ Deploy Script Reliability Fixes** - Fixed deployment-script issues, including account ID replacement behavior and related setup-path corrections to reduce config drift risk.

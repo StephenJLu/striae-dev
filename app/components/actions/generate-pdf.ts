@@ -2,6 +2,7 @@ import { type AnnotationData } from '~/types/annotations';
 import { auditService } from '~/services/audit';
 import type { User } from 'firebase/auth';
 import { fetchPdfApi } from '~/utils/api';
+import type { ToastType } from '~/components/toast/toast';
 
 interface GeneratePDFParams {
   user: User;
@@ -16,7 +17,7 @@ interface GeneratePDFParams {
   annotationData: AnnotationData | null;
   activeAnnotations: Set<string>;
   setIsGeneratingPDF: (isGenerating: boolean) => void;
-  setToastType: (type: 'success' | 'error') => void;
+  setToastType: (type: ToastType) => void;
   setToastMessage: (message: string) => void;
   setShowToast: (show: boolean) => void;
   setToastDuration?: (duration: number) => void;
@@ -90,7 +91,7 @@ export const generatePDF = async ({
   const startTime = Date.now();
   
   // Show generating toast immediately with duration 0 (stays until manually closed or completion)
-  setToastType('success');
+  setToastType('loading');
   setToastMessage('Generating PDF report... This may take up to a minute.');
   if (setToastDuration) setToastDuration(0);
   setShowToast(true);

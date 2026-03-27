@@ -103,6 +103,82 @@ function extractImageIdFromFilename(exportFilename: string): string | null {
   return filenameWithoutExt.substring(lastHyphenIndex + 1);
 }
 
+interface ReadmeCaseInfo {
+  caseNumber: string | null;
+  exportedBy: string | null;
+  exportedByName: string | null;
+  exportedByCompany: string | null;
+  exportedByBadgeId: string | null;
+  exportDate: string | null;
+  caseCreatedDate: string | null;
+  totalFiles: number;
+  isArchived: boolean;
+}
+
+/**
+ * Parse case metadata from a README.txt included in a case package ZIP.
+ * Handles both standard export format and archived package format.
+ * Falls back gracefully when fields are absent or README is missing.
+ */
+function parseReadmeCaseInfo(readme: string | null, fallbackTotalFiles: number): ReadmeCaseInfo {
+  const result: ReadmeCaseInfo = {
+    caseNumber: null,
+    exportedBy: null,
+    exportedByName: null,
+    exportedByCompany: null,
+    exportedByBadgeId: null,
+    exportDate: null,
+    caseCreatedDate: null,
+    totalFiles: fallbackTotalFiles,
+    isArchived: false
+  };
+
+  if (!readme) return result;
+
+  const isArchived = readme.trimStart().startsWith('Striae Archived Case Package');
+  result.isArchived = isArchived;
+
+  const field = (key: string): string | null => {
+    const regex = new RegExp(`^${key}:\\s*(.+)$`, 'm');
+    const match = readme.match(regex);
+    if (!match) return null;
+    const value = match[1].trim();
+    return value === 'N/A' || value === '' ? null : value;
+  };
+
+  result.caseNumber = field('Case Number');
+
+  if (isArchived) {
+    result.exportDate = field('Archived At');
+    const archivedBy = field('Archived By');
+    if (archivedBy) {
+      // Format: "Name (email)" or just "Name" — extract name and optional email
+      const parenMatch = archivedBy.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+      if (parenMatch) {
+        result.exportedByName = parenMatch[1].trim() || null;
+        result.exportedBy = parenMatch[2].trim() || null;
+      } else {
+        result.exportedByName = archivedBy;
+      }
+    }
+  } else {
+    result.exportDate = field('Export Date');
+    result.caseCreatedDate = field('Case Created Date');
+    result.exportedBy = field('Exported By \\(Email\\)');
+    result.exportedByName = field('Exported By \\(Name\\)');
+    result.exportedByCompany = field('Exported By \\(Company\\)');
+    result.exportedByBadgeId = field('Exported By \\(Badge\\/ID\\)');
+
+    const totalFilesStr = field('- Total Files');
+    if (totalFilesStr !== null) {
+      const parsed = parseInt(totalFilesStr, 10);
+      if (!isNaN(parsed)) result.totalFiles = parsed;
+    }
+  }
+
+  return result;
+}
+
 /**
  * Preview case information from ZIP file without importing
  */
@@ -116,12 +192,10 @@ export async function previewCaseImport(zipFile: File, currentUser: User): Promi
     // Check if export is encrypted
     const encryptionManifestFile = zip.file('ENCRYPTION_MANIFEST.json');
     if (encryptionManifestFile) {
-      // For encrypted exports, we can't read the plaintext data to extract case info
-      // Return an encrypted preview that requires decryption during import
       try {
         const manifestContent = await encryptionManifestFile.async('text');
         JSON.parse(manifestContent); // Validate it's valid JSON
-        
+
         // Count image files
         let totalFiles = 0;
         const imagesFolder = zip.folder('images');
@@ -132,18 +206,24 @@ export async function previewCaseImport(zipFile: File, currentUser: User): Promi
             }
           }
         }
-        
+
         const hasForensicManifest = zip.file('FORENSIC_MANIFEST.json') !== null;
 
+        // Read README.txt to surface case metadata without decrypting
+        const readmeFile = zip.file('README.txt');
+        const readmeContent = readmeFile ? await readmeFile.async('text') : null;
+        const readmeMeta = parseReadmeCaseInfo(readmeContent, totalFiles);
+
         return {
-          caseNumber: 'ENCRYPTED',
-          archived: false,
-          exportedBy: null,
-          exportedByName: null,
-          exportedByCompany: null,
-          exportedByBadgeId: null,
-          exportDate: new Date().toISOString(),
-          totalFiles,
+          caseNumber: readmeMeta.caseNumber ?? 'ENCRYPTED',
+          archived: readmeMeta.isArchived,
+          exportedBy: readmeMeta.exportedBy,
+          exportedByName: readmeMeta.exportedByName,
+          exportedByCompany: readmeMeta.exportedByCompany,
+          exportedByBadgeId: readmeMeta.exportedByBadgeId,
+          exportDate: readmeMeta.exportDate ?? new Date().toISOString(),
+          totalFiles: readmeMeta.totalFiles,
+          caseCreatedDate: readmeMeta.caseCreatedDate ?? undefined,
           hasAnnotations: false,
           validationSummary: 'Export is encrypted. Integrity validation will occur during import.',
           hashValid: undefined,

@@ -1,6 +1,0 @@
-Contact: mailto:security@striae.org
-Contact: https://github.com/striae-org/striae/security/advisories/new
-Expires: 2035-08-15T00:00:00.000Z
-Preferred-Languages: en
-Canonical: https://striae.app/.well-known/security.txt
-Policy: https://striae.org/security

@@ -194,7 +194,7 @@ export const Navbar = ({
                     setIsCaseMenuOpen(false);
                   }}
                 >
-                  Export Case Data
+                  {isReadOnly ? 'Export Confirmations' : 'Export Case Package'}
                 </button>
                 <button
                   type="button"

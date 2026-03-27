@@ -461,6 +461,41 @@
   padding: var(--spaceM);
 }
 
+.previewMeta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spaceS);
+}
+
+.previewMetaRow {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: var(--spaceS);
+  font-size: var(--fontSizeBodyS);
+}
+
+.previewMetaLabel {
+  color: var(--textLight);
+}
+
+.previewMetaValue {
+  color: var(--textBody);
+  font-weight: var(--fontWeightMedium);
+  word-break: break-word;
+}
+
+.previewValidBadge {
+  color: var(--success);
+  font-size: var(--fontSizeBodyS);
+  font-weight: var(--fontWeightMedium);
+}
+
+.previewInvalidBadge {
+  color: var(--error);
+  font-size: var(--fontSizeBodyS);
+  font-weight: var(--fontWeightMedium);
+}
+
 /* Confirmation Dialog */
 .confirmationOverlay {
   position: fixed;

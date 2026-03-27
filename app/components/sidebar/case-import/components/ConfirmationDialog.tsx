@@ -24,6 +24,7 @@ export const ConfirmationDialog = ({
 }: ConfirmationDialogProps) => {
   if (!showConfirmation || !casePreview) return null;
 
+  const isEncrypted = casePreview.caseNumber === 'ENCRYPTED';
   const hasDetails = casePreview.archived || isArchivedRegularCaseImportBlocked;
 
   return (
@@ -32,10 +33,7 @@ export const ConfirmationDialog = ({
         <div className={styles.confirmationContent}>
           <h3 className={styles.confirmationTitle}>Confirm Case Import</h3>
           <p className={styles.confirmationText}>
-            Are you sure you want to import this case for review?
-          </p>
-          <p className={styles.confirmationText}>
-            Package details stay hidden until verification completes.
+            Are you sure you want to import{isEncrypted ? ' this encrypted case' : ` case ${casePreview.caseNumber}`} for review?
           </p>
 
           {hasDetails && (

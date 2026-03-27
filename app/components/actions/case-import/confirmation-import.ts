@@ -297,15 +297,14 @@ export async function importConfirmationData(
         
         // Audit log successful confirmation import
         try {
-          await auditService.logAnnotationEdit(
+          await auditService.logConfirmationImport(
             user,
-            `${result.caseNumber}-${currentImageId}`,
-            annotationData, // Previous state (without confirmation)
-            updatedAnnotationData, // New state (with confirmation)
             result.caseNumber,
-            'confirmation-import',
-            currentImageId,
-            displayFilename
+            displayFilename,
+            'success',
+            true,
+            confirmations.length,
+            [displayFilename]
           );
         } catch (auditError) {
           console.error('Failed to log confirmation import audit:', auditError);
@@ -315,15 +314,15 @@ export async function importConfirmationData(
         
         // Audit log failed confirmation import
         try {
-          await auditService.logAnnotationEdit(
+          await auditService.logConfirmationImport(
             user,
-            `${result.caseNumber}-${currentImageId}`,
-            annotationData, // Previous state
-            null, // Failed save
             result.caseNumber,
-            'confirmation-import',
-            currentImageId,
-            displayFilename
+            displayFilename,
+            'failure',
+            false,
+            0,
+            [],
+            [`Failed to update image ${displayFilename}: ${saveResponse.status}`]
           );
         } catch (auditError) {
           console.error('Failed to log failed confirmation import audit:', auditError);

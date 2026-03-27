@@ -9,7 +9,6 @@ import { AuditEntriesList } from './viewer/audit-entries-list';
 import { summarizeAuditEntries } from './viewer/audit-viewer-utils';
 import { useAuditViewerData } from './viewer/use-audit-viewer-data';
 import { useAuditViewerFilters } from './viewer/use-audit-viewer-filters';
-import { useAuditViewerExport } from './viewer/use-audit-viewer-export';
 import styles from './user-audit.module.css';
 
 interface UserAuditViewerProps {
@@ -56,8 +55,6 @@ export const UserAuditViewer = ({ isOpen, onClose, caseNumber, title }: UserAudi
     userData,
     loading,
     error,
-    setError,
-    auditTrail,
     isArchivedReadOnlyCase,
     bundledAuditWarning,
     loadAuditData
@@ -72,18 +69,6 @@ export const UserAuditViewer = ({ isOpen, onClose, caseNumber, title }: UserAudi
 
   const filteredEntries = useMemo(() => getFilteredEntries(auditEntries), [auditEntries, getFilteredEntries]);
   const auditSummary = useMemo(() => summarizeAuditEntries(auditEntries), [auditEntries]);
-
-  const {
-    handleExportCSV,
-    handleExportJSON,
-    handleGenerateReport
-  } = useAuditViewerExport({
-    user,
-    effectiveCaseNumber,
-    filteredEntries,
-    auditTrail,
-    setError
-  });
 
   const {
     requestClose,
@@ -106,10 +91,6 @@ export const UserAuditViewer = ({ isOpen, onClose, caseNumber, title }: UserAudi
       <div className={styles.modal}>
         <AuditViewerHeader
           title={title || (effectiveCaseNumber ? `Audit Trail - Case ${effectiveCaseNumber}` : 'My Audit Trail')}
-          hasEntries={auditEntries.length > 0}
-          onExportCSV={handleExportCSV}
-          onExportJSON={handleExportJSON}
-          onGenerateReport={handleGenerateReport}
           onClose={requestClose}
         />
 

@@ -1,6 +1,6 @@
 {
   "name": "@striae-org/striae",
-  "version": "5.2.1",
+  "version": "5.3.0",
   "private": false,
   "description": "Striae is a specialized, cloud-native platform designed to streamline forensic firearms identification by providing an intuitive environment for digital comparison image annotation, authenticated confirmations, and automated report generation.",
   "license": "Apache-2.0",
@@ -49,14 +49,15 @@
     "load-context.ts",
     "functions/",
     "public/",
-    "scripts/",
     "workers/*/package.json",
-    "workers/*/src/*.example.ts",
-    "workers/*/src/*.example.js",
-    "workers/*/src/*.ts",
+    "workers/*/src/**/*.example.ts",
+    "workers/*/src/**/*.example.js",
+    "workers/*/src/**/*.ts",
     "workers/pdf-worker/scripts/*.js",
-    "!workers/*/src/*worker.ts",
+    "!workers/*/src/**/*worker.ts",
+    "!workers/pdf-worker/src/assets/**/*",
     "workers/pdf-worker/src/assets/generated-assets.example.ts",
+    "!workers/pdf-worker/src/formats/**/*",
     "workers/pdf-worker/src/formats/format-striae.ts",
     "workers/pdf-worker/src/report-types.ts",
     "workers/*/wrangler.jsonc.example",
@@ -96,7 +97,7 @@
     "deploy-config": "bash ./scripts/deploy-config.sh",
     "update-env": "bash ./scripts/deploy-config.sh --update-env",
     "install-workers": "bash ./scripts/install-workers.sh",
-    "deploy-workers": "npm run deploy-workers:audit && npm run deploy-workers:data && npm run deploy-workers:image && npm run deploy-workers:keys && npm run deploy-workers:pdf && npm run deploy-workers:user",
+    "deploy-workers": "npm run deploy-workers:audit && npm run deploy-workers:data && npm run deploy-workers:image && npm run deploy-workers:pdf && npm run deploy-workers:user",
     "deploy-workers:secrets": "bash ./scripts/deploy-worker-secrets.sh",
     "deploy-pages:secrets": "bash ./scripts/deploy-pages-secrets.sh --production-only",
     "deploy-pages": "bash ./scripts/deploy-pages.sh",
@@ -104,13 +105,11 @@
     "deploy-workers:audit": "cd workers/audit-worker && npm run deploy",
     "deploy-workers:data": "cd workers/data-worker && npm run deploy",
     "deploy-workers:image": "cd workers/image-worker && npm run deploy",
-    "deploy-workers:keys": "cd workers/keys-worker && npm run deploy",
     "deploy-workers:pdf": "cd workers/pdf-worker && npm run deploy",
     "deploy-workers:user": "cd workers/user-worker && npm run deploy"
   },
   "dependencies": {
     "@react-router/cloudflare": "^7.13.2",
-    "exceljs": "^4.4.0",
     "firebase": "^12.10.0",
     "isbot": "^5.1.36",
     "jszip": "^3.10.1",
@@ -139,13 +138,7 @@
   },
   "overrides": {
     "tar": "7.5.11",
-    "undici": "7.24.1",
-    "exceljs": {
-      "archiver": "7.0.1",
-      "fast-csv": "5.0.5",
-      "unzipper": "0.12.3",
-      "glob": "13.0.6"
-    }
+    "undici": "7.24.1"
   },
   "engines": {
     "node": ">=20.0.0"

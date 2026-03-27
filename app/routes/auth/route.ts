@@ -5,4 +5,4 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 	throw redirect(`/${requestUrl.search}`);
 };
 
-export { Login as default, meta } from './login';
+export { Login as default } from './login';

@@ -11,6 +11,21 @@ interface CasePreviewSectionProps {
   isArchivedRegularCaseImportBlocked?: boolean;
 }
 
+function formatDate(isoDate: string | undefined): string {
+  if (!isoDate) return 'Unknown';
+
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) {
+    return isoDate;
+  }
+
+  return date.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+}
+
 export const CasePreviewSection = ({
   casePreview,
   isLoadingPreview,
@@ -28,12 +43,53 @@ export const CasePreviewSection = ({
 
   if (!casePreview) return null;
 
+  const isEncrypted = casePreview.caseNumber === 'ENCRYPTED';
+
   return (
     <div className={styles.previewSection}>
       <h3 className={styles.previewTitle}>Case Import Preview</h3>
-      <p className={styles.previewMessage}>
-        Case package detected. Details are hidden until import verification completes.
-      </p>
+      {isEncrypted ? (
+        <p className={styles.previewMessage}>
+          Encrypted package detected. Case details could not be read from the package.
+        </p>
+      ) : (
+        <div className={styles.previewMeta}>
+          <div className={styles.previewMetaRow}>
+            <span className={styles.previewMetaLabel}>Case</span>
+            <span className={styles.previewMetaValue}>{casePreview.caseNumber}</span>
+          </div>
+          {(casePreview.exportedByName ?? casePreview.exportedBy) && (
+            <div className={styles.previewMetaRow}>
+              <span className={styles.previewMetaLabel}>Exported by</span>
+              <span className={styles.previewMetaValue}>
+                {casePreview.exportedByName ?? casePreview.exportedBy}
+              </span>
+            </div>
+          )}
+          {casePreview.exportedByCompany && (
+            <div className={styles.previewMetaRow}>
+              <span className={styles.previewMetaLabel}>Organization</span>
+              <span className={styles.previewMetaValue}>{casePreview.exportedByCompany}</span>
+            </div>
+          )}
+          <div className={styles.previewMetaRow}>
+            <span className={styles.previewMetaLabel}>Exported</span>
+            <span className={styles.previewMetaValue}>{formatDate(casePreview.exportDate)}</span>
+          </div>
+          <div className={styles.previewMetaRow}>
+            <span className={styles.previewMetaLabel}>Files</span>
+            <span className={styles.previewMetaValue}>{casePreview.totalFiles}</span>
+          </div>
+          {casePreview.hashValid !== undefined && (
+            <div className={styles.previewMetaRow}>
+              <span className={styles.previewMetaLabel}>Integrity</span>
+              <span className={casePreview.hashValid ? styles.previewValidBadge : styles.previewInvalidBadge}>
+                {casePreview.hashValid ? 'Passed' : 'Failed'}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
       {casePreview.archived && (
         <div className={styles.archivedImportNote}>
           {ARCHIVED_SELF_IMPORT_NOTE}

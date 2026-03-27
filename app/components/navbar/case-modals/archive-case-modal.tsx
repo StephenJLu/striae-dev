@@ -82,7 +82,7 @@ export const ArchiveCaseModal = ({
             Archiving a case permanently renders it read-only.
           </p>
           <p>
-            The archive will be in JSON format and include all images.
+            The archive will be packaged as an encrypted case package and will always include all images.
           </p>
           <p>
             The full audit trail is packaged with Striae&apos;s current public key and forensic signatures.

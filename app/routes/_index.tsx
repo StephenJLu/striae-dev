@@ -1,1 +1,1 @@
-export { Login as default, meta } from './auth/login';
+export { Login as default } from './auth/login';

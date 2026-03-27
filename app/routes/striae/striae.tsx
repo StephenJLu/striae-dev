@@ -7,11 +7,11 @@ import { ArchiveCaseModal } from '~/components/navbar/case-modals/archive-case-m
 import { OpenCaseModal } from '~/components/navbar/case-modals/open-case-modal';
 import { Toolbar } from '~/components/toolbar/toolbar';
 import { Canvas } from '~/components/canvas/canvas';
-import { Toast } from '~/components/toast/toast';
+import { Toast, type ToastType } from '~/components/toast/toast';
 import { getImageUrl, fetchFiles, deleteFile } from '~/components/actions/image-manage';
 import { getNotes, saveNotes } from '~/components/actions/notes-manage';
 import { generatePDF } from '~/components/actions/generate-pdf';
-import { CaseExport, type ExportFormat } from '~/components/sidebar/case-export/case-export';
+import { exportConfirmationData } from '~/components/actions/confirm-export';
 import { CasesModal } from '~/components/sidebar/cases/cases-modal';
 import { FilesModal } from '~/components/sidebar/files/files-modal';
 import { NotesEditorModal } from '~/components/sidebar/notes/notes-editor-modal';
@@ -77,8 +77,8 @@ export const Striae = ({ user }: StriaePage) => {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState<'success' | 'error' | 'warning'>('success');
-  const [isCaseExportModalOpen, setIsCaseExportModalOpen] = useState(false);
+  const [toastType, setToastType] = useState<ToastType>('success');
+  const [toastDuration, setToastDuration] = useState(4000);
   const [isAuditTrailOpen, setIsAuditTrailOpen] = useState(false);
   const [isRenameCaseModalOpen, setIsRenameCaseModalOpen] = useState(false);
   const [isOpenCaseModalOpen, setIsOpenCaseModalOpen] = useState(false);
@@ -253,13 +253,19 @@ export const Striae = ({ user }: StriaePage) => {
       setIsGeneratingPDF,
       setToastType,
       setToastMessage,
-      setShowToast
+      setShowToast,
+      setToastDuration
     });
   };
 
-  const showNotification = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
+  const showNotification = (
+    message: string,
+    type: ToastType = 'success',
+    duration = 4000
+  ) => {
     setToastType(type);
     setToastMessage(message);
+    setToastDuration(duration);
     setShowToast(true);
   };
 
@@ -270,60 +276,45 @@ export const Striae = ({ user }: StriaePage) => {
 
   const handleExport = async (
     exportCaseNumber: string,
-    format: ExportFormat,
-    includeImages?: boolean,
     onProgress?: (progress: number, label: string) => void
   ) => {
-    const caseExportActions = await loadCaseExportActions();
-
-    if (includeImages) {
-      await caseExportActions.downloadCaseAsZip(user, exportCaseNumber, format, (progress) => {
-        const label = getExportProgressLabel(progress);
-        onProgress?.(Math.round(progress), label);
-      });
-      showNotification(`Case ${exportCaseNumber} exported successfully.`, 'success');
+    if (!exportCaseNumber) {
+      showNotification('Select a case before exporting.', 'error');
       return;
     }
 
-    onProgress?.(5, 'Loading case data');
-    const exportData = await caseExportActions.exportCaseData(
-      user,
-      exportCaseNumber,
-      { includeMetadata: true },
-      (current, total, label) => {
-        const progress = total > 0 ? Math.round(10 + (current / total) * 60) : 10;
-        onProgress?.(progress, label);
-      }
-    );
+    showNotification(`Exporting case ${exportCaseNumber}...`, 'loading', 0);
 
-    onProgress?.(75, 'Preparing download');
-    if (format === 'json') {
-      await caseExportActions.downloadCaseAsJSON(user, exportData);
-    } else {
-      await caseExportActions.downloadCaseAsCSV(user, exportData);
+    try {
+      const caseExportActions = await loadCaseExportActions();
+
+      await caseExportActions.downloadCaseAsZip(user, exportCaseNumber, (progress) => {
+        const roundedProgress = Math.round(progress);
+        const label = getExportProgressLabel(progress);
+        setToastType('loading');
+        setToastMessage(`Exporting case ${exportCaseNumber}... ${label} (${roundedProgress}%)`);
+        setToastDuration(0);
+        setShowToast(true);
+        onProgress?.(roundedProgress, label);
+      });
+
+      showNotification(`Case ${exportCaseNumber} exported successfully.`, 'success');
+    } catch (error) {
+      showNotification(error instanceof Error ? error.message : 'Export failed. Please try again.', 'error');
     }
-    onProgress?.(100, 'Complete');
-    showNotification(`Case ${exportCaseNumber} exported successfully.`, 'success');
   };
 
-  const handleExportAll = async (
-    onProgress: (current: number, total: number, caseName: string) => void,
-    format: ExportFormat
-  ) => {
-    const caseExportActions = await loadCaseExportActions();
-    const exportData = await caseExportActions.exportAllCases(
-      user,
-      { includeMetadata: true },
-      onProgress
-    );
+  const handleExportConfirmations = async () => {
+    if (!currentCase || !user) return;
 
-    if (format === 'json') {
-      await caseExportActions.downloadAllCasesAsJSON(user, exportData);
-    } else {
-      await caseExportActions.downloadAllCasesAsCSV(user, exportData);
+    showNotification(`Exporting confirmations for case ${currentCase}...`, 'loading', 0);
+
+    try {
+      await exportConfirmationData(user, currentCase);
+      showNotification(`Confirmations for case ${currentCase} exported successfully.`, 'success');
+    } catch (e) {
+      showNotification(e instanceof Error ? e.message : 'Confirmation export failed. Please try again.', 'error');
     }
-
-    showNotification('All cases exported successfully.', 'success');
   };
 
   const handleRenameCaseSubmit = async (newCaseName: string) => {
@@ -370,6 +361,8 @@ export const Striae = ({ user }: StriaePage) => {
     }
 
     setIsDeletingCase(true);
+    showNotification(`Deleting case ${currentCase}...`, 'loading', 0);
+
     try {
       const deleteResult = await deleteCase(user, currentCase);
       clearLoadedCaseState();
@@ -474,6 +467,8 @@ export const Striae = ({ user }: StriaePage) => {
     }
 
     setIsArchivingCase(true);
+    showNotification(`Archiving case ${currentCase}... Preparing archive package.`, 'loading', 0);
+
     try {
       await archiveCase(user, currentCase, archiveReason);
       setIsReadOnlyCase(true);
@@ -767,7 +762,13 @@ export const Striae = ({ user }: StriaePage) => {
           void handleOpenCaseModal();
         }}
         onOpenListAllCases={() => setIsListCasesModalOpen(true)}
-        onOpenCaseExport={() => setIsCaseExportModalOpen(true)}
+        onOpenCaseExport={() => {
+          if (isReadOnlyCase) {
+            void handleExportConfirmations();
+          } else {
+            void handleExport(currentCase || '');
+          }
+        }}
         onOpenAuditTrail={() => setIsAuditTrailOpen(true)}
         onOpenRenameCase={() => setIsRenameCaseModalOpen(true)}
         onDeleteCase={() => {
@@ -790,7 +791,7 @@ export const Striae = ({ user }: StriaePage) => {
           onOpenCase={() => {
             void handleOpenCaseModal();
           }}
-          onOpenCaseExport={() => setIsCaseExportModalOpen(true)}
+          onOpenCaseExport={() => void handleExportConfirmations()}
           imageId={imageId}
           currentCase={currentCase}
           imageLoaded={imageLoaded}
@@ -883,14 +884,6 @@ export const Striae = ({ user }: StriaePage) => {
         isUploading={isUploading}
         showNotification={showNotification}
       />
-      <CaseExport
-        isOpen={isCaseExportModalOpen}
-        onClose={() => setIsCaseExportModalOpen(false)}
-        onExport={handleExport}
-        onExportAll={handleExportAll}
-        currentCaseNumber={currentCase}
-        isReadOnly={isReadOnlyCase}
-      />
       <UserAuditViewer
         caseNumber={currentCase || ''}
         isOpen={isAuditTrailOpen}
@@ -916,6 +909,7 @@ export const Striae = ({ user }: StriaePage) => {
         type={toastType}
         isVisible={showToast}
         onClose={closeToast}
+        duration={toastDuration}
       />
     </div>
   );

@@ -3,12 +3,12 @@ node_modules/
 build/
 dist/
 archive/
+release-notes/
 
 # Workers
 workers/audit-worker/src/audit-worker.ts
 workers/data-worker/src/data-worker.ts
 workers/image-worker/src/image-worker.ts
-workers/keys-worker/src/keys.ts
 workers/pdf-worker/src/pdf-worker.ts
 workers/user-worker/src/user-worker.ts
 
@@ -40,5 +40,6 @@ firebase-debug.log
 *.dev.vars
 *.toml
 *.jsonc
+scripts/
 app/config
 primershear.emails
