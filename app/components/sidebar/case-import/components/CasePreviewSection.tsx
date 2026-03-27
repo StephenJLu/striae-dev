@@ -13,15 +13,17 @@ interface CasePreviewSectionProps {
 
 function formatDate(isoDate: string | undefined): string {
   if (!isoDate) return 'Unknown';
-  try {
-    return new Date(isoDate).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  } catch {
+
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) {
     return isoDate;
   }
+
+  return date.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
 }
 
 export const CasePreviewSection = ({
@@ -66,7 +68,7 @@ export const CasePreviewSection = ({
           )}
           {casePreview.exportedByCompany && (
             <div className={styles.previewMetaRow}>
-              <span className={styles.previewMetaLabel}>Organisation</span>
+              <span className={styles.previewMetaLabel}>Organization</span>
               <span className={styles.previewMetaValue}>{casePreview.exportedByCompany}</span>
             </div>
           )}

@@ -55,13 +55,26 @@ export async function handleStorageRequest(
         }
       }
 
-      const fileText = await file.text();
-      const data = JSON.parse(fileText);
-      return respond(data);
+      try {
+        const fileText = await file.text();
+        const data = JSON.parse(fileText);
+        return respond(data);
+      } catch (error) {
+        console.error('Stored JSON parse failed:', error);
+        return respond({ error: 'Stored data is corrupted or not valid JSON' }, 500);
+      }
     }
 
     case 'PUT': {
-      const newData = await request.json();
+      let newData: unknown;
+
+      try {
+        newData = await request.json();
+      } catch (error) {
+        console.error('Request JSON parse failed:', error);
+        return respond({ error: 'Invalid JSON request body' }, 400);
+      }
+
       const serializedData = JSON.stringify(newData);
 
       if (!isDataAtRestEncryptionEnabled(env)) {

@@ -28,6 +28,10 @@ export async function handleAuditRequest(
       return respond({ error: 'Invalid audit entry structure. Required fields: timestamp, userId, action' }, 400);
     }
 
+    if (auditEntry.userId !== userId) {
+      return respond({ error: 'userId parameter must match auditEntry.userId' }, 400);
+    }
+
     const filename = generateAuditFileName(userId);
 
     try {
