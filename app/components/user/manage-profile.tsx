@@ -101,7 +101,6 @@ export const ManageProfile = ({ isOpen, onClose }: ManageProfileProps) => {
         email: user.email,
         firstName: firstName || '',
         lastName: lastName || '',
-        badgeId: normalizedBadgeId,
       });
 
       await auditService.logUserProfileUpdate(
@@ -253,12 +252,14 @@ export const ManageProfile = ({ isOpen, onClose }: ManageProfileProps) => {
               id="badgeId"
               type="text"
               value={badgeId}
-              onChange={(e) => setBadgeId(e.target.value)}
+              disabled
+              readOnly
               className={styles.input}
               autoComplete="off"
+              style={{ backgroundColor: '#f8f9fa', cursor: 'not-allowed' }}
             />
             <p className={styles.helpText}>
-              Enter your Badge/ID number for confirmations and reports. This can be updated as needed.
+              Badge/ID number can only be changed by an administrator. Contact support if changes are needed.
             </p>
           </div>
 

@@ -70,6 +70,7 @@ export const Login = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [company, setCompany] = useState(DEMO_COMPANY_NAME);
+  const [badgeId, setBadgeId] = useState('');
   const [confirmPasswordValue, setConfirmPasswordValue] = useState('');
   
   // MFA state
@@ -285,6 +286,7 @@ export const Login = () => {
   const formFirstName = firstName;
   const formLastName = lastName;
   const formCompany = company;
+  const formBadgeId = badgeId;
 
   try {
     if (!isLogin) {
@@ -323,7 +325,8 @@ export const Login = () => {
         formFirstName,
         formLastName,
         companyName || '',
-        true
+        true,
+        formBadgeId.trim()
       );
 
       // Log user registration audit event
@@ -603,6 +606,17 @@ export const Login = () => {
                     disabled={isLoading}
                     value={company}
                     onChange={(e) => setCompany(e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    name="badgeId"
+                    required
+                    placeholder="Badge/ID # (required)"
+                    autoComplete="off"
+                    className={styles.input}
+                    disabled={isLoading}
+                    value={badgeId}
+                    onChange={(e) => setBadgeId(e.target.value)}
                   />                      
                   {passwordStrength && (
                     <div className={styles.passwordStrength}>
@@ -652,6 +666,7 @@ export const Login = () => {
                   setFirstName('');
                   setLastName('');
                   setCompany('');
+                  setBadgeId('');
                   setConfirmPasswordValue('');
                 }}
                 className={styles.toggleButton}

@@ -103,7 +103,8 @@ export const createUser = async (
   firstName: string, 
   lastName: string, 
   company: string,
-  permitted: boolean = false
+  permitted: boolean = false,
+  badgeId: string = ''
 ): Promise<UserData> => {
   try {
     const userData: UserData = {
@@ -112,7 +113,7 @@ export const createUser = async (
       firstName,
       lastName,
       company,
-      badgeId: '',
+      badgeId,
       permitted,
       cases: [],
       readOnlyCases: [],
