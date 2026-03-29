@@ -6,6 +6,7 @@ import styles from './export-case-modal.module.css';
 interface ExportCaseModalProps {
   isOpen: boolean;
   caseNumber: string;
+  currentUserEmail?: string;
   isSubmitting?: boolean;
   onClose: () => void;
   onSubmit: (designatedReviewerEmail: string | undefined) => Promise<void>;
@@ -14,17 +15,25 @@ interface ExportCaseModalProps {
 export const ExportCaseModal = ({
   isOpen,
   caseNumber,
+  currentUserEmail,
   isSubmitting = false,
   onClose,
   onSubmit,
 }: ExportCaseModalProps) => {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState<string>('');
+
+  const isSelfEmail =
+    email.trim().length > 0 &&
+    !!currentUserEmail &&
+    email.trim().toLowerCase() === currentUserEmail.toLowerCase();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleClose = () => {
     setEmail('');
     onClose();
   };
+
+  const isSubmitDisabled = isSubmitting || isSelfEmail;
 
   const {
     requestClose,
@@ -89,11 +98,16 @@ export const ExportCaseModal = ({
           placeholder="Reviewer email address (optional)"
           disabled={isSubmitting}
           onKeyDown={(event) => {
-            if (event.key === 'Enter' && !isSubmitting) {
+            if (event.key === 'Enter' && !isSubmitDisabled) {
               void handleSubmit();
             }
           }}
         />
+        {isSelfEmail && (
+          <p className={styles.emailError}>
+            You cannot designate yourself as the reviewer. The recipient must be a different Striae user.
+          </p>
+        )}
         <div className={sharedStyles.actions}>
           <button
             type="button"
@@ -107,7 +121,7 @@ export const ExportCaseModal = ({
             type="button"
             className={`${sharedStyles.confirmButton} ${styles.confirmButton}`}
             onClick={() => void handleSubmit()}
-            disabled={isSubmitting}
+            disabled={isSubmitDisabled}
           >
             {isSubmitting ? 'Exporting...' : 'Export Case'}
           </button>

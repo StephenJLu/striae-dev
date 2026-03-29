@@ -18,3 +18,10 @@
 .confirmButton:not(:disabled):hover {
   background: #1560d4;
 }
+
+.emailError {
+  margin: 0.45rem 0 0;
+  color: #b91c1c;
+  font-size: 0.83rem;
+  line-height: 1.4;
+}

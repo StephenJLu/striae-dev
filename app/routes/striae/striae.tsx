@@ -926,6 +926,7 @@ export const Striae = ({ user }: StriaePage) => {
       <ExportCaseModal
         isOpen={isExportCaseModalOpen}
         caseNumber={currentCase || ''}
+        currentUserEmail={user.email ?? undefined}
         isSubmitting={isExportingCase}
         onClose={() => setIsExportCaseModalOpen(false)}
         onSubmit={handleExportCaseModalSubmit}
