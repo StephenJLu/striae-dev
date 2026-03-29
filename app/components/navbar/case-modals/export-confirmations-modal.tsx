@@ -72,7 +72,7 @@ export const ExportConfirmationsModal = ({
             <p>
               <strong>
                 {unconfirmedCount} image{unconfirmedCount !== 1 ? 's' : ''}{' '}
-                {unconfirmedCount !== 1 ? 'have' : 'has'} unconfirmed confirmations.
+                {unconfirmedCount !== 1 ? 'have' : 'has'} unconfirmed images.
               </strong>
             </p>
             <p>Only confirmed images will be included in this export.</p>
@@ -80,7 +80,7 @@ export const ExportConfirmationsModal = ({
         )}
         <p className={styles.description}>
           {confirmedCount === 0
-            ? 'No confirmed confirmations found for this case.'
+            ? 'No confirmed images found for this case.'
             : `${confirmationLabel} will be exported.`}
         </p>
         <div className={sharedStyles.actions}>
