@@ -50,6 +50,7 @@ export interface CaseExportData {
     exportedByName: string;
     exportedByCompany: string;
     exportedByBadgeId?: string;
+    designatedReviewerEmail?: string;
     striaeExportSchemaVersion: string;
     totalFiles: number;
   };

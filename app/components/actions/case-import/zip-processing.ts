@@ -190,6 +190,21 @@ export async function previewCaseImport(zipFile: File, currentUser: User): Promi
       const isArchivedExport = isArchivedExportData(decryptedCaseData);
       const hasAnnotations = decryptedCaseData.files.some(f => f.hasAnnotations);
 
+      // Designated reviewer check — must run before returning preview data
+      const designatedReviewerEmail = decryptedCaseData.metadata.designatedReviewerEmail;
+      if (designatedReviewerEmail) {
+        if (!currentUser.email) {
+          throw new Error(
+            'Unable to verify reviewer designation: your account email is unavailable.'
+          );
+        }
+        if (designatedReviewerEmail.toLowerCase() !== currentUser.email.toLowerCase()) {
+          throw new Error(
+            'This case package is designated for a specific reviewer. You are not authorized to import this case.'
+          );
+        }
+      }
+
       return {
         caseNumber: decryptedCaseData.metadata.caseNumber,
         archived: isArchivedExport,

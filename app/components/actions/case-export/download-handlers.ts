@@ -81,7 +81,7 @@ export async function downloadCaseAsZip(
     onProgress?.(10);
     
     // Get case data
-    const exportData = await exportCaseData(user, caseNumber);
+    const exportData = await exportCaseData(user, caseNumber, options);
     onProgress?.(30);
     
     // Create ZIP

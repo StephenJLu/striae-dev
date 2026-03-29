@@ -133,6 +133,9 @@ export async function exportCaseData(
         archiveReason: caseData.archiveReason,
         exportDate: new Date().toISOString(),
         ...userMetadata,
+        ...(options.designatedReviewerEmail?.trim()
+          ? { designatedReviewerEmail: options.designatedReviewerEmail.trim() }
+          : {}),
         striaeExportSchemaVersion: '1.0',
         totalFiles: files.length
       },

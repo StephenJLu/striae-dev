@@ -5,6 +5,7 @@ import { Navbar } from '~/components/navbar/navbar';
 import { RenameCaseModal } from '~/components/navbar/case-modals/rename-case-modal';
 import { ArchiveCaseModal } from '~/components/navbar/case-modals/archive-case-modal';
 import { OpenCaseModal } from '~/components/navbar/case-modals/open-case-modal';
+import { ExportCaseModal } from '~/components/navbar/case-modals/export-case-modal';
 import { Toolbar } from '~/components/toolbar/toolbar';
 import { Canvas } from '~/components/canvas/canvas';
 import { Toast, type ToastType } from '~/components/toast/toast';
@@ -91,6 +92,8 @@ export const Striae = ({ user }: StriaePage) => {
   const [isOpeningCase, setIsOpeningCase] = useState(false);
   const [openCaseHelperText, setOpenCaseHelperText] = useState('');
   const [isArchiveCaseModalOpen, setIsArchiveCaseModalOpen] = useState(false);
+  const [isExportCaseModalOpen, setIsExportCaseModalOpen] = useState(false);
+  const [isExportingCase, setIsExportingCase] = useState(false);
   const [archiveDetails, setArchiveDetails] = useState<{
     archived: boolean;
     archivedAt?: string;
@@ -276,6 +279,7 @@ export const Striae = ({ user }: StriaePage) => {
 
   const handleExport = async (
     exportCaseNumber: string,
+    designatedReviewerEmail?: string,
     onProgress?: (progress: number, label: string) => void
   ) => {
     if (!exportCaseNumber) {
@@ -288,19 +292,34 @@ export const Striae = ({ user }: StriaePage) => {
     try {
       const caseExportActions = await loadCaseExportActions();
 
-      await caseExportActions.downloadCaseAsZip(user, exportCaseNumber, (progress) => {
-        const roundedProgress = Math.round(progress);
-        const label = getExportProgressLabel(progress);
-        setToastType('loading');
-        setToastMessage(`Exporting case ${exportCaseNumber}... ${label} (${roundedProgress}%)`);
-        setToastDuration(0);
-        setShowToast(true);
-        onProgress?.(roundedProgress, label);
-      });
+      await caseExportActions.downloadCaseAsZip(
+        user,
+        exportCaseNumber,
+        (progress) => {
+          const roundedProgress = Math.round(progress);
+          const label = getExportProgressLabel(progress);
+          setToastType('loading');
+          setToastMessage(`Exporting case ${exportCaseNumber}... ${label} (${roundedProgress}%)`);
+          setToastDuration(0);
+          setShowToast(true);
+          onProgress?.(roundedProgress, label);
+        },
+        { designatedReviewerEmail }
+      );
 
       showNotification(`Case ${exportCaseNumber} exported successfully.`, 'success');
     } catch (error) {
       showNotification(error instanceof Error ? error.message : 'Export failed. Please try again.', 'error');
+    }
+  };
+
+  const handleExportCaseModalSubmit = async (designatedReviewerEmail: string | undefined) => {
+    setIsExportingCase(true);
+    setIsExportCaseModalOpen(false);
+    try {
+      await handleExport(currentCase || '', designatedReviewerEmail);
+    } finally {
+      setIsExportingCase(false);
     }
   };
 
@@ -766,7 +785,7 @@ export const Striae = ({ user }: StriaePage) => {
           if (isReadOnlyCase) {
             void handleExportConfirmations();
           } else {
-            void handleExport(currentCase || '');
+            setIsExportCaseModalOpen(true);
           }
         }}
         onOpenAuditTrail={() => setIsAuditTrailOpen(true)}
@@ -903,6 +922,13 @@ export const Striae = ({ user }: StriaePage) => {
         isSubmitting={isArchivingCase}
         onClose={() => setIsArchiveCaseModalOpen(false)}
         onSubmit={handleArchiveCaseSubmit}
+      />
+      <ExportCaseModal
+        isOpen={isExportCaseModalOpen}
+        caseNumber={currentCase || ''}
+        isSubmitting={isExportingCase}
+        onClose={() => setIsExportCaseModalOpen(false)}
+        onSubmit={handleExportCaseModalSubmit}
       />
       <Toast
         message={toastMessage}
