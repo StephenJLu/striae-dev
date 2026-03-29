@@ -72,7 +72,7 @@ export const ExportConfirmationsModal = ({
             <p>
               <strong>
                 {unconfirmedCount} image{unconfirmedCount !== 1 ? 's' : ''}{' '}
-                {unconfirmedCount !== 1 ? 'have' : 'has'} unconfirmed images.
+                {unconfirmedCount !== 1 ? 'are' : 'is'} unconfirmed.
               </strong>
             </p>
             <p>Only confirmed images will be included in this export.</p>
