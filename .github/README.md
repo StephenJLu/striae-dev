@@ -20,6 +20,13 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-03-29] - *[Patch Release v5.3.1](https://github.com/striae-org/striae/releases/tag/v5.3.1)*
+
+- **🪪 Designated Reviewer Flows** - Added designated reviewer assignment to case export workflows with a self-designation guardrail and a re-introduced export case modal for structured reviewer capture.
+- **🔐 Import Decryption Follow-Up** - Extended import previews to support decryption of encrypted packages and removed remaining stale unencrypted import workflows to complete the encrypted workflow alignment from v5.3.0.
+- **💬 Loading Toast UX** - Added a loading toast component with dedicated styling to provide visible progress feedback during case operations.
+- **⚙️ Compatibility Date Maintenance** - Refreshed compatibility dates across all worker and Pages configuration example files.
+
 ## [2026-03-26] - *[Minor Release v5.3.0](https://github.com/striae-org/striae/releases/tag/v5.3.0)*
 
 - **🔐 Export Workflow Consolidation** - Removed legacy and unencrypted export paths, retired the old case-export modal surface, and aligned the published/package export surface with current secure workflow expectations.
