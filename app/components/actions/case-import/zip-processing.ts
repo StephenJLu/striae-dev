@@ -144,6 +144,9 @@ export async function previewCaseImport(zipFile: File, currentUser: User): Promi
       if (encDataFiles.length === 0) {
         throw new Error('No data file found in encrypted case ZIP archive.');
       }
+      if (encDataFiles.length > 1) {
+        throw new Error('Multiple data files found in encrypted case ZIP archive. The archive may be corrupt or tampered.');
+      }
 
       const encDataFileName = encDataFiles[0];
       const encryptedDataBytes = await zip.file(encDataFileName)?.async('uint8array');
@@ -171,6 +174,17 @@ export async function previewCaseImport(zipFile: File, currentUser: User): Promi
 
       if (!decryptedCaseData.metadata?.caseNumber) {
         throw new Error('Decrypted export data is missing required case number.');
+      }
+
+      // Validate that the data file name matches the decrypted case number
+      const encDataFileLeaf = encDataFileName.split('/').filter(Boolean).pop()?.toLowerCase() ?? '';
+      const expectedEncDataFile = `${decryptedCaseData.metadata.caseNumber.toLowerCase()}_data.json`;
+      if (encDataFileLeaf !== expectedEncDataFile) {
+        throw new Error(
+          `Data file name does not match case number. ` +
+          `Expected "${expectedEncDataFile}", found "${encDataFileLeaf}". ` +
+          'The archive may be corrupt or tampered.'
+        );
       }
 
       // Prefer totalFiles from decrypted metadata; fall back to counting image entries
@@ -245,7 +259,6 @@ export async function previewCaseImport(zipFile: File, currentUser: User): Promi
  */
 export async function parseImportZip(zipFile: File): Promise<{
   caseData: CaseExportData;
-  imageFiles: { [filename: string]: Blob };
   imageIdMapping: { [exportFilename: string]: string }; // exportFilename -> originalImageId
   isArchivedExport: boolean;
   bundledAuditFiles?: {
@@ -259,6 +272,7 @@ export async function parseImportZip(zipFile: File): Promise<{
   encryptedDataBase64?: string; // Optional: encrypted data file content (base64url)
   encryptedImages?: { [filename: string]: string }; // Optional: encrypted image files (filename -> base64url)
   isEncrypted?: boolean;
+  dataFileName?: string; // The encrypted data file name (leaf), for post-decrypt case number validation
 }> {
   // Dynamic import of JSZip to avoid bundle size issues
   const JSZip = (await import('jszip')).default;
@@ -293,6 +307,7 @@ export async function parseImportZip(zipFile: File): Promise<{
     let encryptionManifest: Record<string, unknown>;
     let encryptedDataBase64: string;
     const encryptedImages: { [filename: string]: string } = {};
+    const imageIdMapping: { [exportFilename: string]: string } = {};
     const isEncrypted = true;
 
     let caseData: CaseExportData;
@@ -331,7 +346,14 @@ export async function parseImportZip(zipFile: File): Promise<{
           }
           
           const filename = isImageFile ? filePath.replace(/^images\//, '') : filePath;
-          
+
+          if (isImageFile) {
+            const originalImageId = extractImageIdFromFilename(filename);
+            if (originalImageId) {
+              imageIdMapping[filename] = originalImageId;
+            }
+          }
+
           encryptedImagePromises.push((async () => {
             try {
               const encryptedBlob = await file.async('uint8array');
@@ -359,45 +381,7 @@ export async function parseImportZip(zipFile: File): Promise<{
     }
 
     const isArchivedExport = isArchivedExportData(parsedCaseData);
-    
-    // Extract image files and create ID mapping - iterate through zip.files directly
-    const imageFiles: { [filename: string]: Blob } = {};
-    const imageIdMapping: { [exportFilename: string]: string } = {};
-    
-    const imageExtractionPromises: Promise<void>[] = [];
-    
-    const fileListForImages = Object.keys(zip.files);
-    for (const filePath of fileListForImages) {
-      // Only process files in the images folder
-      if (!filePath.startsWith('images/') || filePath === 'images/' || filePath.endsWith('/')) {
-        continue;
-      }
-      
-      const file = zip.files[filePath];
-      if (!file || file.dir) {
-        continue;
-      }
-      
-      imageExtractionPromises.push((async () => {
-        try {
-          const exportFilename = filePath.replace(/^images\//, '');
-          const blob = await file.async('blob');
-          imageFiles[exportFilename] = blob;
 
-          // Extract original image ID from filename
-          const originalImageId = extractImageIdFromFilename(exportFilename);
-          if (originalImageId) {
-            imageIdMapping[exportFilename] = originalImageId;
-          }
-        } catch (err) {
-          console.error(`Failed to extract image ${filePath}:`, err);
-        }
-      })());
-    }
-    
-    // Wait for all image extractions to complete
-    await Promise.all(imageExtractionPromises);
-    
     // Extract forensic manifest if present
     let metadata: Record<string, unknown> | undefined;
     const manifestFile = zip.file('FORENSIC_MANIFEST.json');
@@ -412,7 +396,6 @@ export async function parseImportZip(zipFile: File): Promise<{
     
     return {
       caseData,
-      imageFiles,
       imageIdMapping,
       isArchivedExport,
       bundledAuditFiles: {
@@ -425,7 +408,8 @@ export async function parseImportZip(zipFile: File): Promise<{
       encryptionManifest,
       encryptedDataBase64,
       encryptedImages: Object.keys(encryptedImages).length > 0 ? encryptedImages : undefined,
-      isEncrypted
+      isEncrypted,
+      dataFileName
     };
     
   } catch (error) {
