@@ -1,48 +1,6 @@
 # 🔫 Striae - A Firearms Examiner's Comparison Companion
 
-## npm Package, Installation, and Full Deployment
-
-**[Striae on npm](https://github.com/orgs/striae-org/packages/npm/package/striae)**
-
-1) Install the latest package:
-
-```bash
-npm i @striae-org/striae
-```
-
-2) Copy the package scaffold into the project root
-
-```bash
-cp -R node_modules/@striae-org/striae/. .
-```
-
-3) Reinstall using Striae's own package.json (includes dev deps like wrangler/react-router)
-
-```bash
-rm -rf node_modules package-lock.json
-npm install
-```
-
-4) Prepare Firebase admin credentials (required before deploy-config can pass)
-
-```bash
-mkdir -p app/config
-cp -f app/config-example/admin-service.json app/config/admin-service.json
-```
-
-5) Replace `app/config/admin-service.json` with your actual Firebase service account JSON
-
-6) Authenticate Cloudflare CLI
-
-```bash
-npx wrangler login
-```
-
-7) Run guided config + full deployment
-
-```bash
-npm run deploy:all
-```
+Striae is a specialized, cloud-native platform designed to streamline forensic firearms identification by providing an intuitive environment for digital comparison image annotation, authenticated confirmations, and automated report generation. Built with a focus on security, reliability, and user experience, Striae empowers firearms examiners to efficiently manage case data, collaborate securely, and produce comprehensive forensic reports with confidence.
 
 ## 🌐 Application URL
 
