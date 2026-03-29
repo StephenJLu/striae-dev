@@ -75,31 +75,33 @@ export async function importConfirmationData(
     const verificationPublicKeyPem = packageData.verificationPublicKeyPem;
     const confirmationFileName = packageData.confirmationFileName;
 
-    // Handle encrypted confirmation data
-    if (packageData.isEncrypted && packageData.encryptionManifest && packageData.encryptedDataBase64) {
-      onProgress?.('Decrypting confirmation data', 15, 'Decrypting exported confirmation...');
+    // All confirmation imports are encrypted — fail closed if manifest is missing
+    if (!packageData.encryptionManifest || !packageData.encryptedDataBase64) {
+      throw new Error(
+        'This confirmation package is not encrypted. Only encrypted confirmation packages exported from Striae can be imported.'
+      );
+    }
 
-      try {
-        if (!isEncryptionManifest(packageData.encryptionManifest)) {
-          throw new Error('Invalid encryption manifest format.');
-        }
+    if (!isEncryptionManifest(packageData.encryptionManifest)) {
+      throw new Error('Invalid encryption manifest format.');
+    }
 
-        const decryptResult = await decryptExportBatch(
-          user,
-          packageData.encryptionManifest,
-          packageData.encryptedDataBase64,
-          {} // No image hashes for confirmation-only exports
-        );
+    onProgress?.('Decrypting confirmation data', 15, 'Decrypting exported confirmation...');
+    try {
+      const decryptResult = await decryptExportBatch(
+        user,
+        packageData.encryptionManifest,
+        packageData.encryptedDataBase64,
+        {}
+      );
 
-        // Parse decrypted plaintext as confirmation data
-        const decryptedJsonString = decryptResult.plaintext;
-        confirmationData = JSON.parse(decryptedJsonString) as ConfirmationImportData;
-        confirmationJsonContent = decryptedJsonString;
-      } catch (error) {
-        throw new Error(
-          `Failed to decrypt confirmation data: ${error instanceof Error ? error.message : 'Unknown decryption error'}`
-        );
-      }
+      const decryptedJsonString = decryptResult.plaintext;
+      confirmationData = JSON.parse(decryptedJsonString) as ConfirmationImportData;
+      confirmationJsonContent = decryptedJsonString;
+    } catch (error) {
+      throw new Error(
+        `Failed to decrypt confirmation data: ${error instanceof Error ? error.message : 'Unknown decryption error'}`
+      );
     }
 
     confirmationDataForAudit = confirmationData;

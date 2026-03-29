@@ -78,6 +78,16 @@ export interface ConfirmationImportData {
   };
 }
 
+export interface ConfirmationImportPreview {
+  caseNumber: string;
+  exportedBy: string;
+  exportedByName: string;
+  exportedByCompany: string;
+  exportedByBadgeId?: string;
+  exportDate: string;
+  totalConfirmations: number;
+}
+
 export interface CaseImportPreview {
   caseNumber: string;
   archived?: boolean;

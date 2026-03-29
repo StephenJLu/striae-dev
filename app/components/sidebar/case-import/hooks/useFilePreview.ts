@@ -1,12 +1,11 @@
 import { useState, useCallback } from 'react';
 import type { User } from 'firebase/auth';
-import { previewCaseImport, extractConfirmationImportPackage } from '~/components/actions/case-review';
-import { type CaseImportPreview } from '~/types';
-import { type ConfirmationPreview } from '../components/ConfirmationPreviewSection';
+import { previewCaseImport, previewConfirmationImport } from '~/components/actions/case-review';
+import { type CaseImportPreview, type ConfirmationImportPreview } from '~/types';
 
 interface UseFilePreviewReturn {
   casePreview: CaseImportPreview | null;
-  confirmationPreview: ConfirmationPreview | null;
+  confirmationPreview: ConfirmationImportPreview | null;
   loadCasePreview: (file: File) => Promise<void>;
   loadConfirmationPreview: (file: File) => Promise<void>;
   clearPreviews: () => void;
@@ -22,7 +21,7 @@ export const useFilePreview = (
   clearImportData: () => void
 ): UseFilePreviewReturn => {
   const [casePreview, setCasePreview] = useState<CaseImportPreview | null>(null);
-  const [confirmationPreview, setConfirmationPreview] = useState<ConfirmationPreview | null>(null);
+  const [confirmationPreview, setConfirmationPreview] = useState<ConfirmationImportPreview | null>(null);
 
   const loadCasePreview = useCallback(async (file: File) => {
     if (!user) {
@@ -51,10 +50,7 @@ export const useFilePreview = (
 
     setIsLoadingPreview(true);
     try {
-      await extractConfirmationImportPackage(file);
-
-      const preview: ConfirmationPreview = {};
-      
+      const preview = await previewConfirmationImport(file, user);
       setConfirmationPreview(preview);
     } catch (error) {
       console.error('Error loading confirmation preview:', error);
