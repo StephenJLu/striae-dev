@@ -13,6 +13,3 @@ export { useImportExecution } from './hooks/useImportExecution';
 
 // Utils
 export * from './utils/file-validation';
-
-// Types
-export type { ConfirmationPreview } from './components/ConfirmationPreviewSection';

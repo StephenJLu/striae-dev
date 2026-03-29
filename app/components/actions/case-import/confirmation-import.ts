@@ -40,6 +40,41 @@ function isEncryptionManifest(value: unknown): value is EncryptionManifest {
 }
 
 /**
+ * Validates that an encryption manifest is well-formed for a confirmation import.
+ * Confirmation packages must not contain encrypted images — this is a structural
+ * invariant. Fails closed with a clear message before decryptExportBatch is called.
+ */
+function validateConfirmationEncryptionManifest(manifest: EncryptionManifest): void {
+  if (
+    !manifest.encryptionVersion ||
+    !manifest.algorithm ||
+    !manifest.keyId ||
+    !manifest.wrappedKey ||
+    !manifest.dataIv
+  ) {
+    throw new Error(
+      'Malformed encryption manifest: one or more required fields (encryptionVersion, algorithm, keyId, wrappedKey, dataIv) are missing.'
+    );
+  }
+
+  // Confirmation packages must never carry image payloads. Reject any manifest
+  // that references encrypted images — this indicates a wrong package type or
+  // a tampered/malformed file.
+  const candidate = manifest as unknown as Record<string, unknown>;
+  const encryptedImages = candidate['encryptedImages'];
+  if (
+    encryptedImages !== undefined &&
+    (typeof encryptedImages !== 'object' ||
+      Object.keys(encryptedImages as object).length > 0)
+  ) {
+    throw new Error(
+      'Invalid confirmation package: this manifest contains encrypted image references. ' +
+      'Confirmation packages must not include image data. The file may be a case export or may have been tampered with.'
+    );
+  }
+}
+
+/**
  * Import confirmation data from JSON file
  */
 export async function importConfirmationData(
@@ -75,31 +110,36 @@ export async function importConfirmationData(
     const verificationPublicKeyPem = packageData.verificationPublicKeyPem;
     const confirmationFileName = packageData.confirmationFileName;
 
-    // Handle encrypted confirmation data
-    if (packageData.isEncrypted && packageData.encryptionManifest && packageData.encryptedDataBase64) {
-      onProgress?.('Decrypting confirmation data', 15, 'Decrypting exported confirmation...');
+    // All confirmation imports are encrypted — fail closed if manifest is missing
+    if (!packageData.encryptionManifest || !packageData.encryptedDataBase64) {
+      throw new Error(
+        'This confirmation package is not encrypted. Only encrypted confirmation packages exported from Striae can be imported.'
+      );
+    }
 
-      try {
-        if (!isEncryptionManifest(packageData.encryptionManifest)) {
-          throw new Error('Invalid encryption manifest format.');
-        }
+    if (!isEncryptionManifest(packageData.encryptionManifest)) {
+      throw new Error('Invalid encryption manifest format.');
+    }
 
-        const decryptResult = await decryptExportBatch(
-          user,
-          packageData.encryptionManifest,
-          packageData.encryptedDataBase64,
-          {} // No image hashes for confirmation-only exports
-        );
+    // Enforce confirmation-specific manifest shape before attempting decryption
+    validateConfirmationEncryptionManifest(packageData.encryptionManifest);
 
-        // Parse decrypted plaintext as confirmation data
-        const decryptedJsonString = decryptResult.plaintext;
-        confirmationData = JSON.parse(decryptedJsonString) as ConfirmationImportData;
-        confirmationJsonContent = decryptedJsonString;
-      } catch (error) {
-        throw new Error(
-          `Failed to decrypt confirmation data: ${error instanceof Error ? error.message : 'Unknown decryption error'}`
-        );
-      }
+    onProgress?.('Decrypting confirmation data', 15, 'Decrypting exported confirmation...');
+    try {
+      const decryptResult = await decryptExportBatch(
+        user,
+        packageData.encryptionManifest,
+        packageData.encryptedDataBase64,
+        {}
+      );
+
+      const decryptedJsonString = decryptResult.plaintext;
+      confirmationData = JSON.parse(decryptedJsonString) as ConfirmationImportData;
+      confirmationJsonContent = decryptedJsonString;
+    } catch (error) {
+      throw new Error(
+        `Failed to decrypt confirmation data: ${error instanceof Error ? error.message : 'Unknown decryption error'}`
+      );
     }
 
     confirmationDataForAudit = confirmationData;

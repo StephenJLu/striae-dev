@@ -5,6 +5,8 @@ import { Navbar } from '~/components/navbar/navbar';
 import { RenameCaseModal } from '~/components/navbar/case-modals/rename-case-modal';
 import { ArchiveCaseModal } from '~/components/navbar/case-modals/archive-case-modal';
 import { OpenCaseModal } from '~/components/navbar/case-modals/open-case-modal';
+import { ExportCaseModal } from '~/components/navbar/case-modals/export-case-modal';
+import { ExportConfirmationsModal } from '~/components/navbar/case-modals/export-confirmations-modal';
 import { Toolbar } from '~/components/toolbar/toolbar';
 import { Canvas } from '~/components/canvas/canvas';
 import { Toast, type ToastType } from '~/components/toast/toast';
@@ -20,7 +22,7 @@ import { fetchUserApi } from '~/utils/api';
 import { type AnnotationData, type FileData } from '~/types';
 import { validateCaseNumber, renameCase, deleteCase, checkExistingCase, createNewCase, archiveCase, getCaseArchiveDetails } from '~/components/actions/case-manage';
 import { checkReadOnlyCaseExists, deleteReadOnlyCase } from '~/components/actions/case-review';
-import { canCreateCase } from '~/utils/data';
+import { canCreateCase, getCaseConfirmationSummary } from '~/utils/data';
 import {
   resolveEarliestAnnotationTimestamp,
   CREATE_READ_ONLY_CASE_EXISTS_ERROR,
@@ -91,6 +93,14 @@ export const Striae = ({ user }: StriaePage) => {
   const [isOpeningCase, setIsOpeningCase] = useState(false);
   const [openCaseHelperText, setOpenCaseHelperText] = useState('');
   const [isArchiveCaseModalOpen, setIsArchiveCaseModalOpen] = useState(false);
+  const [isExportCaseModalOpen, setIsExportCaseModalOpen] = useState(false);
+  const [isExportingCase, setIsExportingCase] = useState(false);
+  const [isExportConfirmationsModalOpen, setIsExportConfirmationsModalOpen] = useState(false);
+  const [isExportingConfirmations, setIsExportingConfirmations] = useState(false);
+  const [exportConfirmationStats, setExportConfirmationStats] = useState<{
+    confirmedCount: number;
+    unconfirmedCount: number;
+  } | null>(null);
   const [archiveDetails, setArchiveDetails] = useState<{
     archived: boolean;
     archivedAt?: string;
@@ -276,6 +286,7 @@ export const Striae = ({ user }: StriaePage) => {
 
   const handleExport = async (
     exportCaseNumber: string,
+    designatedReviewerEmail?: string,
     onProgress?: (progress: number, label: string) => void
   ) => {
     if (!exportCaseNumber) {
@@ -288,15 +299,20 @@ export const Striae = ({ user }: StriaePage) => {
     try {
       const caseExportActions = await loadCaseExportActions();
 
-      await caseExportActions.downloadCaseAsZip(user, exportCaseNumber, (progress) => {
-        const roundedProgress = Math.round(progress);
-        const label = getExportProgressLabel(progress);
-        setToastType('loading');
-        setToastMessage(`Exporting case ${exportCaseNumber}... ${label} (${roundedProgress}%)`);
-        setToastDuration(0);
-        setShowToast(true);
-        onProgress?.(roundedProgress, label);
-      });
+      await caseExportActions.downloadCaseAsZip(
+        user,
+        exportCaseNumber,
+        (progress) => {
+          const roundedProgress = Math.round(progress);
+          const label = getExportProgressLabel(progress);
+          setToastType('loading');
+          setToastMessage(`Exporting case ${exportCaseNumber}... ${label} (${roundedProgress}%)`);
+          setToastDuration(0);
+          setShowToast(true);
+          onProgress?.(roundedProgress, label);
+        },
+        { designatedReviewerEmail }
+      );
 
       showNotification(`Case ${exportCaseNumber} exported successfully.`, 'success');
     } catch (error) {
@@ -304,16 +320,47 @@ export const Striae = ({ user }: StriaePage) => {
     }
   };
 
+  const handleExportCaseModalSubmit = async (designatedReviewerEmail: string | undefined) => {
+    setIsExportingCase(true);
+    setIsExportCaseModalOpen(false);
+    try {
+      await handleExport(currentCase || '', designatedReviewerEmail);
+    } finally {
+      setIsExportingCase(false);
+    }
+  };
+
+  const handleOpenExportConfirmationsModal = async () => {
+    if (!currentCase || !user) return;
+
+    try {
+      const summary = await getCaseConfirmationSummary(user, currentCase);
+      const filesById = summary?.filesById ?? {};
+      const values = Object.values(filesById);
+      const confirmedCount = values.filter((f) => f.includeConfirmation && f.isConfirmed).length;
+      const unconfirmedCount = values.filter((f) => f.includeConfirmation && !f.isConfirmed).length;
+      setExportConfirmationStats({ confirmedCount, unconfirmedCount });
+    } catch {
+      setExportConfirmationStats({ confirmedCount: 0, unconfirmedCount: 0 });
+    }
+
+    setIsExportConfirmationsModalOpen(true);
+  };
+
   const handleExportConfirmations = async () => {
     if (!currentCase || !user) return;
 
+    setIsExportingConfirmations(true);
     showNotification(`Exporting confirmations for case ${currentCase}...`, 'loading', 0);
 
     try {
       await exportConfirmationData(user, currentCase);
+      setIsExportConfirmationsModalOpen(false);
       showNotification(`Confirmations for case ${currentCase} exported successfully.`, 'success');
     } catch (e) {
       showNotification(e instanceof Error ? e.message : 'Confirmation export failed. Please try again.', 'error');
+    } finally {
+      setIsExportingConfirmations(false);
     }
   };
 
@@ -764,9 +811,9 @@ export const Striae = ({ user }: StriaePage) => {
         onOpenListAllCases={() => setIsListCasesModalOpen(true)}
         onOpenCaseExport={() => {
           if (isReadOnlyCase) {
-            void handleExportConfirmations();
+            void handleOpenExportConfirmationsModal();
           } else {
-            void handleExport(currentCase || '');
+            setIsExportCaseModalOpen(true);
           }
         }}
         onOpenAuditTrail={() => setIsAuditTrailOpen(true)}
@@ -791,7 +838,7 @@ export const Striae = ({ user }: StriaePage) => {
           onOpenCase={() => {
             void handleOpenCaseModal();
           }}
-          onOpenCaseExport={() => void handleExportConfirmations()}
+          onOpenCaseExport={() => void handleOpenExportConfirmationsModal()}
           imageId={imageId}
           currentCase={currentCase}
           imageLoaded={imageLoaded}
@@ -903,6 +950,23 @@ export const Striae = ({ user }: StriaePage) => {
         isSubmitting={isArchivingCase}
         onClose={() => setIsArchiveCaseModalOpen(false)}
         onSubmit={handleArchiveCaseSubmit}
+      />
+      <ExportCaseModal
+        isOpen={isExportCaseModalOpen}
+        caseNumber={currentCase || ''}
+        currentUserEmail={user.email ?? undefined}
+        isSubmitting={isExportingCase}
+        onClose={() => setIsExportCaseModalOpen(false)}
+        onSubmit={handleExportCaseModalSubmit}
+      />
+      <ExportConfirmationsModal
+        isOpen={isExportConfirmationsModalOpen}
+        caseNumber={currentCase || ''}
+        confirmedCount={exportConfirmationStats?.confirmedCount ?? 0}
+        unconfirmedCount={exportConfirmationStats?.unconfirmedCount ?? 0}
+        isSubmitting={isExportingConfirmations}
+        onClose={() => setIsExportConfirmationsModalOpen(false)}
+        onConfirm={() => void handleExportConfirmations()}
       />
       <Toast
         message={toastMessage}

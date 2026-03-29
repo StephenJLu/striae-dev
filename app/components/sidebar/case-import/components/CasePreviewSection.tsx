@@ -43,17 +43,10 @@ export const CasePreviewSection = ({
 
   if (!casePreview) return null;
 
-  const isEncrypted = casePreview.caseNumber === 'ENCRYPTED';
-
   return (
     <div className={styles.previewSection}>
       <h3 className={styles.previewTitle}>Case Import Preview</h3>
-      {isEncrypted ? (
-        <p className={styles.previewMessage}>
-          Encrypted package detected. Case details could not be read from the package.
-        </p>
-      ) : (
-        <div className={styles.previewMeta}>
+      <div className={styles.previewMeta}>
           <div className={styles.previewMetaRow}>
             <span className={styles.previewMetaLabel}>Case</span>
             <span className={styles.previewMetaValue}>{casePreview.caseNumber}</span>
@@ -89,7 +82,6 @@ export const CasePreviewSection = ({
             </div>
           )}
         </div>
-      )}
       {casePreview.archived && (
         <div className={styles.archivedImportNote}>
           {ARCHIVED_SELF_IMPORT_NOTE}

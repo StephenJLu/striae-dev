@@ -1,4 +1,22 @@
-import { type ConfirmationImportData } from '~/types';
+import type { User } from 'firebase/auth';
+import { type ConfirmationImportData, type ConfirmationImportPreview } from '~/types';
+import type { EncryptionManifest } from '~/utils/forensics/export-encryption';
+import { decryptExportBatch } from '~/utils/data/operations/signing-operations';
+
+function isEncryptionManifest(value: unknown): value is EncryptionManifest {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const candidate = value as Partial<EncryptionManifest>;
+  return (
+    typeof candidate.encryptionVersion === 'string' &&
+    typeof candidate.algorithm === 'string' &&
+    typeof candidate.keyId === 'string' &&
+    typeof candidate.wrappedKey === 'string' &&
+    typeof candidate.dataIv === 'string' &&
+    Array.isArray(candidate.encryptedImages)
+  );
+}
 
 const CONFIRMATION_EXPORT_FILE_REGEX = /^confirmation-data-.*\.json$/i;
 const ENCRYPTION_MANIFEST_FILE_NAME = 'encryption_manifest.json';
@@ -142,6 +160,55 @@ async function extractConfirmationPackageFromZip(file: File): Promise<Confirmati
     isEncrypted,
     encryptionManifest,
     encryptedDataBase64
+  };
+}
+
+export async function previewConfirmationImport(
+  file: File,
+  user: User
+): Promise<ConfirmationImportPreview> {
+  const pkg = await extractConfirmationImportPackage(file);
+
+  if (!pkg.isEncrypted || !pkg.encryptedDataBase64) {
+    throw new Error(
+      'Confirmation imports require an encrypted confirmation ZIP package exported from Striae.'
+    );
+  }
+
+  if (!isEncryptionManifest(pkg.encryptionManifest)) {
+    throw new Error('Encrypted confirmation manifest is missing required fields.');
+  }
+
+  let parsed: ConfirmationImportData;
+  try {
+    const decryptResult = await decryptExportBatch(
+      user,
+      pkg.encryptionManifest,
+      pkg.encryptedDataBase64,
+      {}
+    );
+    parsed = JSON.parse(decryptResult.plaintext) as ConfirmationImportData;
+  } catch (error) {
+    throw new Error(
+      `Failed to decrypt confirmation package for preview: ${
+        error instanceof Error ? error.message : 'Unknown error'
+      }`
+    );
+  }
+
+  const meta = parsed.metadata;
+  if (!meta?.caseNumber) {
+    throw new Error('Decrypted confirmation data is missing required case number.');
+  }
+
+  return {
+    caseNumber: meta.caseNumber,
+    exportedBy: meta.exportedBy ?? '',
+    exportedByName: meta.exportedByName ?? '',
+    exportedByCompany: meta.exportedByCompany ?? '',
+    exportedByBadgeId: meta.exportedByBadgeId,
+    exportDate: meta.exportDate ?? new Date().toISOString(),
+    totalConfirmations: meta.totalConfirmations ?? 0
   };
 }
 

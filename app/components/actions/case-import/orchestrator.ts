@@ -207,7 +207,6 @@ export async function importCaseForReview(
     // Step 1: Parse ZIP file
     const {
       caseData: initialCaseData,
-      imageFiles: initialImageFiles,
       imageIdMapping,
       isArchivedExport,
       bundledAuditFiles,
@@ -217,71 +216,65 @@ export async function importCaseForReview(
       encryptionManifest,
       encryptedDataBase64,
       encryptedImages,
-      isEncrypted
-    } = await parseImportZip(zipFile, user);
+      dataFileName
+    } = await parseImportZip(zipFile);
 
-    // Step 1.2: Handle decryption if export is encrypted
+    // Step 1.2: Decrypt export — all imports are encrypted (fail closed if manifest is missing)
     let caseData = initialCaseData;
     let cleanedContent = initialCleanedContent || '';
-    let imageFiles = initialImageFiles;
+    let imageFiles: { [filename: string]: Blob } = {};
     let resolvedBundledAuditFiles = bundledAuditFiles;
-    let decryptedImageBlobMap: { [filename: string]: Blob } | undefined;
 
-    if (isEncrypted && isEncryptionManifest(encryptionManifest) && encryptedDataBase64) {
-      onProgress?.('Decrypting export', 11, 'Decrypting case data and images...');
-      
-      try {
-        // Call decrypt endpoint on data-worker
-        const decryptResult = await decryptExportBatch(
-          user,
-          encryptionManifest,
-          encryptedDataBase64,
-          encryptedImages ?? {}
-        );
+    if (!isEncryptionManifest(encryptionManifest) || !encryptedDataBase64) {
+      throw new Error(
+        'This case package is not encrypted. Only encrypted case packages exported from Striae can be imported.'
+      );
+    }
 
-        // Decrypted data is plaintext JSON
-        cleanedContent = decryptResult.plaintext;
-        const parsedCaseData = JSON.parse(cleanedContent) as unknown;
-        caseData = parsedCaseData as CaseExportData;
+    onProgress?.('Decrypting export', 11, 'Decrypting case data and images...');
+    try {
+      const decryptResult = await decryptExportBatch(
+        user,
+        encryptionManifest,
+        encryptedDataBase64,
+        encryptedImages ?? {}
+      );
 
-        const decryptedFiles = decryptResult.decryptedImages;
-        const decryptedAuditTrailBlob = decryptedFiles['audit/case-audit-trail.json'];
-        const decryptedAuditSignatureBlob = decryptedFiles['audit/case-audit-signature.json'];
+      cleanedContent = decryptResult.plaintext;
+      const parsedCaseData = JSON.parse(cleanedContent) as unknown;
+      caseData = parsedCaseData as CaseExportData;
 
-        if (decryptedAuditTrailBlob || decryptedAuditSignatureBlob) {
-          resolvedBundledAuditFiles = {
-            ...(resolvedBundledAuditFiles ?? {}),
-            auditTrailContent: decryptedAuditTrailBlob
-              ? await decryptedAuditTrailBlob.text()
-              : resolvedBundledAuditFiles?.auditTrailContent,
-            auditSignatureContent: decryptedAuditSignatureBlob
-              ? await decryptedAuditSignatureBlob.text()
-              : resolvedBundledAuditFiles?.auditSignatureContent
-          };
-        }
+      const decryptedFiles = decryptResult.decryptedImages;
+      const decryptedAuditTrailBlob = decryptedFiles['audit/case-audit-trail.json'];
+      const decryptedAuditSignatureBlob = decryptedFiles['audit/case-audit-signature.json'];
 
-        decryptedImageBlobMap = Object.fromEntries(
-          Object.entries(decryptedFiles).filter(([filename]) => !filename.startsWith('audit/'))
-        );
-
-        // Update imageFiles with decrypted images only
-        imageFiles = { ...imageFiles, ...decryptedImageBlobMap };
-
-        onProgress?.('Decryption successful', 13, `Decrypted case data and ${Object.keys(decryptedImageBlobMap).length} images`);
-      } catch (decryptError) {
-        throw new Error(
-          `Failed to decrypt export: ${decryptError instanceof Error ? decryptError.message : 'Unknown error'}. ` +
-          'Ensure your Striae instance has export encryption configured.'
-        );
+      if (decryptedAuditTrailBlob || decryptedAuditSignatureBlob) {
+        resolvedBundledAuditFiles = {
+          ...(resolvedBundledAuditFiles ?? {}),
+          auditTrailContent: decryptedAuditTrailBlob
+            ? await decryptedAuditTrailBlob.text()
+            : resolvedBundledAuditFiles?.auditTrailContent,
+          auditSignatureContent: decryptedAuditSignatureBlob
+            ? await decryptedAuditSignatureBlob.text()
+            : resolvedBundledAuditFiles?.auditSignatureContent
+        };
       }
+
+      const decryptedImageBlobMap = Object.fromEntries(
+        Object.entries(decryptedFiles).filter(([filename]) => !filename.startsWith('audit/'))
+      );
+      imageFiles = decryptedImageBlobMap;
+
+      onProgress?.('Decryption successful', 13, `Decrypted case data and ${Object.keys(decryptedImageBlobMap).length} images`);
+    } catch (decryptError) {
+      throw new Error(
+        `Failed to decrypt export: ${decryptError instanceof Error ? decryptError.message : 'Unknown error'}. ` +
+        'Ensure your Striae instance has export encryption configured.'
+      );
     }
 
-    if (isEncrypted) {
-      await validateCaseExporterUidForImport(caseData, user);
-      exporterUidValidationPassed = true;
-    } else {
-      exporterUidValidationPassed = true;
-    }
+    await validateCaseExporterUidForImport(caseData, user);
+    exporterUidValidationPassed = true;
 
     // Now validate case number and format
     if (!caseData.metadata?.caseNumber) {
@@ -290,6 +283,38 @@ export async function importCaseForReview(
 
     if (!validateCaseNumber(caseData.metadata.caseNumber)) {
       throw new Error(`Invalid case number format: ${caseData.metadata.caseNumber}`);
+    }
+
+    // Validate that the data file name matches the decrypted case number — fail closed if it doesn't.
+    // Guards against corrupt archives and cases where parseImportZip returned a mismatched file.
+    if (dataFileName) {
+      const dataFileLeaf = dataFileName.split('/').filter(Boolean).pop()?.toLowerCase() ?? '';
+      const expectedDataFile = `${caseData.metadata.caseNumber.toLowerCase()}_data.json`;
+      if (dataFileLeaf !== expectedDataFile) {
+        throw new Error(
+          `Data file name does not match case number. ` +
+          `Expected "${expectedDataFile}", found "${dataFileLeaf}". ` +
+          'The archive may be corrupt or tampered.'
+        );
+      }
+    }
+
+    // Enforce designated reviewer before any writes occur.
+    // This mirrors previewCaseImport enforcement and cannot be bypassed by
+    // skipping preview or submitting a modified client request.
+    const designatedReviewerEmail = caseData.metadata.designatedReviewerEmail;
+    if (designatedReviewerEmail) {
+      if (!user.email) {
+        throw new Error(
+          'Your account does not have an email address. This case export is restricted to a designated reviewer and cannot be imported.'
+        );
+      }
+      if (user.email.toLowerCase() !== designatedReviewerEmail.toLowerCase()) {
+        throw new Error(
+          `This case export is restricted to the designated reviewer (${designatedReviewerEmail}). ` +
+          'You are not authorized to import this case.'
+        );
+      }
     }
 
     const resolvedIsArchivedExport =
