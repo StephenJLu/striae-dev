@@ -67,14 +67,23 @@ const resolvePdfImageUrl = async (selectedImage: string | undefined): Promise<st
   // Signed image URLs routed through the Pages proxy contain a ?st= token.
   // Pre-fetch the image client-side and embed as a data URL so the PDF worker's
   // Puppeteer context doesn't need to make outbound requests for the image.
-  if (selectedImage.includes('?st=')) {
-    const imageResponse = await fetch(selectedImage);
-    if (!imageResponse.ok) {
-      throw new Error('Failed to load selected image for PDF generation');
+  if (selectedImage.startsWith('http://') || selectedImage.startsWith('https://')) {
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(selectedImage);
+    } catch {
+      return selectedImage;
     }
 
-    const imageBlob = await imageResponse.blob();
-    return await blobToDataUrl(imageBlob);
+    if (parsedUrl.searchParams.has('st')) {
+      const imageResponse = await fetch(selectedImage);
+      if (!imageResponse.ok) {
+        throw new Error('Failed to load selected image for PDF generation');
+      }
+
+      const imageBlob = await imageResponse.blob();
+      return await blobToDataUrl(imageBlob);
+    }
   }
 
   return selectedImage;

@@ -384,6 +384,25 @@ function requireSignedUrlConfig(env: Env): void {
   }
 }
 
+function parseSignedUrlBaseUrl(raw: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw.trim());
+  } catch {
+    throw new Error(`IMAGE_SIGNED_URL_BASE_URL is not a valid absolute URL: "${raw}"`);
+  }
+
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    throw new Error(`IMAGE_SIGNED_URL_BASE_URL must use http or https, got: "${parsed.protocol}"`);
+  }
+
+  if (parsed.search || parsed.hash) {
+    throw new Error(`IMAGE_SIGNED_URL_BASE_URL must not include a query string or fragment: "${raw}"`);
+  }
+
+  return `${parsed.origin}${parsed.pathname}`.replace(/\/+$/, '');
+}
+
 async function getSignedUrlHmacKey(env: Env): Promise<CryptoKey> {
   const resolvedSecret = (env.IMAGE_SIGNED_URL_SECRET || env.IMAGES_API_TOKEN || '').trim();
   const keyBytes = new TextEncoder().encode(resolvedSecret);
@@ -593,9 +612,21 @@ async function handleSignedUrlMinting(request: Request, env: Env, fileId: string
   };
 
   const signedToken = await signSignedAccessPayload(payload, env);
-  const baseUrl = env.IMAGE_SIGNED_URL_BASE_URL
-    ? env.IMAGE_SIGNED_URL_BASE_URL.trim().replace(/\/+$/, '')
-    : new URL(request.url).origin;
+
+  let baseUrl: string;
+  if (env.IMAGE_SIGNED_URL_BASE_URL) {
+    try {
+      baseUrl = parseSignedUrlBaseUrl(env.IMAGE_SIGNED_URL_BASE_URL);
+    } catch (error) {
+      console.error('Invalid IMAGE_SIGNED_URL_BASE_URL configuration', {
+        reason: error instanceof Error ? error.message : String(error)
+      });
+      return createJsonResponse({ error: 'Signed URL base URL is misconfigured' }, 500);
+    }
+  } else {
+    baseUrl = new URL(request.url).origin;
+  }
+
   const signedUrl = `${baseUrl}/${encodeURIComponent(fileId)}?st=${encodeURIComponent(signedToken)}`;
 
   return createJsonResponse({
