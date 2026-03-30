@@ -14,6 +14,7 @@ interface Env {
   DATA_AT_REST_ENCRYPTION_ACTIVE_KEY_ID?: string;
   IMAGE_SIGNED_URL_SECRET?: string;
   IMAGE_SIGNED_URL_TTL_SECONDS?: string;
+  IMAGE_SIGNED_URL_BASE_URL?: string;
 }
 
 interface KeyRegistryPayload {
@@ -592,8 +593,10 @@ async function handleSignedUrlMinting(request: Request, env: Env, fileId: string
   };
 
   const signedToken = await signSignedAccessPayload(payload, env);
-  const signedPath = `/${encodeURIComponent(fileId)}?st=${encodeURIComponent(signedToken)}`;
-  const signedUrl = new URL(signedPath, request.url).toString();
+  const baseUrl = env.IMAGE_SIGNED_URL_BASE_URL
+    ? env.IMAGE_SIGNED_URL_BASE_URL.trim().replace(/\/+$/, '')
+    : new URL(request.url).origin;
+  const signedUrl = `${baseUrl}/${encodeURIComponent(fileId)}?st=${encodeURIComponent(signedToken)}`;
 
   return createJsonResponse({
     success: true,
