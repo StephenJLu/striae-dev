@@ -20,6 +20,12 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-03-29] - *[Patch Release v5.3.2](https://github.com/striae-org/striae/releases/tag/v5.3.2)*
+
+- **🖼️ Image Signed URL Proxy** - Added a signed token (`?st=`) bypass path to the Pages image proxy, allowing signed URL image delivery without Firebase identity verification per request.
+- **📄 PDF Image Signed URL Fix** - Pre-fetch signed URL images client-side and embed as data URLs before PDF generation so Puppeteer no longer requires outbound requests for proxy-served images.
+- **📤 Export Confirmations Modal** - Added the export confirmations modal component with dedicated styling, route integration, and label/wording refinements for confirmed images.
+
 ## [2026-03-29] - *[Patch Release v5.3.1](https://github.com/striae-org/striae/releases/tag/v5.3.1)*
 
 - **🪪 Designated Reviewer Flows** - Added designated reviewer assignment to case export workflows with a self-designation guardrail and a re-introduced export case modal for structured reviewer capture.
