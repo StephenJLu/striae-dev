@@ -67,6 +67,14 @@ function resolveImageWorkerToken(env: Env): string {
   return typeof env.IMAGES_API_TOKEN === 'string' ? env.IMAGES_API_TOKEN.trim() : '';
 }
 
+const BASE64URL_SEGMENT = /^[A-Za-z0-9_-]+$/;
+
+function looksLikeSignedToken(value: string): boolean {
+  const parts = value.split('.');
+  if (parts.length !== 2) return false;
+  return parts.every(part => part.length > 0 && BASE64URL_SEGMENT.test(part));
+}
+
 export const onRequest = async ({ request, env }: ImageProxyContext): Promise<Response> => {
   if (!SUPPORTED_METHODS.has(request.method)) {
     return textResponse('Method not allowed', 405);
@@ -84,9 +92,17 @@ export const onRequest = async ({ request, env }: ImageProxyContext): Promise<Re
 
   const requestUrl = new URL(request.url);
 
-  const identity = await verifyFirebaseIdentityFromRequest(request, env);
-  if (!identity) {
-    return textResponse('Unauthorized', 401);
+  const signedToken = requestUrl.searchParams.get('st');
+  const isSignedTokenRequest =
+    request.method === 'GET' &&
+    signedToken !== null &&
+    looksLikeSignedToken(signedToken);
+
+  if (!isSignedTokenRequest) {
+    const identity = await verifyFirebaseIdentityFromRequest(request, env);
+    if (!identity) {
+      return textResponse('Unauthorized', 401);
+    }
   }
 
   const proxyPathResult = extractProxyPath(requestUrl);
