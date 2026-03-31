@@ -11,6 +11,8 @@ import { handleAuthError, ERROR_MESSAGES } from '~/services/firebase/errors';
 import { FormField, FormButton } from '../form';
 import { Toast } from '~/components/toast/toast';
 import { MfaPhoneUpdateSection } from './mfa-phone-update';
+import { MfaTotpSection } from './mfa-totp-section';
+import { MfaEnrolledFactors } from './mfa-enrolled-factors';
 import styles from './user.module.css';
 
 interface ManageProfileProps {
@@ -27,6 +29,7 @@ export const ManageProfile = ({ isOpen, onClose }: ManageProfileProps) => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isMfaBusy, setIsMfaBusy] = useState(false);
+  const [enrolledFactorsRefreshKey, setEnrolledFactorsRefreshKey] = useState(0);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
@@ -297,6 +300,20 @@ export const ManageProfile = ({ isOpen, onClose }: ManageProfileProps) => {
           </div>
 
           <MfaPhoneUpdateSection user={user} isOpen={isOpen} onBusyChange={handleMfaBusyChange} />
+
+          <MfaTotpSection
+            user={user}
+            isOpen={isOpen}
+            onBusyChange={handleMfaBusyChange}
+            onTotpEnrolled={() => setEnrolledFactorsRefreshKey((k) => k + 1)}
+          />
+
+          <MfaEnrolledFactors
+            user={user}
+            refreshKey={enrolledFactorsRefreshKey}
+            onFactorRemoved={() => setEnrolledFactorsRefreshKey((k) => k + 1)}
+            onBusyChange={handleMfaBusyChange}
+          />
 
           <div className={styles.buttonGroup}>
             <FormButton variant="primary" type="submit" isLoading={isLoading} loadingText="Updating...">

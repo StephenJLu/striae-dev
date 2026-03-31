@@ -92,7 +92,7 @@ export default [
         },
       },
       {
-        files: ["scripts/**/*.cjs"],
+        files: ["scripts/**/*.cjs", "scripts/**/*.mjs"],
         env: {
           node: true,
         },

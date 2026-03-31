@@ -30,6 +30,8 @@ export const ERROR_MESSAGES = {
   MFA_RECAPTCHA_ERROR: 'reCAPTCHA needs to be reset. Please send another code.',
   MFA_CODE_REQUIRED: 'Please enter the verification code',
   
+  MFA_TOTP_SETUP_ERROR: 'Failed to set up authenticator. Please try again.',
+
   // General
   GENERAL_ERROR: 'Something went wrong. Please contact support.',
   NO_USER: 'No user found',

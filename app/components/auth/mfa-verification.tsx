@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   PhoneAuthProvider, 
   PhoneMultiFactorGenerator, 
+  TotpMultiFactorGenerator,
   RecaptchaVerifier,
   type MultiFactorResolver,
   type UserCredential
@@ -45,6 +46,12 @@ export const MFAVerification = ({ resolver, onSuccess, onError, onCancel }: MFAV
 
   useEffect(() => {
     if (!isClient) return;
+
+    // Only initialize reCAPTCHA if there is at least one phone hint
+    const hasPhoneHint = resolver.hints.some(
+      (h) => h.factorId === PhoneMultiFactorGenerator.FACTOR_ID
+    );
+    if (!hasPhoneHint) return;
     
     // Initialize reCAPTCHA verifier
     const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
@@ -63,7 +70,7 @@ export const MFAVerification = ({ resolver, onSuccess, onError, onCancel }: MFAV
     return () => {
       verifier.clear();
     };
-  }, [isClient, onError]);
+  }, [isClient, onError, resolver.hints]);
 
   const sendVerificationCode = async () => {
     if (!recaptchaVerifier) {
@@ -188,7 +195,81 @@ export const MFAVerification = ({ resolver, onSuccess, onError, onCancel }: MFAV
   };
 
   const selectedHint = resolver.hints[selectedHintIndex];
+  const isTotpHint = selectedHint?.factorId === TotpMultiFactorGenerator.FACTOR_ID;
   const maskedPhoneNumber = selectedHint?.displayName || 'your phone';
+
+  const getHintLabel = (hint: (typeof resolver.hints)[number], index: number): string => {
+    if (hint.factorId === TotpMultiFactorGenerator.FACTOR_ID) {
+      return hint.displayName || 'Authenticator App';
+    }
+    if (hint.factorId === PhoneMultiFactorGenerator.FACTOR_ID) {
+      return hint.displayName || `Phone (SMS) ${index + 1}`;
+    }
+    return hint.displayName || `Verification method ${index + 1}`;
+  };
+
+  const verifyTotpCode = async () => {
+    if (!verificationCode.trim() || verificationCode.length !== 6) {
+      const error = getValidationError('MFA_CODE_REQUIRED');
+      setErrorMessage(error);
+      onError(error);
+      return;
+    }
+
+    setLoading(true);
+    setErrorMessage('');
+    try {
+      const assertion = TotpMultiFactorGenerator.assertionForSignIn(
+        selectedHint.uid,
+        verificationCode
+      );
+      const result = await resolver.resolveSignIn(assertion);
+
+      try {
+        const sessionId = `session_${result.user.uid}_${Date.now()}_${generateUniqueId(8)}`;
+        await auditService.logMfaAuthentication(
+          result.user,
+          'totp',
+          'success',
+          1,
+          sessionId,
+          navigator.userAgent
+        );
+      } catch (auditError) {
+        console.error('Failed to log TOTP authentication success audit:', auditError);
+      }
+
+      onSuccess(result);
+    } catch (error: unknown) {
+      const authError = error as { code?: string; message?: string };
+      let errorMsg = '';
+
+      if (authError.code === 'auth/invalid-verification-code') {
+        errorMsg = getValidationError('MFA_INVALID_CODE');
+      } else if (authError.code === 'auth/code-expired') {
+        errorMsg = getValidationError('MFA_CODE_EXPIRED');
+      } else {
+        errorMsg = handleAuthError(authError).message;
+      }
+      setErrorMessage(errorMsg);
+      onError(errorMsg);
+
+      try {
+        await auditService.logSecurityViolation(
+          null,
+          authError.code === 'auth/invalid-verification-code' ? 'brute-force' : 'unauthorized-access',
+          authError.code === 'auth/invalid-verification-code' ? 'high' : 'medium',
+          `Failed TOTP verification: ${authError.code} - ${errorMsg}`,
+          'mfa-verification-endpoint',
+          true
+        );
+      } catch (auditError) {
+        console.error('Failed to log TOTP security violation audit:', auditError);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!isClient) {
     return null;
@@ -214,69 +295,110 @@ export const MFAVerification = ({ resolver, onSuccess, onError, onCancel }: MFAV
               value={selectedHintIndex} 
               onChange={(e) => {
                 setSelectedHintIndex(Number(e.target.value));
+                setCodeSent(false);
+                setVerificationCode('');
+                setVerificationId('');
                 if (errorMessage) setErrorMessage(''); // Clear error when changing method
               }}
               className={styles.select}
             >
               {resolver.hints.map((hint, index) => (
                 <option key={index} value={index}>
-                  {hint.displayName || `Phone verification ${index + 1}`}
+                  {getHintLabel(hint, index)}
                 </option>
               ))}
             </select>
           </div>
         )}
 
-        {!codeSent ? (
-          <div className={styles.sendCode}>
-            <p className={styles.description}>
-              We&apos;ll send a verification code to {maskedPhoneNumber}
-            </p>
-            <button 
-              onClick={sendVerificationCode} 
-              disabled={loading}
-              className={styles.button}
-            >
-              {loading ? 'Sending...' : 'Send Verification Code'}
-            </button>
-          </div>
-        ) : (
+        {isTotpHint ? (
           <div className={styles.verifyCode}>
             <p className={styles.description}>
-              Enter the verification code sent to {maskedPhoneNumber}
+              Enter the 6-digit code from your authenticator app.
             </p>
             <input
               type="text"
+              inputMode="numeric"
               placeholder="Enter 6-digit code"
               value={verificationCode}
               onChange={(e) => {
-                setVerificationCode(e.target.value);
-                if (errorMessage) setErrorMessage(''); // Clear error on input
+                setVerificationCode(e.target.value.replace(/\D/g, ''));
+                if (errorMessage) setErrorMessage('');
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && verificationCode.length === 6) {
+                  e.preventDefault();
+                  void verifyTotpCode();
+                }
               }}
               className={styles.input}
               maxLength={6}
+              autoComplete="one-time-code"
             />
             <div className={styles.buttons}>
-              <button 
-                onClick={verifyCode} 
+              <button
+                onClick={verifyTotpCode}
                 disabled={loading || verificationCode.length !== 6}
                 className={styles.button}
               >
                 {loading ? 'Verifying...' : 'Verify Code'}
               </button>
-              <button 
-                onClick={() => {
-                  setCodeSent(false);
-                  setVerificationCode('');
-                  setVerificationId('');
-                  setErrorMessage(''); // Clear errors when requesting new code
-                }}
-                className={styles.secondaryButton}
-              >
-                Send New Code
-              </button>
             </div>
           </div>
+        ) : (
+          <>
+            {!codeSent ? (
+              <div className={styles.sendCode}>
+                <p className={styles.description}>
+                  We&apos;ll send a verification code to {maskedPhoneNumber}
+                </p>
+                <button 
+                  onClick={sendVerificationCode} 
+                  disabled={loading}
+                  className={styles.button}
+                >
+                  {loading ? 'Sending...' : 'Send Verification Code'}
+                </button>
+              </div>
+            ) : (
+              <div className={styles.verifyCode}>
+                <p className={styles.description}>
+                  Enter the verification code sent to {maskedPhoneNumber}
+                </p>
+                <input
+                  type="text"
+                  placeholder="Enter 6-digit code"
+                  value={verificationCode}
+                  onChange={(e) => {
+                    setVerificationCode(e.target.value);
+                    if (errorMessage) setErrorMessage(''); // Clear error on input
+                  }}
+                  className={styles.input}
+                  maxLength={6}
+                />
+                <div className={styles.buttons}>
+                  <button 
+                    onClick={verifyCode} 
+                    disabled={loading || verificationCode.length !== 6}
+                    className={styles.button}
+                  >
+                    {loading ? 'Verifying...' : 'Verify Code'}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setCodeSent(false);
+                      setVerificationCode('');
+                      setVerificationId('');
+                      setErrorMessage(''); // Clear errors when requesting new code
+                    }}
+                    className={styles.secondaryButton}
+                  >
+                    Send New Code
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         <div className={styles.actions}>
