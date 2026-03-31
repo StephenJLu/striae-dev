@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useContext } from 'react';
 import styles from './navbar.module.css';
 import { SignOut } from '../actions/signout';
 import { ManageProfile } from '../user/manage-profile';
-import { CaseImport } from '../sidebar/case-import/case-import';
+import { CaseImport } from './case-import/case-import';
 import { AuthContext } from '~/contexts/auth.context';
 import { getUserData } from '~/utils/data';
 import { type ImportResult, type ConfirmationImportResult } from '~/types';
