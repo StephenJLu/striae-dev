@@ -83,6 +83,7 @@
     "preview": "npm run build && wrangler pages dev",
     "cf-typegen": "wrangler types",
     "enable-totp-mfa": "node ./scripts/enable-totp-mfa.mjs",
+    "unenroll-totp-mfa": "node ./scripts/unenroll-totp-mfa.mjs",
     "update-versions": "node ./scripts/update-markdown-versions.cjs",
     "update-compatibility-dates": "node ./scripts/update-compatibility-dates.cjs",
     "deploy-config": "bash ./scripts/deploy-config.sh",
