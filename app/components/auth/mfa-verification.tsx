@@ -316,6 +316,13 @@ export const MFAVerification = ({ resolver, onSuccess, onError, onCancel }: MFAV
             <p className={styles.description}>
               Enter the 6-digit code from your authenticator app.
             </p>
+            <p className={styles.note}>
+              Lost access to your authenticator app?{' '}
+              <a href="https://striae.org/support" target="_blank" rel="noopener noreferrer">
+                Contact support
+              </a>{' '}
+              to recover your account.
+            </p>
             <input
               type="text"
               inputMode="numeric"
