@@ -37,6 +37,7 @@
     "!app/routes/auth/login.module.css",
     "react-router.config.ts",
     "load-context.ts",
+    "scripts/",
     "functions/",
     "public/",
     "workers/*/package.json",
