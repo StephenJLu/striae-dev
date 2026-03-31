@@ -53,6 +53,7 @@ try {
 
 const enrolledFactors = userRecord.multiFactor?.enrolledFactors ?? [];
 const totpFactors = enrolledFactors.filter((f) => f.factorId === 'totp');
+const remainingFactors = enrolledFactors.filter((f) => f.factorId !== 'totp');
 
 if (totpFactors.length === 0) {
   console.log(`\nℹ️  No TOTP MFA factors found for UID: ${uid}`);
@@ -65,12 +66,14 @@ for (const factor of totpFactors) {
   console.log(`   - ${factor.uid}  (displayName: ${factor.displayName ?? 'n/a'}, enrolled: ${factor.enrollmentTime})`);
 }
 
-const factorUids = totpFactors.map((f) => f.uid);
-
 try {
-  await auth.multiFactor(uid).unenrollFactors(factorUids);
+  await auth.updateUser(uid, {
+    multiFactor: {
+      enrolledFactors: remainingFactors,
+    },
+  });
 
-  console.log(`\n✅ Successfully unenrolled ${factorUids.length} TOTP factor(s) for UID: ${uid}`);
+  console.log(`\n✅ Successfully unenrolled ${totpFactors.length} TOTP factor(s) for UID: ${uid}`);
   console.log('   The user will need to re-enroll TOTP on their next login.');
 } catch (err) {
   console.error(`\n❌ Failed to unenroll TOTP factor(s) for UID: ${uid}`);
