@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useOverlayDismiss } from '~/hooks/useOverlayDismiss';
-import sharedStyles from './case-modal-shared.module.css';
-import styles from './export-case-modal.module.css';
+import styles from './case-modal-shared.module.css';
 
 interface ExportCaseModalProps {
   isOpen: boolean;
@@ -69,12 +68,12 @@ export const ExportCaseModal = ({
 
   return (
     <div
-      className={sharedStyles.overlay}
+      className={styles.overlay}
       aria-label="Close export case dialog"
       {...overlayProps}
     >
       <div
-        className={`${sharedStyles.modal} ${styles.modal}`}
+        className={`${styles.modal} ${styles.modalWide}`}
         role="dialog"
         aria-modal="true"
         aria-label="Export Case"
@@ -82,8 +81,8 @@ export const ExportCaseModal = ({
         <button {...getCloseButtonProps({ ariaLabel: 'Close export case dialog' })}>
           ×
         </button>
-        <h3 className={sharedStyles.title}>Export Case</h3>
-        <p className={sharedStyles.subtitle}>Case: {caseNumber}</p>
+        <h3 className={styles.title}>Export Case</h3>
+        <p className={styles.subtitle}>Case: {caseNumber}</p>
         <p className={styles.description}>
           You may designate a specific email address for review approval. Only the user
           with the supplied email address will be able to open your case for review in
@@ -94,7 +93,7 @@ export const ExportCaseModal = ({
           type="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          className={sharedStyles.input}
+          className={styles.input}
           placeholder="Reviewer email address (optional)"
           disabled={isSubmitting}
           onKeyDown={(event) => {
@@ -108,10 +107,10 @@ export const ExportCaseModal = ({
             You cannot designate yourself as the reviewer. The recipient must be a different Striae user.
           </p>
         )}
-        <div className={sharedStyles.actions}>
+        <div className={styles.actions}>
           <button
             type="button"
-            className={sharedStyles.cancelButton}
+            className={styles.cancelButton}
             onClick={requestClose}
             disabled={isSubmitting}
           >
@@ -119,7 +118,7 @@ export const ExportCaseModal = ({
           </button>
           <button
             type="button"
-            className={`${sharedStyles.confirmButton} ${styles.confirmButton}`}
+            className={`${styles.confirmButton} ${styles.confirmButtonPrimary}`}
             onClick={() => void handleSubmit()}
             disabled={isSubmitDisabled}
           >

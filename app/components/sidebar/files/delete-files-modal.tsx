@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useOverlayDismiss } from '~/hooks/useOverlayDismiss';
 import { type FileData } from '~/types';
 import sharedStyles from '~/components/navbar/case-modals/case-modal-shared.module.css';
-import styles from './delete-files-modal.module.css';
+import styles from './files-modal.module.css';
 
 interface DeleteFilesModalProps {
   isOpen: boolean;
@@ -45,7 +45,7 @@ export const DeleteFilesModal = ({
 
   return (
     <div className={sharedStyles.overlay} aria-label="Close delete files dialog" {...overlayProps}>
-      <div className={`${sharedStyles.modal} ${styles.modal}`} role="dialog" aria-modal="true" aria-label="Delete Selected Files">
+      <div className={`${sharedStyles.modal} ${styles.deleteFilesModal}`} role="dialog" aria-modal="true" aria-label="Delete Selected Files">
         <button {...getCloseButtonProps({ ariaLabel: 'Close delete files dialog' })}>×</button>
 
         <h3 className={sharedStyles.title}>Delete Selected Files</h3>
@@ -79,7 +79,7 @@ export const DeleteFilesModal = ({
           </button>
           <button
             type="button"
-            className={`${sharedStyles.confirmButton} ${styles.confirmButton}`}
+            className={`${sharedStyles.confirmButton} ${styles.deleteFilesConfirmButton}`}
             onClick={() => {
               void onSubmit();
             }}

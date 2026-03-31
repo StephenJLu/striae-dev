@@ -1,9 +1,0 @@
-.modal {
-  width: min(460px, calc(100vw - 2rem));
-}
-
-.confirmButton {
-  background: #ffc107;
-  color: #3f2f00;
-  border-color: #e8b103;
-}

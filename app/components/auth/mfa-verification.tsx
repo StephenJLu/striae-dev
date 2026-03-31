@@ -11,7 +11,7 @@ import { handleAuthError, getValidationError } from '~/services/firebase/errors'
 import { SignOut } from '~/components/actions/signout';
 import { auditService } from '~/services/audit';
 import { generateUniqueId } from '~/utils/common';
-import styles from './mfa-verification.module.css';
+import styles from './auth.module.css';
 
 interface MFAVerificationProps {
   resolver: MultiFactorResolver;

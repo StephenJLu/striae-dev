@@ -11,7 +11,7 @@ import { handleAuthError, ERROR_MESSAGES } from '~/services/firebase/errors';
 import { FormField, FormButton } from '../form';
 import { Toast } from '~/components/toast/toast';
 import { MfaPhoneUpdateSection } from './mfa-phone-update';
-import styles from './manage-profile.module.css';
+import styles from './user.module.css';
 
 interface ManageProfileProps {
   isOpen: boolean;

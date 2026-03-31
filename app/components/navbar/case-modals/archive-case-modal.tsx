@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useOverlayDismiss } from '~/hooks/useOverlayDismiss';
-import sharedStyles from './case-modal-shared.module.css';
-import styles from './archive-case-modal.module.css';
+import styles from './case-modal-shared.module.css';
 
 interface ArchiveCaseModalProps {
   isOpen: boolean;
@@ -66,18 +65,18 @@ export const ArchiveCaseModal = ({
 
   return (
     <div
-      className={sharedStyles.overlay}
+      className={styles.overlay}
       aria-label="Close archive case dialog"
       {...overlayProps}
     >
-      <div className={`${sharedStyles.modal} ${styles.modal}`} role="dialog" aria-modal="true" aria-label="Archive Case">
+      <div className={`${styles.modal} ${styles.modalLarge}`} role="dialog" aria-modal="true" aria-label="Archive Case">
         <button {...getCloseButtonProps({ ariaLabel: 'Close archive case dialog' })}>
           ×
         </button>
-        <h3 className={sharedStyles.title}>Archive Case</h3>
-        <p className={sharedStyles.subtitle}>Case: {currentCase}</p>
+        <h3 className={styles.title}>Archive Case</h3>
+        <p className={styles.subtitle}>Case: {currentCase}</p>
 
-        <div className={sharedStyles.warningPanel}>
+        <div className={styles.warningPanel}>
           <p>
             Archiving a case permanently renders it read-only.
           </p>
@@ -104,10 +103,10 @@ export const ArchiveCaseModal = ({
           rows={3}
         />
 
-        <div className={sharedStyles.actions}>
+        <div className={styles.actions}>
           <button
             type="button"
-            className={sharedStyles.cancelButton}
+            className={styles.cancelButton}
             onClick={requestClose}
             disabled={isCloseBlocked}
           >
@@ -115,7 +114,7 @@ export const ArchiveCaseModal = ({
           </button>
           <button
             type="button"
-            className={`${sharedStyles.confirmButton} ${styles.confirmButton}`}
+            className={`${styles.confirmButton} ${styles.confirmButtonDanger}`}
             onClick={() => {
               void handleSubmit();
             }}

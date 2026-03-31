@@ -9,7 +9,7 @@ import {
 } from './class-details-shared';
 import { BulletSection, CartridgeCaseSection, ShotshellSection } from './class-details-sections';
 import { useClassDetailsState } from './use-class-details-state';
-import styles from './notes.module.css';
+import styles from '../notes.module.css';
 
 interface ClassDetailsModalProps {
   isOpen: boolean;

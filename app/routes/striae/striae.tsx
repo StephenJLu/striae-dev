@@ -14,7 +14,7 @@ import { getImageUrl, fetchFiles, deleteFile } from '~/components/actions/image-
 import { getNotes, saveNotes } from '~/components/actions/notes-manage';
 import { generatePDF } from '~/components/actions/generate-pdf';
 import { exportConfirmationData } from '~/components/actions/confirm-export';
-import { CasesModal } from '~/components/sidebar/cases/cases-modal';
+import { CasesModal } from '~/components/navbar/case-modals/all-cases-modal';
 import { FilesModal } from '~/components/sidebar/files/files-modal';
 import { NotesEditorModal } from '~/components/sidebar/notes/notes-editor-modal';
 import { UserAuditViewer } from '~/components/audit/user-audit-viewer';

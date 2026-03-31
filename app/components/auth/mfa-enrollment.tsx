@@ -11,7 +11,7 @@ import {
 import { handleAuthError, getValidationError } from '~/services/firebase/errors';
 import { SignOut } from '~/components/actions/signout';
 import { auditService } from '~/services/audit';
-import styles from './mfa-enrollment.module.css';
+import styles from './auth.module.css';
 
 interface MFAEnrollmentProps {
   user: User;
@@ -273,7 +273,7 @@ export const MFAEnrollment: React.FC<MFAEnrollmentProps> = ({
 
   return (
     <div className={styles.overlay}>
-      <div className={styles.modal}>
+      <div className={styles.enrollmentModal}>
         <div className={styles.header}>
           <h2>Security Setup Required</h2>
           <p>
@@ -302,7 +302,7 @@ export const MFAEnrollment: React.FC<MFAEnrollmentProps> = ({
                   if (errorMessage) setErrorMessage(''); // Clear error on input
                 }}
                 placeholder="ex. +15551234567"
-                className={styles.input}
+                className={styles.enrollmentInput}
                 disabled={isLoading}
               />
               <p className={styles.note}>
@@ -331,7 +331,7 @@ export const MFAEnrollment: React.FC<MFAEnrollmentProps> = ({
                 }}
                 placeholder="123456"
                 maxLength={6}
-                className={styles.input}
+                className={styles.enrollmentInput}
                 disabled={isLoading}
               />
               
@@ -351,7 +351,7 @@ export const MFAEnrollment: React.FC<MFAEnrollmentProps> = ({
                     setErrorMessage(''); // Clear errors when changing phone number
                   }}
                   disabled={isLoading}
-                  className={styles.secondaryButton}
+                  className={styles.enrollmentSecondaryButton}
                 >
                   Change Phone Number
                 </button>
@@ -360,7 +360,7 @@ export const MFAEnrollment: React.FC<MFAEnrollmentProps> = ({
                   <button
                     onClick={sendVerificationCode}
                     disabled={isLoading}
-                    className={styles.secondaryButton}
+                    className={styles.enrollmentSecondaryButton}
                   >
                     Resend Code
                   </button>

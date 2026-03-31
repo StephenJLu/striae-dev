@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import styles from './notes.module.css';
+import styles from '../notes.module.css';
 import { CUSTOM, handleSelectWithCustom } from './class-details-shared';
 
 interface BaseFieldProps {

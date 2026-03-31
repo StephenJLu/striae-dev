@@ -23,7 +23,7 @@ import {
   validatePhoneNumber,
 } from '~/utils/auth';
 import { FormButton, FormMessage } from '../form';
-import styles from './manage-profile.module.css';
+import styles from './user.module.css';
 
 const MFA_RECAPTCHA_CONTAINER_ID = 'recaptcha-container-manage-profile';
 

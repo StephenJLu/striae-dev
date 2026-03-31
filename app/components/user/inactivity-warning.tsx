@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useOverlayDismiss } from '~/hooks/useOverlayDismiss';
-import styles from './inactivity-warning.module.css';
+import styles from './user.module.css';
 
 interface InactivityWarningProps {
   isOpen: boolean;
@@ -56,16 +56,16 @@ export const InactivityWarning = ({
   const seconds = countdown % 60;
 
   return (
-    <div className={styles.overlay} aria-label="Close inactivity warning" {...overlayProps}>
-      <div className={styles.modal}>
+    <div className={styles.inactivityOverlay} aria-label="Close inactivity warning" {...overlayProps}>
+      <div className={styles.inactivityModal}>
         <button className={styles.closeButton} {...getCloseButtonProps({ ariaLabel: 'Close inactivity warning' })}>
           ×
         </button>
-        <div className={styles.header}>
+        <div className={styles.inactivityHeader}>
           <h3>Session Timeout Warning</h3>
         </div>
         
-        <div className={styles.content}>
+        <div className={styles.inactivityContent}>
           <p>
             Your session will expire due to inactivity in:
           </p>
@@ -77,7 +77,7 @@ export const InactivityWarning = ({
           </p>
         </div>
         
-        <div className={styles.actions}>
+        <div className={styles.inactivityActions}>
           <button
             onClick={requestClose}
             className={styles.extendButton}

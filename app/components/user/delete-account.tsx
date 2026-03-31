@@ -4,7 +4,7 @@ import { auth } from '~/services/firebase';
 import { fetchUserApi } from '~/utils/api';
 import { useOverlayDismiss } from '~/hooks/useOverlayDismiss';
 import { auditService } from '~/services/audit';
-import styles from './delete-account.module.css';
+import styles from './user.module.css';
 
 interface DeletionProgress {
   totalCases: number;
@@ -323,17 +323,17 @@ export const DeleteAccount = ({ isOpen, onClose, user, company }: DeleteAccountP
       aria-label="Close delete account dialog"
     >
       <div 
-        className={styles.modal}
+        className={styles.deleteAccountModal}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
       >
         {/* Header */}
-        <header className={styles.modalHeader}>
+        <header className={styles.dangerModalHeader}>
           <h1 id="modal-title" className={styles.dangerTitle}>Delete Striae Account</h1>
           <button 
             onClick={onClose} 
-            className={styles.closeButton}
+            className={styles.dangerCloseButton}
             aria-label="Close modal"
           >
             &times;
@@ -421,7 +421,7 @@ export const DeleteAccount = ({ isOpen, onClose, user, company }: DeleteAccountP
           {/* Confirmation Form */}
           {!success && (
             <form className={styles.confirmationForm}>
-            <div className={styles.formGroup}>
+            <div className={styles.deleteFormGroup}>
               <label htmlFor="uid-confirmation" className={styles.formLabel}>
                 Enter UID to confirm account deletion:
               </label>
@@ -436,7 +436,7 @@ export const DeleteAccount = ({ isOpen, onClose, user, company }: DeleteAccountP
               />
             </div>
 
-            <div className={styles.formGroup}>
+            <div className={styles.deleteFormGroup}>
               <label htmlFor="email-confirmation" className={styles.formLabel}>
                 Enter your email address to confirm account deletion:
               </label>
@@ -455,7 +455,7 @@ export const DeleteAccount = ({ isOpen, onClose, user, company }: DeleteAccountP
             <button
               type="button"
               onClick={handleDeleteAccount}
-              className={styles.deleteButton}
+              className={styles.deleteAccountButton}
               disabled={!isConfirmationValid || isDeleting}
             >
               {isDeleting ? 'Deleting Account...' : 'Delete Striae Account'}

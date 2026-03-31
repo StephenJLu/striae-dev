@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import styles from './toolbar-color-selector.module.css';
+import styles from './toolbar.module.css';
 
 interface ToolbarColorSelectorProps {
   selectedColor: string;
@@ -66,15 +66,15 @@ export const ToolbarColorSelector = ({
 
   return (
     <div className={styles.toolbarColorSelector}>
-      <div className={styles.header}>
-        <span className={styles.title}>Select Box Color</span>
+      <div className={styles.colorSelectorHeader}>
+        <span className={styles.colorSelectorTitle}>Select Box Color</span>
       </div>
       
-      <div className={styles.content}>
+      <div className={styles.colorSelectorContent}>
         <div className={styles.toggleSection}>
           <button 
             onClick={() => setShowColorWheel(!showColorWheel)}
-            className={styles.toggleButton}
+            className={styles.colorToggleButton}
           >
             {showColorWheel ? 'Presets' : 'Custom'}
           </button>
@@ -106,11 +106,11 @@ export const ToolbarColorSelector = ({
         )}
       </div>
 
-      <div className={styles.actions}>
+      <div className={styles.colorSelectorActions}>
         <button
           type="button"
           onClick={handleConfirm}
-          className={`${styles.actionButton} ${styles.confirmButton}`}
+          className={`${styles.actionButton} ${styles.colorSelectorConfirmButton}`}
           title="Apply selected color"
         >
           ✓ Apply Color
@@ -118,7 +118,7 @@ export const ToolbarColorSelector = ({
         <button
           type="button"
           onClick={handleCancel}
-          className={`${styles.actionButton} ${styles.cancelButton}`}
+          className={`${styles.actionButton} ${styles.colorSelectorCancelButton}`}
           title="Cancel color selection"
         >
           ✕ Cancel

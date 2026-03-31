@@ -15,9 +15,9 @@ import {
   renameCase,
   validateCaseNumber,
 } from '~/components/actions/case-manage';
-import { RenameCaseModal } from '../../navbar/case-modals/rename-case-modal';
-import { ArchiveCaseModal } from '../../navbar/case-modals/archive-case-modal';
-import { DeleteCaseModal } from '../../navbar/case-modals/delete-case-modal';
+import { RenameCaseModal } from './rename-case-modal';
+import { ArchiveCaseModal } from './archive-case-modal';
+import { DeleteCaseModal } from './delete-case-modal';
 import {
   ensureCaseConfirmationSummary,
   getCaseData,
@@ -26,7 +26,7 @@ import {
   getUserReadOnlyCases,
 } from '~/utils/data';
 import { fetchFiles } from '~/components/actions/image-manage';
-import styles from './cases-modal.module.css';
+import styles from './all-cases-modal.module.css';
 
 interface CasesModalProps {
   isOpen: boolean;

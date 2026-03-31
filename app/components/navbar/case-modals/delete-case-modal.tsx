@@ -1,6 +1,5 @@
 import { useOverlayDismiss } from '~/hooks/useOverlayDismiss';
-import sharedStyles from './case-modal-shared.module.css';
-import styles from './delete-case-modal.module.css';
+import styles from './case-modal-shared.module.css';
 
 interface DeleteCaseModalProps {
   isOpen: boolean;
@@ -35,28 +34,28 @@ export const DeleteCaseModal = ({
 
   return (
     <div
-      className={sharedStyles.overlay}
+      className={styles.overlay}
       aria-label="Close delete case dialog"
       {...overlayProps}
     >
-      <div className={`${sharedStyles.modal} ${styles.modal}`} role="dialog" aria-modal="true" aria-label="Delete Case">
+      <div className={`${styles.modal} ${styles.modalLarge}`} role="dialog" aria-modal="true" aria-label="Delete Case">
         <button {...getCloseButtonProps({ ariaLabel: 'Close delete case dialog' })}>
           ×
         </button>
 
-        <h3 className={sharedStyles.title}>Delete Case</h3>
-        <p className={sharedStyles.subtitle}>Case: {currentCase}</p>
+        <h3 className={styles.title}>Delete Case</h3>
+        <p className={styles.subtitle}>Case: {currentCase}</p>
 
-        <div className={sharedStyles.warningPanel}>
+        <div className={styles.warningPanel}>
           <p>This action permanently deletes the case and all associated files.</p>
           <p>This operation cannot be undone.</p>
           <p>Any image assets that are already missing will be skipped automatically.</p>
         </div>
 
-        <div className={sharedStyles.actions}>
+        <div className={styles.actions}>
           <button
             type="button"
-            className={sharedStyles.cancelButton}
+            className={styles.cancelButton}
             onClick={requestClose}
             disabled={isCloseBlocked}
           >
@@ -64,7 +63,7 @@ export const DeleteCaseModal = ({
           </button>
           <button
             type="button"
-            className={`${sharedStyles.confirmButton} ${styles.confirmButton}`}
+            className={`${styles.confirmButton} ${styles.confirmButtonDanger}`}
             onClick={() => {
               void onSubmit();
             }}
