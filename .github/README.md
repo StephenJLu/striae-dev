@@ -20,6 +20,12 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-03-31] - *[Patch Release v5.4.1](https://github.com/striae-org/striae/releases/tag/v5.4.1)*
+
+- **🔐 TOTP Admin Unenroll Script** - Added a Firebase Admin SDK script (`npm run unenroll-totp-mfa -- <uid>`) for administrative TOTP MFA unenrollment to support account recovery when users lose access to their authenticator app.
+- **💬 MFA Verification Support Guidance** - Added a support contact message to the TOTP verification prompt directing locked-out users to Striae support for account recovery assistance.
+- **📦 npm Package Files Allowlist Refinement** - Simplified the npm files allowlist with broader worker directory inclusion and targeted exclusion patterns instead of individual inclusion globs.
+
 ## [2026-03-31] - *[Minor Release v5.4.0](https://github.com/striae-org/striae/releases/tag/v5.4.0)*
 
 - **🔐 TOTP MFA** - Introduced TOTP (authenticator app) multi-factor authentication with dedicated enrollment, verification, enrolled-factor management, and profile management surfaces alongside existing phone MFA.
