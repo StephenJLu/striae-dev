@@ -1,7 +1,7 @@
 import type { User } from 'firebase/auth';
 import { useOverlayDismiss } from '~/hooks/useOverlayDismiss';
 import { NotesEditorForm } from './notes-editor-form';
-import styles from './notes-editor-modal.module.css';
+import styles from './notes.module.css';
 
 interface NotesEditorModalProps {
   isOpen: boolean;
@@ -40,14 +40,14 @@ export const NotesEditorModal = ({
 
   return (
     <div className={styles.overlay} aria-label="Close image notes dialog" {...overlayProps}>
-      <div className={styles.modal} role="dialog" aria-modal="true" aria-label="Image Notes">
-        <div className={styles.header}>
-          <h2 className={styles.title}>Image Notes</h2>
-          <button className={styles.closeButton} {...getCloseButtonProps({ ariaLabel: 'Close image notes dialog' })}>
+      <div className={styles.editorModal} role="dialog" aria-modal="true" aria-label="Image Notes">
+        <div className={styles.editorModalHeader}>
+          <h2 className={styles.editorModalTitle}>Image Notes</h2>
+          <button className={styles.editorModalCloseButton} {...getCloseButtonProps({ ariaLabel: 'Close image notes dialog' })}>
             ×
           </button>
         </div>
-        <div className={styles.content}>
+        <div className={styles.editorModalContent}>
           <NotesEditorForm
             currentCase={currentCase}
             user={user}
