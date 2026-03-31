@@ -11,7 +11,6 @@ interface MfaTotpEnrollmentProps {
   onSuccess: () => void;
   onError: (error: string) => void;
   onBack?: () => void;
-  isLoading?: boolean;
 }
 
 export const MfaTotpEnrollment: React.FC<MfaTotpEnrollmentProps> = ({
@@ -89,7 +88,7 @@ export const MfaTotpEnrollment: React.FC<MfaTotpEnrollmentProps> = ({
       try {
         await auditService.logMfaEnrollment(
           user,
-          '',
+          undefined,
           'totp',
           'success',
           1,

@@ -40,6 +40,7 @@ export const MfaEnrolledFactors = ({
 
   const handleRemove = async (factor: MultiFactorInfo) => {
     if (!user) return;
+    if (enrolledFactors.length <= 1) return;
 
     setRemovingUid(factor.uid);
     setError('');
@@ -99,13 +100,18 @@ export const MfaEnrolledFactors = ({
               onClick={() => handleRemove(factor)}
               isLoading={removingUid === factor.uid}
               loadingText="Removing…"
-              disabled={removingUid !== null}
+              disabled={removingUid !== null || enrolledFactors.length <= 1}
             >
               Remove
             </FormButton>
           </li>
         ))}
       </ul>
+      {enrolledFactors.length <= 1 && (
+        <p className={styles.enrolledFactorsNote}>
+          At least one 2-step verification method is required and cannot be removed.
+        </p>
+      )}
     </div>
   );
 };

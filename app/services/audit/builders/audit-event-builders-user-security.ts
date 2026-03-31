@@ -216,7 +216,7 @@ export const buildUserRegistrationAuditParams = (
 
 interface BuildMfaEnrollmentAuditParamsInput {
   user: User;
-  phoneNumber: string;
+  phoneNumber?: string;
   mfaMethod: 'sms' | 'totp' | 'hardware-key';
   result: AuditResult;
   enrollmentAttempts?: number;
@@ -249,7 +249,9 @@ export const buildMfaEnrollmentAuditParams = (
       : { userAgent: input.userAgent },
     securityDetails: {
       mfaMethod: input.mfaMethod,
-      phoneNumber: getMaskedPhoneNumber(input.phoneNumber),
+      ...(input.mfaMethod === 'sms' && input.phoneNumber
+        ? { phoneNumber: getMaskedPhoneNumber(input.phoneNumber) }
+        : {}),
       enrollmentAttempts: input.enrollmentAttempts,
       enrollmentDate: new Date().toISOString(),
       mandatoryEnrollment: true,

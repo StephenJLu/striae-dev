@@ -208,6 +208,12 @@
   color: var(--textLight);
 }
 
+.enrolledFactorsNote {
+  font-size: var(--fontSizeBodyXS);
+  color: var(--textLight);
+  margin: var(--spaceXS) 0 0 0;
+}
+
 /* Delete Button (error variant) */
 .deleteButton {
   background-color: var(--error);
