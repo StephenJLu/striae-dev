@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useOverlayDismiss } from '~/hooks/useOverlayDismiss';
-import sharedStyles from './case-modal-shared.module.css';
-import styles from './rename-case-modal.module.css';
+import styles from './case-modal-shared.module.css';
 
 interface RenameCaseModalProps {
   isOpen: boolean;
@@ -60,22 +59,22 @@ export const RenameCaseModal = ({
 
   return (
     <div
-      className={sharedStyles.overlay}
+      className={styles.overlay}
       aria-label="Close rename case dialog"
       {...overlayProps}
     >
-      <div className={`${sharedStyles.modal} ${styles.modal}`} role="dialog" aria-modal="true" aria-label="Rename Case">
+      <div className={`${styles.modal} ${styles.modalStandard}`} role="dialog" aria-modal="true" aria-label="Rename Case">
         <button {...getCloseButtonProps({ ariaLabel: 'Close rename case dialog' })}>
           ×
         </button>
-        <h3 className={sharedStyles.title}>Rename Case</h3>
-        <p className={sharedStyles.subtitle}>Current case: {currentCase}</p>
+        <h3 className={styles.title}>Rename Case</h3>
+        <p className={styles.subtitle}>Current case: {currentCase}</p>
         <input
           ref={inputRef}
           type="text"
           value={newCaseName}
           onChange={(event) => setNewCaseName(event.target.value)}
-          className={sharedStyles.input}
+          className={styles.input}
           placeholder="New case number"
           disabled={isSubmitting}
           onKeyDown={(event) => {
@@ -84,10 +83,10 @@ export const RenameCaseModal = ({
             }
           }}
         />
-        <div className={sharedStyles.actions}>
+        <div className={styles.actions}>
           <button
             type="button"
-            className={sharedStyles.cancelButton}
+            className={styles.cancelButton}
             onClick={requestClose}
             disabled={isCloseBlocked}
           >
@@ -95,7 +94,7 @@ export const RenameCaseModal = ({
           </button>
           <button
             type="button"
-            className={`${sharedStyles.confirmButton} ${styles.confirmButton}`}
+            className={`${styles.confirmButton} ${styles.confirmButtonWarning}`}
             onClick={() => void handleSubmit()}
             disabled={isSubmitting || !newCaseName.trim()}
           >

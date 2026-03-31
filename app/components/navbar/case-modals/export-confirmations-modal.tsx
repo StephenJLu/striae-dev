@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useOverlayDismiss } from '~/hooks/useOverlayDismiss';
-import sharedStyles from './case-modal-shared.module.css';
-import styles from './export-confirmations-modal.module.css';
+import styles from './case-modal-shared.module.css';
 
 interface ExportConfirmationsModalProps {
   isOpen: boolean;
@@ -52,12 +51,12 @@ export const ExportConfirmationsModal = ({
 
   return (
     <div
-      className={sharedStyles.overlay}
+      className={styles.overlay}
       aria-label="Close export confirmations dialog"
       {...overlayProps}
     >
       <div
-        className={`${sharedStyles.modal} ${styles.modal}`}
+        className={`${styles.modal} ${styles.modalCompact}`}
         role="dialog"
         aria-modal="true"
         aria-label="Export Confirmations"
@@ -65,10 +64,10 @@ export const ExportConfirmationsModal = ({
         <button {...getCloseButtonProps({ ariaLabel: 'Close export confirmations dialog' })}>
           ×
         </button>
-        <h3 className={sharedStyles.title}>Export Confirmations</h3>
-        <p className={sharedStyles.subtitle}>Case: {caseNumber}</p>
+        <h3 className={styles.title}>Export Confirmations</h3>
+        <p className={styles.subtitle}>Case: {caseNumber}</p>
         {unconfirmedCount > 0 && (
-          <div className={`${sharedStyles.warningPanel} ${styles.warningPanel}`}>
+          <div className={styles.warningPanel}>
             <p>
               <strong>
                 {unconfirmedCount} image{unconfirmedCount !== 1 ? 's' : ''}{' '}
@@ -83,10 +82,10 @@ export const ExportConfirmationsModal = ({
             ? 'No confirmed images found for this case.'
             : `${confirmationLabel} will be exported.`}
         </p>
-        <div className={sharedStyles.actions}>
+        <div className={styles.actions}>
           <button
             type="button"
-            className={sharedStyles.cancelButton}
+            className={styles.cancelButton}
             onClick={requestClose}
             disabled={isSubmitting}
           >
@@ -95,7 +94,7 @@ export const ExportConfirmationsModal = ({
           <button
             ref={confirmButtonRef}
             type="button"
-            className={`${sharedStyles.confirmButton} ${styles.confirmButton}`}
+            className={`${styles.confirmButton} ${styles.confirmButtonPrimary}`}
             onClick={onConfirm}
             disabled={isSubmitting || confirmedCount === 0}
           >

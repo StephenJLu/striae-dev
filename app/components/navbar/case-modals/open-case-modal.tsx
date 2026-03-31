@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useOverlayDismiss } from '~/hooks/useOverlayDismiss';
-import styles from './open-case-modal.module.css';
+import styles from './case-modal-shared.module.css';
 
 interface OpenCaseModalProps {
   isOpen: boolean;
@@ -74,12 +74,12 @@ export const OpenCaseModal = ({
       aria-label="Close open case dialog"
       {...overlayProps}
     >
-      <div className={styles.modal} role="dialog" aria-modal="true" aria-label="Open Case">
+      <div className={`${styles.modal} ${styles.modalStandard}`} role="dialog" aria-modal="true" aria-label="Open Case">
         <button {...getCloseButtonProps({ ariaLabel: 'Close open case dialog' })}>
           ×
         </button>
         <h3 className={styles.title}>{title}</h3>
-        {helperText ? <p className={styles.helperText}>{helperText}</p> : null}
+        {helperText ? <p className={styles.subtitle}>{helperText}</p> : null}
         <input
           ref={inputRef}
           type="text"
@@ -105,7 +105,7 @@ export const OpenCaseModal = ({
           </button>
           <button
             type="button"
-            className={styles.confirmButton}
+            className={`${styles.confirmButton} ${styles.confirmButtonSuccess}`}
             onClick={() => {
               void handleSubmit();
             }}
