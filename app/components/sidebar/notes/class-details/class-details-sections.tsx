@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import styles from './notes.module.css';
+import styles from '../notes.module.css';
 import {
   BULLET_BARREL_TYPE_OPTIONS,
   BULLET_CORE_METAL_OPTIONS,
