@@ -154,10 +154,9 @@
 
 /* ─── Section label (replaces bare <label> for non-input groups) ─────────── */
 .sectionLabel {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: var(--spacing-xs);
+  display: block;
+  color: var(--textBody);
+  margin-bottom: var(--spaceS);
 }
 
 /* ─── Enrolled MFA Factors List ─────────────────────────────────────────── */
