@@ -155,6 +155,7 @@
 /* ─── Section label (replaces bare <label> for non-input groups) ─────────── */
 .sectionLabel {
   display: block;
+  font-weight: 600;
   color: var(--textBody);
   margin-bottom: var(--spaceS);
 }
