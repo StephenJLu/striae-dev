@@ -152,6 +152,68 @@
   overflow: hidden;
 }
 
+/* ─── Section label (replaces bare <label> for non-input groups) ─────────── */
+.sectionLabel {
+  display: block;
+  font-weight: 600;
+  color: var(--textBody);
+  margin-bottom: var(--spaceS);
+}
+
+/* ─── Enrolled MFA Factors List ─────────────────────────────────────────── */
+
+.enrolledFactorsList {
+  list-style: none;
+  margin: var(--spaceS) 0 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spaceS);
+}
+
+.enrolledFactorItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spaceM);
+  padding: var(--spaceM);
+  border: 1px solid color-mix(in lab, var(--text) 12%, transparent);
+  border-radius: var(--spaceXS);
+  background: color-mix(in lab, var(--background) 97%, transparent);
+}
+
+.enrolledFactorInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.enrolledFactorLabel {
+  font-size: var(--fontSizeBodyS);
+  font-weight: var(--fontWeightMedium);
+  color: var(--textTitle);
+}
+
+.enrolledFactorName {
+  font-size: var(--fontSizeBodyXS);
+  color: var(--textBody);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.enrolledFactorDate {
+  font-size: var(--fontSizeBodyXS);
+  color: var(--textLight);
+}
+
+.enrolledFactorsNote {
+  font-size: var(--fontSizeBodyXS);
+  color: var(--textLight);
+  margin: var(--spaceXS) 0 0 0;
+}
+
 /* Delete Button (error variant) */
 .deleteButton {
   background-color: var(--error);

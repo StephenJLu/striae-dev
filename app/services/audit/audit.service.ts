@@ -784,7 +784,7 @@ class AuditService {
    */
   public async logMfaEnrollment(
     user: User,
-    phoneNumber: string,
+    phoneNumber: string | undefined,
     mfaMethod: 'sms' | 'totp' | 'hardware-key',
     result: AuditResult,
     enrollmentAttempts?: number,

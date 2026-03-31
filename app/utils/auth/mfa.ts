@@ -1,7 +1,7 @@
 // MFA Configuration Helper
 // This file contains utilities and documentation for managing MFA in your Firebase project
 
-import { multiFactor, type User } from 'firebase/auth';
+import { multiFactor, PhoneMultiFactorGenerator, TotpMultiFactorGenerator, type User } from 'firebase/auth';
 
 /**
  * Check if a user has MFA enrolled
@@ -33,6 +33,40 @@ export const getMFAFactors = (user: User) => {
     displayName: factor.displayName,
     enrollmentTime: factor.enrollmentTime
   }));
+};
+
+/**
+ * Get enrolled TOTP factors for a user
+ */
+export const getTotpFactors = (user: User) => {
+  return multiFactor(user).enrolledFactors.filter(
+    (factor) => factor.factorId === TotpMultiFactorGenerator.FACTOR_ID
+  );
+};
+
+/**
+ * Check if a user has TOTP MFA enrolled
+ */
+export const hasTotpEnrolled = (user: User): boolean => {
+  return getTotpFactors(user).length > 0;
+};
+
+/**
+ * Get enrolled Phone/SMS factors for a user
+ */
+export const getPhoneMfaFactors = (user: User) => {
+  return multiFactor(user).enrolledFactors.filter(
+    (factor) => factor.factorId === PhoneMultiFactorGenerator.FACTOR_ID
+  );
+};
+
+/**
+ * Return a human-readable label for a factorId
+ */
+export const getMfaMethodLabel = (factorId: string): string => {
+  if (factorId === TotpMultiFactorGenerator.FACTOR_ID) return 'Authenticator App';
+  if (factorId === PhoneMultiFactorGenerator.FACTOR_ID) return 'Phone (SMS)';
+  return 'Unknown Method';
 };
 
 /*

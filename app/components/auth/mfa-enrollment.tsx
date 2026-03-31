@@ -11,6 +11,7 @@ import {
 import { handleAuthError, getValidationError } from '~/services/firebase/errors';
 import { SignOut } from '~/components/actions/signout';
 import { auditService } from '~/services/audit';
+import { MfaTotpEnrollment } from './mfa-totp-enrollment';
 import styles from './auth.module.css';
 
 interface MFAEnrollmentProps {
@@ -28,6 +29,7 @@ export const MFAEnrollment: React.FC<MFAEnrollmentProps> = ({
   onSkip,
   mandatory = true
 }) => {
+  const [enrollmentMethod, setEnrollmentMethod] = useState<'choice' | 'sms' | 'totp'>('choice');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -278,7 +280,7 @@ export const MFAEnrollment: React.FC<MFAEnrollmentProps> = ({
           <h2>Security Setup Required</h2>
           <p>
             {mandatory 
-              ? 'Two-factor authentication is required for all accounts. Please set up SMS verification to continue.'
+              ? 'Two-factor authentication is required for all accounts. Please set up a second factor to continue.'
               : 'Enhance your account security with two-factor authentication.'
             }
           </p>
@@ -290,91 +292,142 @@ export const MFAEnrollment: React.FC<MFAEnrollmentProps> = ({
               {errorMessage}
             </div>
           )}
-          
-          {!codeSent ? (
-            <div className={styles.phoneStep}>
-              <h3>Step 1: Enter Your Mobile Number</h3>
-              <input
-                type="tel"
-                value={phoneNumber}
-                onChange={(e) => {
-                  setPhoneNumber(e.target.value);
-                  if (errorMessage) setErrorMessage(''); // Clear error on input
-                }}
-                placeholder="ex. +15551234567"
-                className={styles.enrollmentInput}
-                disabled={isLoading}
-              />
-              <p className={styles.note}>
-                We&apos;ll send a verification code to this number.
-              </p>
+
+          {enrollmentMethod === 'choice' && (
+            <div className={styles.methodChoice}>
+              <h3>Choose a Verification Method</h3>
               <button
-                onClick={sendVerificationCode}
-                disabled={isLoading || !phoneNumber.trim()}
-                className={styles.primaryButton}
+                type="button"
+                onClick={() => setEnrollmentMethod('sms')}
+                className={styles.methodButton}
               >
-                {isLoading ? 'Sending...' : 'Send Verification Code'}
+                <span className={styles.methodButtonTitle}>Text Message (SMS)</span>
+                <span className={styles.methodButtonDesc}>Receive a code by text message</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setEnrollmentMethod('totp')}
+                className={styles.methodButton}
+              >
+                <span className={styles.methodButtonTitle}>Authenticator App</span>
+                <span className={styles.methodButtonDesc}>Use Google Authenticator, Authy, or similar</span>
               </button>
             </div>
-          ) : (
-            <div className={styles.codeStep}>
-              <h3>Step 2: Enter Verification Code</h3>
-              <p className={styles.note}>
-                Enter the 6-digit code sent to {phoneNumber}
-              </p>
-              <input
-                type="text"
-                value={verificationCode}
-                onChange={(e) => {
-                  setVerificationCode(e.target.value.replace(/\D/g, ''));
-                  if (errorMessage) setErrorMessage(''); // Clear error on input
-                }}
-                placeholder="123456"
-                maxLength={6}
-                className={styles.enrollmentInput}
-                disabled={isLoading}
-              />
-              
-              <div className={styles.buttonGroup}>
-                <button
-                  onClick={enrollMFA}
-                  disabled={isLoading || verificationCode.length !== 6}
-                  className={styles.primaryButton}
-                >
-                  {isLoading ? 'Verifying...' : 'Complete Setup'}
-                </button>
-                
-                <button
-                  onClick={() => {
-                    setCodeSent(false);
-                    setVerificationCode('');
-                    setErrorMessage(''); // Clear errors when changing phone number
-                  }}
-                  disabled={isLoading}
-                  className={styles.enrollmentSecondaryButton}
-                >
-                  Change Phone Number
-                </button>
-                
-                {resendTimer === 0 ? (
-                  <button
-                    onClick={sendVerificationCode}
+          )}
+
+          {enrollmentMethod === 'totp' && (
+            <MfaTotpEnrollment
+              user={user}
+              onSuccess={onSuccess}
+              onError={onError}
+              onBack={() => {
+                setEnrollmentMethod('choice');
+                setErrorMessage('');
+              }}
+            />
+          )}
+          
+          {enrollmentMethod === 'sms' && (
+            <>
+              {!codeSent ? (
+                <div className={styles.phoneStep}>
+                  <h3>Step 1: Enter Your Mobile Number</h3>
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => {
+                      setPhoneNumber(e.target.value);
+                      if (errorMessage) setErrorMessage(''); // Clear error on input
+                    }}
+                    placeholder="ex. +15551234567"
+                    className={styles.enrollmentInput}
                     disabled={isLoading}
-                    className={styles.enrollmentSecondaryButton}
-                  >
-                    Resend Code
-                  </button>
-                ) : (
-                  <p className={styles.resendTimer}>
-                    Resend code in {resendTimer}s
+                  />
+                  <p className={styles.note}>
+                    We&apos;ll send a verification code to this number.
                   </p>
-                )}
-              </div>
-            </div>
+                  <div className={styles.buttonGroup}>
+                    <button
+                      onClick={sendVerificationCode}
+                      disabled={isLoading || !phoneNumber.trim()}
+                      className={styles.primaryButton}
+                    >
+                      {isLoading ? 'Sending...' : 'Send Verification Code'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEnrollmentMethod('choice');
+                        setErrorMessage('');
+                      }}
+                      disabled={isLoading}
+                      className={styles.enrollmentSecondaryButton}
+                    >
+                      Back
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.codeStep}>
+                  <h3>Step 2: Enter Verification Code</h3>
+                  <p className={styles.note}>
+                    Enter the 6-digit code sent to {phoneNumber}
+                  </p>
+                  <input
+                    type="text"
+                    value={verificationCode}
+                    onChange={(e) => {
+                      setVerificationCode(e.target.value.replace(/\D/g, ''));
+                      if (errorMessage) setErrorMessage(''); // Clear error on input
+                    }}
+                    placeholder="123456"
+                    maxLength={6}
+                    className={styles.enrollmentInput}
+                    disabled={isLoading}
+                  />
+                  
+                  <div className={styles.buttonGroup}>
+                    <button
+                      onClick={enrollMFA}
+                      disabled={isLoading || verificationCode.length !== 6}
+                      className={styles.primaryButton}
+                    >
+                      {isLoading ? 'Verifying...' : 'Complete Setup'}
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        setCodeSent(false);
+                        setVerificationCode('');
+                        setErrorMessage(''); // Clear errors when changing phone number
+                      }}
+                      disabled={isLoading}
+                      className={styles.enrollmentSecondaryButton}
+                    >
+                      Change Phone Number
+                    </button>
+                    
+                    {resendTimer === 0 ? (
+                      <button
+                        onClick={sendVerificationCode}
+                        disabled={isLoading}
+                        className={styles.enrollmentSecondaryButton}
+                      >
+                        Resend Code
+                      </button>
+                    ) : (
+                      <p className={styles.resendTimer}>
+                        Resend code in {resendTimer}s
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
-        {!mandatory && (
+        {!mandatory && enrollmentMethod === 'choice' && (
           <div className={styles.footer}>
             <button
               onClick={handleSkip}

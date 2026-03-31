@@ -47,6 +47,7 @@ export const MfaPhoneUpdateSection = ({
   const [mfaResendTimer, setMfaResendTimer] = useState(0);
   const [mfaError, setMfaError] = useState('');
   const [mfaSuccess, setMfaSuccess] = useState('');
+  const [isSmsEnabled, setIsSmsEnabled] = useState(false);
   const [showMfaReauthPrompt, setShowMfaReauthPrompt] = useState(false);
   const [mfaReauthPassword, setMfaReauthPassword] = useState('');
   const [mfaReauthResolver, setMfaReauthResolver] = useState<MultiFactorResolver | null>(null);
@@ -79,6 +80,7 @@ export const MfaPhoneUpdateSection = ({
 
     if (phoneFactors.length === 0) {
       setCurrentMfaPhone('Not configured');
+      setIsSmsEnabled(false);
       return;
     }
 
@@ -86,10 +88,12 @@ export const MfaPhoneUpdateSection = ({
     const phoneDisplayValue = getPhoneDisplayValue(latestFactor);
     if (!phoneDisplayValue) {
       setCurrentMfaPhone('Configured');
+      setIsSmsEnabled(true);
       return;
     }
 
     setCurrentMfaPhone(maskPhoneNumber(phoneDisplayValue));
+    setIsSmsEnabled(true);
   }, []);
 
   const handleResetMfaChange = () => {
@@ -508,7 +512,7 @@ export const MfaPhoneUpdateSection = ({
 
   return (
     <div className={styles.formGroup}>
-      <label htmlFor="mfaPhoneInput">Change Phone Number (MFA)</label>
+      <label htmlFor="mfaPhoneInput">{isSmsEnabled ? 'Change Phone Number (MFA)' : 'Set Up SMS MFA'}</label>
       <input
         id="mfaPhoneInput"
         type="tel"
@@ -523,7 +527,7 @@ export const MfaPhoneUpdateSection = ({
         placeholder="ex. +15551234567"
         disabled={isMfaBusy}
       />
-      <p className={styles.helpText}>Current MFA phone: {currentMfaPhone}</p>
+      {isSmsEnabled && <p className={styles.helpText}>Current MFA phone: {currentMfaPhone}</p>}
 
       {showMfaReauthPrompt ? (
         <div className={styles.mfaReauthSection}>
@@ -705,7 +709,7 @@ export const MfaPhoneUpdateSection = ({
               loadingText="Updating..."
               disabled={isMfaReauthLoading || mfaVerificationCode.trim().length !== 6}
             >
-              Update Phone Number
+              {isSmsEnabled ? 'Update Phone Number' : 'Set Up Phone Number'}
             </FormButton>
 
             <FormButton
