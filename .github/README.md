@@ -20,6 +20,13 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-03-31] - *[Minor Release v5.4.0](https://github.com/striae-org/striae/releases/tag/v5.4.0)*
+
+- **🔐 TOTP MFA** - Introduced TOTP (authenticator app) multi-factor authentication with dedicated enrollment, verification, enrolled-factor management, and profile management surfaces alongside existing phone MFA.
+- **🗂️ Component Reorganization** - Migrated case-import and all-cases-modal components from the sidebar tree into the navbar tree, and moved class-details sub-components into a dedicated subdirectory under notes.
+- **🎨 CSS Consolidation** - Collapsed per-modal individual CSS module files for case modals into a shared stylesheet, and consolidated auth, files, notes, toolbar, and user component styles to reduce duplication.
+- **📦 Dependency and Tooling Maintenance** - Bumped Wrangler to 4.79.0, applied dependency updates across app and worker packages, and refreshed Cloudflare compatibility dates.
+
 ## [2026-03-29] - *[Patch Release v5.3.2](https://github.com/striae-org/striae/releases/tag/v5.3.2)*
 
 - **🖼️ Image Signed URL Proxy** - Added a signed token (`?st=`) bypass path to the Pages image proxy, allowing signed URL image delivery without Firebase identity verification per request.
