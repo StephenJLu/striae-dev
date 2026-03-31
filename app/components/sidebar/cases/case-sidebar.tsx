@@ -2,7 +2,7 @@ import type { User } from 'firebase/auth';
 import type React from 'react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import styles from './cases.module.css';
-import { FilesModal } from '../files/files-modal';
+import { FilesModal } from '~/components/navbar/files/files-modal';
 import { ImageUploadZone } from '../upload/image-upload-zone';
 import {
   fetchFiles,
