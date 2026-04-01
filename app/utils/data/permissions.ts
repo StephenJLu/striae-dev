@@ -3,8 +3,8 @@ import type { UserData, ExtendedUserData, UserLimits, ReadOnlyCaseMetadata } fro
 import paths from '~/config/config.json';
 import { fetchDataApi, fetchUserApi } from '../api';
 
-const MAX_CASES_REVIEW = paths.max_cases_review;
-const MAX_FILES_PER_CASE_REVIEW = paths.max_files_per_case_review;
+const MAX_CASES_DEMO = paths.max_cases_demo;
+const MAX_FILES_PER_CASE_DEMO = paths.max_files_per_case_demo;
 
 export interface UserUsage {
   currentCases: number;
@@ -63,8 +63,8 @@ export const getUserLimits = (userData: UserData): UserLimits => {
     };
   } else {
     return {
-      maxCases: MAX_CASES_REVIEW, // Use config value for demo users
-      maxFilesPerCase: MAX_FILES_PER_CASE_REVIEW // Use config value for demo users
+      maxCases: MAX_CASES_DEMO, // Use config value for demo users
+      maxFilesPerCase: MAX_FILES_PER_CASE_DEMO // Use config value for demo users
     };
   }
 };
@@ -199,13 +199,13 @@ export const getLimitsDescription = async (user: User): Promise<string> => {
   try {
     const userData = await getUserData(user);
     if (!userData) {
-      return `Account limits: ${MAX_CASES_REVIEW} case, ${MAX_FILES_PER_CASE_REVIEW} files per case`;
+      return `Account limits: ${MAX_CASES_DEMO} case, ${MAX_FILES_PER_CASE_DEMO} files per case`;
     }
 
     if (userData.permitted) {
       return '';
     } else {
-      return `Demo account only: ${MAX_CASES_REVIEW} case${MAX_CASES_REVIEW === 1 ? '' : 's'}, ${MAX_FILES_PER_CASE_REVIEW} file${MAX_FILES_PER_CASE_REVIEW === 1 ? '' : 's'} per case`;
+      return `Demo account only: ${MAX_CASES_DEMO} case${MAX_CASES_DEMO === 1 ? '' : 's'}, ${MAX_FILES_PER_CASE_DEMO} file${MAX_FILES_PER_CASE_DEMO === 1 ? '' : 's'} per case`;
     }
   } catch (error) {
     console.error('Error getting limits description:', error);
