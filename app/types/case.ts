@@ -115,6 +115,7 @@ export interface CaseDataWithConfirmations {
   archiveReason?: string;
   importedAt?: string;
   originalImageIds?: { [originalId: string]: string };
+  originalCaseOwnerUid?: string;
   confirmations?: CaseConfirmations;
   bundledAuditTrail?: BundledAuditTrailData;
 }

@@ -153,7 +153,7 @@ export async function getCaseConfirmations(
 export async function getCaseDataWithManifest(
   user: User,
   caseNumber: string
-): Promise<{ confirmations: CaseConfirmations | null; forensicManifestCreatedAt?: string }> {
+): Promise<{ confirmations: CaseConfirmations | null; forensicManifestCreatedAt?: string; originalCaseOwnerUid?: string }> {
   try {
     const caseData = await getCaseData(user, caseNumber) as CaseDataWithConfirmations & { forensicManifestCreatedAt?: string };
     if (!caseData) {
@@ -163,7 +163,8 @@ export async function getCaseDataWithManifest(
     
     return {
       confirmations: caseData.confirmations || null,
-      forensicManifestCreatedAt: caseData.forensicManifestCreatedAt
+      forensicManifestCreatedAt: caseData.forensicManifestCreatedAt,
+      originalCaseOwnerUid: caseData.originalCaseOwnerUid
     };
 
   } catch (error) {
@@ -206,7 +207,7 @@ export async function exportConfirmationData(
     auditService.startWorkflow(caseNumber);
     
     // Get all confirmation data and forensic manifest info for the case
-    const { confirmations: caseConfirmations, forensicManifestCreatedAt } = await getCaseDataWithManifest(user, caseNumber);
+    const { confirmations: caseConfirmations, forensicManifestCreatedAt, originalCaseOwnerUid } = await getCaseDataWithManifest(user, caseNumber);
     
     if (!caseConfirmations || Object.keys(caseConfirmations).length === 0) {
       throw new Error('No confirmation data found for this case');
@@ -256,7 +257,8 @@ export async function exportConfirmationData(
         ...userMetadata,
         totalConfirmations: Object.keys(caseConfirmations).length,
         version: '2.0',
-        ...(originalExportCreatedAt && { originalExportCreatedAt })
+        ...(originalExportCreatedAt && { originalExportCreatedAt }),
+        ...(originalCaseOwnerUid && { originalCaseOwnerUid })
       },
       confirmations: caseConfirmations
     };

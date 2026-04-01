@@ -18,6 +18,7 @@ export interface ConfirmationSignatureMetadata {
   version: string;
   hash: string;
   originalExportCreatedAt?: string;
+  originalCaseOwnerUid?: string;
 }
 
 export interface ConfirmationRecord {
@@ -271,6 +272,9 @@ export function createConfirmationSigningPayload(confirmationData: ConfirmationS
       hash: confirmationData.metadata.hash.toUpperCase(),
       ...(confirmationData.metadata.originalExportCreatedAt
         ? { originalExportCreatedAt: confirmationData.metadata.originalExportCreatedAt }
+        : {}),
+      ...(confirmationData.metadata.originalCaseOwnerUid
+        ? { originalCaseOwnerUid: confirmationData.metadata.originalCaseOwnerUid }
         : {})
     },
     confirmations: normalizeConfirmations(confirmationData.confirmations)

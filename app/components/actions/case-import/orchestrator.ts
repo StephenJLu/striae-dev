@@ -512,6 +512,7 @@ export async function importCaseForReview(
       importedAt: new Date().toISOString(),
       originalExportDate: caseData.metadata.exportDate,
       originalExportedBy: caseData.metadata.exportedBy || 'Unknown',
+      originalExportedByUid: caseData.metadata.exportedByUid,
       sourceHash: parsedForensicManifest?.manifestHash,
       sourceManifestVersion: parsedForensicManifest?.manifestVersion,
       sourceSignatureKeyId: parsedForensicManifest?.signature?.keyId,

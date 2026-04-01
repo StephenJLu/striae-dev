@@ -118,6 +118,8 @@ export async function storeCaseDataInR2(
       ...(bundledAuditTrail && { bundledAuditTrail }),
       // Add original image ID mapping for confirmation linking
       originalImageIds: originalImageIds,
+      // Store original case owner UID so confirmation exports can embed the intended recipient
+      ...(caseData.metadata.exportedByUid && { originalCaseOwnerUid: caseData.metadata.exportedByUid }),
       // Add forensic manifest timestamp if available for confirmation exports
       ...(forensicManifest?.createdAt && { forensicManifestCreatedAt: forensicManifest.createdAt }),
       // Store full forensic manifest metadata for chain-of-custody validation
