@@ -63,8 +63,8 @@ export const getUserLimits = (userData: UserData): UserLimits => {
     };
   } else {
     return {
-      maxCases: MAX_CASES_REVIEW, // Use config value for review users
-      maxFilesPerCase: MAX_FILES_PER_CASE_REVIEW // Use config value for review users
+      maxCases: MAX_CASES_REVIEW, // Use config value for demo users
+      maxFilesPerCase: MAX_FILES_PER_CASE_REVIEW // Use config value for demo users
     };
   }
 };
@@ -155,7 +155,7 @@ export const canCreateCase = async (user: User): Promise<{ canCreate: boolean; r
     if (usage.currentCases >= limits.maxCases) {
       return {
         canCreate: false,
-        reason: `Read-Only Account: Case creation disabled`
+        reason: `Demo account only: Maximum of ${limits.maxCases} case${limits.maxCases === 1 ? '' : 's'} reached`
       };
     }
 
@@ -181,7 +181,7 @@ export const canUploadFile = async (user: User, currentFileCount: number): Promi
     if (currentFileCount >= limits.maxFilesPerCase) {
       return {
         canUpload: false,
-        reason: `Read-Only Account: File uploads disabled`
+        reason: `Demo account only: Maximum of ${limits.maxFilesPerCase} file${limits.maxFilesPerCase === 1 ? '' : 's'} per case reached`
       };
     }
 
@@ -205,7 +205,7 @@ export const getLimitsDescription = async (user: User): Promise<string> => {
     if (userData.permitted) {
       return '';
     } else {
-      return `Read-Only Account: Case review only.`;
+      return `Demo account only: ${MAX_CASES_REVIEW} case${MAX_CASES_REVIEW === 1 ? '' : 's'}, ${MAX_FILES_PER_CASE_REVIEW} file${MAX_FILES_PER_CASE_REVIEW === 1 ? '' : 's'} per case`;
     }
   } catch (error) {
     console.error('Error getting limits description:', error);
@@ -391,8 +391,9 @@ export const canAccessCase = async (user: User, caseNumber: string): Promise<Per
 /**
  * Check if user can modify a specific case
  * - Regular users (permitted=true) can modify their owned cases
- * - Read-only users (permitted=false) can modify read-only cases for review
- * - Nobody can modify cases marked as truly read-only in the case data itself
+ * - Demo users (permitted=false) can modify their owned cases (within limits)
+ * - Both permitted and demo users can modify read-only cases for review
+ * - Nobody can modify cases marked as archived in the case data itself
  */
 export const canModifyCase = async (user: User, caseNumber: string): Promise<PermissionResult> => {
   try {
@@ -423,16 +424,13 @@ export const canModifyCase = async (user: User, caseNumber: string): Promise<Per
 
     // Check if user owns the case (regular cases)
     if (userData.cases && userData.cases.some(c => c.caseNumber === caseNumber)) {
-      // For owned cases, user must be permitted
-      if (!userData.permitted) {
-        return { allowed: false, reason: 'Read-Only Account: Cannot modify owned cases' };
-      }
+      // Both permitted and demo users can modify their owned cases
       return { allowed: true };
     }
 
     // Check if it's a read-only case that user can review
     if (userData.readOnlyCases && userData.readOnlyCases.some(c => c.caseNumber === caseNumber)) {
-      // For read-only cases, both permitted and non-permitted users can modify for review
+      // For read-only cases, both permitted and demo users can modify for review
       // The actual read-only restrictions should be enforced at the case data level, not user level
       return { allowed: true };
     }
