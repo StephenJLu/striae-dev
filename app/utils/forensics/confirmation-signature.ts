@@ -71,6 +71,13 @@ function isValidConfirmationData(candidate: Partial<ConfirmationImportData>): ca
     return false;
   }
 
+  if (
+    typeof metadata.originalCaseOwnerUid !== 'undefined' &&
+    (typeof metadata.originalCaseOwnerUid !== 'string' || metadata.originalCaseOwnerUid.trim().length === 0)
+  ) {
+    return false;
+  }
+
   const confirmations = candidate.confirmations as Record<string, unknown>;
   for (const [imageId, confirmationList] of Object.entries(confirmations)) {
     if (!imageId || !Array.isArray(confirmationList)) {
@@ -146,6 +153,9 @@ export function createConfirmationSigningPayload(
       hash: confirmationData.metadata.hash.toUpperCase(),
       ...(confirmationData.metadata.originalExportCreatedAt
         ? { originalExportCreatedAt: confirmationData.metadata.originalExportCreatedAt }
+        : {}),
+      ...(confirmationData.metadata.originalCaseOwnerUid
+        ? { originalCaseOwnerUid: confirmationData.metadata.originalCaseOwnerUid }
         : {})
     },
     confirmations: normalizeConfirmations(confirmationData.confirmations)

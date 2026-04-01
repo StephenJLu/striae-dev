@@ -18,6 +18,7 @@ export interface ConfirmationSignatureMetadata {
   version: string;
   hash: string;
   originalExportCreatedAt?: string;
+  originalCaseOwnerUid?: string;
 }
 
 export interface ConfirmationRecord {
@@ -153,6 +154,13 @@ export function isValidConfirmationPayload(
     return false;
   }
 
+  if (
+    typeof metadata.originalCaseOwnerUid !== 'undefined' &&
+    (typeof metadata.originalCaseOwnerUid !== 'string' || metadata.originalCaseOwnerUid.trim().length === 0)
+  ) {
+    return false;
+  }
+
   for (const [imageId, confirmationList] of Object.entries(candidate.confirmations)) {
     if (!imageId || !Array.isArray(confirmationList)) {
       return false;
@@ -271,6 +279,9 @@ export function createConfirmationSigningPayload(confirmationData: ConfirmationS
       hash: confirmationData.metadata.hash.toUpperCase(),
       ...(confirmationData.metadata.originalExportCreatedAt
         ? { originalExportCreatedAt: confirmationData.metadata.originalExportCreatedAt }
+        : {}),
+      ...(confirmationData.metadata.originalCaseOwnerUid
+        ? { originalCaseOwnerUid: confirmationData.metadata.originalCaseOwnerUid }
         : {})
     },
     confirmations: normalizeConfirmations(confirmationData.confirmations)

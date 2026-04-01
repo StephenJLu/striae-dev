@@ -185,6 +185,17 @@ export async function importConfirmationData(
       throw new Error('You cannot import confirmation data that you exported yourself.');
     }
 
+    // Validate that this confirmation package was intended for the current user.
+    // originalCaseOwnerUid is embedded at export time and covered by the package signature.
+    if (
+      confirmationData.metadata.originalCaseOwnerUid &&
+      confirmationData.metadata.originalCaseOwnerUid !== user.uid
+    ) {
+      throw new Error(
+        'This confirmation package was not exported for your case. It can only be imported by the original case owner.'
+      );
+    }
+
     onProgress?.('Validating case', 50, 'Checking case exists...');
 
     // Check if case exists in user's regular cases

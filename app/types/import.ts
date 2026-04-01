@@ -21,6 +21,7 @@ export interface ReadOnlyCaseMetadata {
   importedAt: string;
   originalExportDate: string;
   originalExportedBy: string;
+  originalExportedByUid?: string;
   sourceHash?: string;
   sourceManifestVersion?: string;
   sourceSignatureKeyId?: string;
@@ -63,6 +64,7 @@ export interface ConfirmationImportData {
       value: string;
     };
     originalExportCreatedAt?: string;
+    originalCaseOwnerUid?: string;
   };
   confirmations: {
     [originalImageId: string]: Array<{
