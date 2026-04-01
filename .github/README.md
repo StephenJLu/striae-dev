@@ -20,6 +20,12 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-03-31] - *[Patch Release v5.4.2](https://github.com/striae-org/striae/releases/tag/v5.4.2)*
+
+- **🔐 Original Case Owner UID in Confirmation Signing** - Threaded original case owner UID through confirmation export, import, and signing flows with an import-time guard that rejects packages not intended for the importing user.
+- **🪪 Badge/ID Read-Only in Confirmation Modal** - Converted the Badge/ID field in the confirmation modal from an editable input to a read-only display sourced from the user's profile.
+- **⚙️ Wrangler Type Refresh** - Refreshed `worker-configuration.d.ts` with updated wrangler-generated type definitions.
+
 ## [2026-03-31] - *[Patch Release v5.4.1](https://github.com/striae-org/striae/releases/tag/v5.4.1)*
 
 - **🔐 TOTP Admin Unenroll Script** - Added a Firebase Admin SDK script (`npm run unenroll-totp-mfa -- <uid>`) for administrative TOTP MFA unenrollment to support account recovery when users lose access to their authenticator app.
