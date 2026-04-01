@@ -10,6 +10,15 @@
     padding: var(--spaceXL);
   }
 
+  .backdrop {
+    appearance: none;
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    border: none;
+    cursor: default;
+  }
+
   .content {
     display: flex;
     flex-direction: column;

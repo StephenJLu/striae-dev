@@ -199,7 +199,7 @@ export const getLimitsDescription = async (user: User): Promise<string> => {
   try {
     const userData = await getUserData(user);
     if (!userData) {
-      return `Account limits: ${MAX_CASES_DEMO} case, ${MAX_FILES_PER_CASE_DEMO} files per case`;
+      return `Account limits: ${MAX_CASES_DEMO} case${MAX_CASES_DEMO === 1 ? '' : 's'}, ${MAX_FILES_PER_CASE_DEMO} file${MAX_FILES_PER_CASE_DEMO === 1 ? '' : 's'} per case`;
     }
 
     if (userData.permitted) {
@@ -391,7 +391,7 @@ export const canAccessCase = async (user: User, caseNumber: string): Promise<Per
 /**
  * Check if user can modify a specific case
  * - Regular users (permitted=true) can modify their owned cases
- * - Demo users (permitted=false) can modify their owned cases (within limits)
+ * - Demo users (permitted=false) can modify their owned cases
  * - Both permitted and demo users can modify read-only cases for review
  * - Nobody can modify cases marked as archived in the case data itself
  */
@@ -420,6 +420,10 @@ export const canModifyCase = async (user: User, caseNumber: string): Promise<Per
       if (caseData.archived) {
         return { allowed: false, reason: 'Archived cases are immutable and read-only' };
       }
+    } else if (archiveCheckResponse.status !== 404) {
+      // Fail closed: if archive status can't be verified (worker error/timeout),
+      // block modification rather than risk mutating an archived case
+      return { allowed: false, reason: 'Unable to verify case archive status' };
     }
 
     // Check if user owns the case (regular cases)
