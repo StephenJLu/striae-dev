@@ -10,6 +10,6 @@
   "export_encryption_public_keys": {
     "EXPORT_ENCRYPTION_KEY_ID": "EXPORT_ENCRYPTION_PUBLIC_KEY"
   },
-  "max_cases_review": 0,
-  "max_files_per_case_review": 0
+  "max_cases_demo": 0,
+  "max_files_per_case_demo": 0
 }

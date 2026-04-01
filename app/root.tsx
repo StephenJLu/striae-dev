@@ -13,6 +13,7 @@ import {
   themeStyles 
 } from '~/components/theme-provider/theme-provider';
 import { AuthProvider } from '~/components/auth/auth-provider';
+import { MobileWarning } from '~/components/mobile-warning/mobile-warning';
 import { auth } from '~/services/firebase';
 import styles from '~/styles/root.module.css';
 import './global.css';
@@ -68,6 +69,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </head>
       <body className="flex flex-col h-screen w-full overflow-x-hidden">
         <ThemeProvider theme={theme} className="">
+        <MobileWarning />
         <main>
           {children}
         </main>
