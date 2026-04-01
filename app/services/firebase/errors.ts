@@ -7,7 +7,7 @@ export const ERROR_MESSAGES = {
   INVALID_CREDENTIALS: 'Invalid credentials',
   USER_NOT_FOUND: 'No account found with this email',
   EMAIL_IN_USE: 'An account with this email already exists',
-  ACTION_RESTRICTED: 'Operation not allowed',
+  ACTION_RESTRICTED: 'Registration is restricted to members',
   PASSWORDS_MISMATCH: 'Passwords do not match',
   WEAK_PASSWORD: 'Password does not meet strength requirements',
   REQUIRES_RECENT_LOGIN: 'Please sign in again to complete this action',
