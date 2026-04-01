@@ -72,11 +72,6 @@ export const ConfirmationModal = ({ isOpen, onClose, onConfirm, company, default
   if (!isOpen) return null;
 
   const handleConfirm = async () => {
-    if (!badgeId.trim()) {
-      setError('Badge/ID is required');
-      return;
-    }
-
     setIsConfirming(true);
     setError('');
 
@@ -134,19 +129,10 @@ export const ConfirmationModal = ({ isOpen, onClose, onConfirm, company, default
             </div>
 
             <div className={styles.field}>
-              <label className={styles.label} htmlFor="badgeId">Badge/ID: *</label>
-              <input
-                id="badgeId"
-                type="text"
-                className={styles.input}
-                value={badgeId}
-                onChange={(e) => {
-                  setBadgeId(e.target.value);
-                  if (error) setError('');
-                }}
-                placeholder="Enter your badge or ID number"
-                disabled={isConfirming || hasExistingConfirmation}
-              />
+              <span className={styles.label}>Badge/ID:</span>
+              <div className={styles.readOnlyValue}>
+                {badgeId || 'Not set'}
+              </div>
             </div>
 
             <div className={styles.field}>
