@@ -1,4 +1,4 @@
-import { updatePassword, type User } from 'firebase/auth';
+import type { User } from 'firebase/auth';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { SidebarContainer } from '~/components/sidebar/sidebar-container';
 import { Navbar } from '~/components/navbar/navbar';
@@ -18,13 +18,11 @@ import { CasesModal } from '~/components/navbar/case-modals/all-cases-modal';
 import { FilesModal } from '~/components/sidebar/files/files-modal';
 import { NotesEditorModal } from '~/components/sidebar/notes/notes-editor-modal';
 import { UserAuditViewer } from '~/components/audit/user-audit-viewer';
-import { FirstTimeSetupModal, type FirstTimeSetupData } from '~/components/user/first-time-setup-modal';
 import { fetchUserApi } from '~/utils/api';
 import { type AnnotationData, type FileData } from '~/types';
 import { validateCaseNumber, renameCase, deleteCase, checkExistingCase, createNewCase, archiveCase, getCaseArchiveDetails } from '~/components/actions/case-manage';
 import { checkReadOnlyCaseExists, deleteReadOnlyCase } from '~/components/actions/case-review';
-import { canCreateCase, getCaseConfirmationSummary, updateUserData } from '~/utils/data';
-import { auditService } from '~/services/audit';
+import { canCreateCase, getCaseConfirmationSummary } from '~/utils/data';
 import {
   resolveEarliestAnnotationTimestamp,
   CREATE_READ_ONLY_CASE_EXISTS_ERROR,
@@ -99,8 +97,6 @@ export const Striae = ({ user }: StriaePage) => {
   const [isExportingCase, setIsExportingCase] = useState(false);
   const [isExportConfirmationsModalOpen, setIsExportConfirmationsModalOpen] = useState(false);
   const [isExportingConfirmations, setIsExportingConfirmations] = useState(false);
-  const [showFirstTimeSetupModal, setShowFirstTimeSetupModal] = useState(false);
-  const [isSavingFirstTimeSetup, setIsSavingFirstTimeSetup] = useState(false);
   const [exportConfirmationStats, setExportConfirmationStats] = useState<{
     confirmedCount: number;
     unconfirmedCount: number;
@@ -167,9 +163,6 @@ export const Striae = ({ user }: StriaePage) => {
           setUserFirstName(userData.firstName || '');
           setUserLastName(userData.lastName || '');
           setUserBadgeId(userData.badgeId || '');
-          if (!userData.badgeId) {
-            setShowFirstTimeSetupModal(true);
-          }
         }
       } catch (err) {
         console.error('Failed to load user company:', err);
@@ -289,41 +282,6 @@ export const Striae = ({ user }: StriaePage) => {
   // Close toast notification
   const closeToast = () => {
     setShowToast(false);
-  };
-
-  const handleFirstTimeSetupSubmit = async ({ company, badgeId, newPassword }: FirstTimeSetupData) => {
-    setIsSavingFirstTimeSetup(true);
-    try {
-      await updateUserData(user, { badgeId, company });
-      await updatePassword(user, newPassword);
-      setUserBadgeId(badgeId);
-      setUserCompany(company);
-      setShowFirstTimeSetupModal(false);
-      try {
-        await auditService.logUserProfileUpdate(user, 'badgeId', '', badgeId, 'success', undefined, [], badgeId);
-      } catch (auditError) {
-        console.error('Failed to log first-time setup badge ID audit:', auditError);
-      }
-    } catch (err) {
-      try {
-        await auditService.logUserProfileUpdate(
-          user,
-          'badgeId',
-          '',
-          badgeId,
-          'failure',
-          undefined,
-          [err instanceof Error ? err.message : 'First-time setup failed'],
-          ''
-        );
-      } catch (auditError) {
-        console.error('Failed to log first-time setup failure audit:', auditError);
-      }
-      // Re-throw so the modal can display the error
-      throw err;
-    } finally {
-      setIsSavingFirstTimeSetup(false);
-    }
   };
 
   const handleExport = async (
@@ -1009,11 +967,6 @@ export const Striae = ({ user }: StriaePage) => {
         isSubmitting={isExportingConfirmations}
         onClose={() => setIsExportConfirmationsModalOpen(false)}
         onConfirm={() => void handleExportConfirmations()}
-      />
-      <FirstTimeSetupModal
-        isOpen={showFirstTimeSetupModal}
-        isSubmitting={isSavingFirstTimeSetup}
-        onSubmit={handleFirstTimeSetupSubmit}
       />
       <Toast
         message={toastMessage}
