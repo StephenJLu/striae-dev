@@ -154,6 +154,13 @@ export function isValidConfirmationPayload(
     return false;
   }
 
+  if (
+    typeof metadata.originalCaseOwnerUid !== 'undefined' &&
+    (typeof metadata.originalCaseOwnerUid !== 'string' || metadata.originalCaseOwnerUid.trim().length === 0)
+  ) {
+    return false;
+  }
+
   for (const [imageId, confirmationList] of Object.entries(candidate.confirmations)) {
     if (!imageId || !Array.isArray(confirmationList)) {
       return false;
