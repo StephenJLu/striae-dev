@@ -8,7 +8,11 @@ import {
 } from 'firebase/auth';
 import { auth } from '~/services/firebase';
 import { handleAuthError } from '~/services/firebase/errors';
-import { evaluatePasswordPolicy, getSafeContinueDestination } from '~/utils/auth';
+import {
+  evaluatePasswordPolicy,
+  getAllowedContinueDestinationFromActionCode,
+  getSafeContinueDestination,
+} from '~/utils/auth';
 import { auditService } from '~/services/audit';
 import { Icon } from '~/components/icon/icon';
 import paths from '~/config/config.json';
@@ -305,7 +309,11 @@ export const EmailActionHandler = ({ mode, oobCode, continueUrl, lang }: EmailAc
     const currentOrigin = typeof window !== 'undefined' ? window.location.origin : fallbackOrigin;
 
     try {
-      const destinationUrl = new URL(safeContinueDestination.url, currentOrigin);
+      const actionCodeDestination = getAllowedContinueDestinationFromActionCode(continueUrl);
+      const preferredDestination = safeContinueDestination.isDefault && actionCodeDestination
+        ? actionCodeDestination
+        : safeContinueDestination;
+      const destinationUrl = new URL(preferredDestination.url, currentOrigin);
       const loginUrl = `${destinationUrl.origin}/`;
 
       return {
