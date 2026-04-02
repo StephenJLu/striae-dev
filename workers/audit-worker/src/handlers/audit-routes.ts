@@ -92,34 +92,5 @@ export async function handleAuditRequest(
     }
   }
 
-  if (request.method === 'DELETE') {
-    if (!userId) {
-      return respond({ error: 'userId parameter is required' }, 400);
-    }
-
-    try {
-      const prefix = `audit-trails/${userId}/`;
-      let deletedCount = 0;
-      let cursor: string | undefined;
-
-      do {
-        const listed = await bucket.list({ prefix, cursor, limit: 1000 });
-
-        const keys = listed.objects.map((obj) => obj.key);
-        if (keys.length > 0) {
-          await bucket.delete(keys);
-          deletedCount += keys.length;
-        }
-
-        cursor = listed.truncated ? listed.cursor : undefined;
-      } while (cursor !== undefined);
-
-      return respond({ success: true, deletedCount });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      return respond({ error: `Failed to delete audit entries: ${errorMessage}` }, 500);
-    }
-  }
-
-  return respond({ error: 'Method not allowed for audit endpoints. Only GET, POST, and DELETE are supported.' }, 405);
+  return respond({ error: 'Method not allowed for audit endpoints. Only GET and POST are supported.' }, 405);
 }
