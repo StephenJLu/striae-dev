@@ -281,13 +281,13 @@ export async function parseImportZip(zipFile: File): Promise<{
     const zip = await JSZip.loadAsync(zipFile);
     const verificationPublicKeyPem = await extractVerificationPublicKeyFromZip(zip);
     
-    // Find the main data file (JSON or CSV)
+    // Find the main data file (JSON)
     const dataFiles = Object.keys(zip.files).filter(name => 
-      name.endsWith('_data.json') || name.endsWith('_data.csv')
+      name.endsWith('_data.json')
     );
     
     if (dataFiles.length === 0) {
-      throw new Error('No valid data file found in ZIP archive');
+      throw new Error('No valid JSON data file found in ZIP archive');
     }
     
     if (dataFiles.length > 1) {
