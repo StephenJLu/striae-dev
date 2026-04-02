@@ -23,7 +23,7 @@ prompt_for_secrets() {
     is_auto_generated_secret_var() {
         local var_name=$1
         case "$var_name" in
-            USER_DB_AUTH|R2_KEY_SECRET|PDF_WORKER_AUTH|IMAGES_API_TOKEN|IMAGE_SIGNED_URL_SECRET)
+            USER_DB_AUTH|R2_KEY_SECRET|PDF_WORKER_AUTH|IMAGES_API_TOKEN|IMAGE_SIGNED_URL_SECRET|AUTH_ACTION_STATE_SECRET)
                 return 0
                 ;;
             *)
@@ -51,6 +51,9 @@ prompt_for_secrets() {
             IMAGE_SIGNED_URL_SECRET)
                 [ "$value" = "your_image_signed_url_secret_here" ]
                 ;;
+            AUTH_ACTION_STATE_SECRET)
+                [ "$value" = "your_auth_action_state_secret_here" ]
+                ;;
             *)
                 return 1
                 ;;
@@ -61,6 +64,9 @@ prompt_for_secrets() {
         local var_name=$1
         case "$var_name" in
             IMAGE_SIGNED_URL_SECRET)
+                openssl rand -base64 48 2>/dev/null | tr '+/' '-_' | tr -d '='
+                ;;
+            AUTH_ACTION_STATE_SECRET)
                 openssl rand -base64 48 2>/dev/null | tr '+/' '-_' | tr -d '='
                 ;;
             *)
