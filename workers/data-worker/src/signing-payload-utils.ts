@@ -37,8 +37,8 @@ export interface ConfirmationSigningPayload {
   confirmations: Record<string, ConfirmationRecord[]>;
 }
 
-export type AuditExportFormat = 'csv' | 'json' | 'txt';
-export type AuditExportType = 'entries' | 'trail' | 'report';
+export type AuditExportFormat = 'json';
+export type AuditExportType = 'trail';
 export type AuditExportScopeType = 'case' | 'user';
 
 export interface AuditExportSigningPayload {
@@ -187,11 +187,11 @@ export function isValidAuditExportPayload(
     return false;
   }
 
-  if (candidate.exportFormat !== 'csv' && candidate.exportFormat !== 'json' && candidate.exportFormat !== 'txt') {
+  if (candidate.exportFormat !== 'json') {
     return false;
   }
 
-  if (candidate.exportType !== 'entries' && candidate.exportType !== 'trail' && candidate.exportType !== 'report') {
+  if (candidate.exportType !== 'trail') {
     return false;
   }
 

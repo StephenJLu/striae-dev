@@ -224,7 +224,7 @@ export async function decryptJsonFromStorage(
 }
 
 /**
- * Decrypt data file (plaintext JSON/CSV)
+ * Decrypt data file (plaintext JSON)
  */
 export async function decryptExportData(
   encryptedDataBase64: string,

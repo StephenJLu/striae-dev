@@ -25,7 +25,7 @@ export type AuditResult = 'success' | 'failure' | 'warning' | 'blocked' | 'pendi
 
 export type AuditFileType = 
   | 'case-package' | 'confirmation-data' | 'image-file' | 'pdf-document' 
-  | 'json-data' | 'csv-export' | 'log-file' | 'unknown';
+  | 'json-data' | 'log-file' | 'unknown';
 
 /**
  * Core audit entry structure for all validation events

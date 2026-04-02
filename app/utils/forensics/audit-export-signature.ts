@@ -9,8 +9,8 @@ export const AUDIT_EXPORT_SIGNATURE_VERSION = '1.0';
 
 const SHA256_HEX_REGEX = /^[a-f0-9]{64}$/i;
 
-export type AuditExportFormat = 'csv' | 'json' | 'txt';
-export type AuditExportType = 'entries' | 'trail' | 'report';
+export type AuditExportFormat = 'json';
+export type AuditExportType = 'trail';
 export type AuditExportScopeType = 'case' | 'user';
 
 export interface AuditExportSigningPayload {
@@ -35,11 +35,11 @@ export function isValidAuditExportSigningPayload(
     return false;
   }
 
-  if (payload.exportFormat !== 'csv' && payload.exportFormat !== 'json' && payload.exportFormat !== 'txt') {
+  if (payload.exportFormat !== 'json') {
     return false;
   }
 
-  if (payload.exportType !== 'entries' && payload.exportType !== 'trail' && payload.exportType !== 'report') {
+  if (payload.exportType !== 'trail') {
     return false;
   }
 

@@ -20,21 +20,18 @@ interface BuildCaseExportAuditParamsInput {
   result: AuditResult;
   errors?: string[];
   performanceMetrics?: PerformanceMetrics;
-  exportFormat?: 'json' | 'csv' | 'xlsx' | 'zip';
+  exportFormat?: 'json' | 'zip';
   signatureDetails?: SignatureDetailsInput;
 }
 
 const resolveCaseExportFileType = (
   fileName: string,
-  exportFormat?: 'json' | 'csv' | 'xlsx' | 'zip'
+  exportFormat?: 'json' | 'zip'
 ): AuditFileType => {
   if (exportFormat) {
     switch (exportFormat) {
       case 'json':
         return 'json-data';
-      case 'csv':
-      case 'xlsx':
-        return 'csv-export';
       case 'zip':
       default:
         return 'case-package';
@@ -42,7 +39,6 @@ const resolveCaseExportFileType = (
   }
 
   if (fileName.includes('.json')) return 'json-data';
-  if (fileName.includes('.csv') || fileName.includes('.xlsx')) return 'csv-export';
   return 'case-package';
 };
 

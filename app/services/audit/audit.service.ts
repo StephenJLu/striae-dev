@@ -208,7 +208,7 @@ class AuditService {
     result: AuditResult,
     errors: string[] = [],
     performanceMetrics?: PerformanceMetrics,
-    exportFormat?: 'json' | 'csv' | 'xlsx' | 'zip',
+    exportFormat?: 'json' | 'zip',
     protectionEnabled?: boolean,
     signatureDetails?: {
       present?: boolean;
