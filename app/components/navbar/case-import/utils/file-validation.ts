@@ -1,4 +1,4 @@
-const CASE_EXPORT_DATA_FILE_REGEX = /_data\.(json|csv)$/i;
+const CASE_EXPORT_DATA_FILE_REGEX = /_data\.json$/i;
 const CONFIRMATION_EXPORT_FILE_REGEX = /^confirmation-data-.*\.json$/i;
 const FORENSIC_MANIFEST_FILE_NAME = 'forensic_manifest.json';
 const ENCRYPTION_MANIFEST_FILE_NAME = 'encryption_manifest.json';

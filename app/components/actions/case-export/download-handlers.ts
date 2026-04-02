@@ -438,7 +438,7 @@ async function generateJSONContent(
   
   // Add forensic protection warning if enabled
   if (protectForensicData) {
-    return addForensicDataWarning(finalJsonString, 'json');
+    return addForensicDataWarning(finalJsonString);
   }
   
   return finalJsonString;

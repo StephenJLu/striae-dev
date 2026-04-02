@@ -32,10 +32,8 @@ export async function getUserExportMetadata(user: User) {
 /**
  * Add data protection warning to content
  */
-export function addForensicDataWarning(content: string, format: 'csv' | 'json'): string {
-  const warning = format === 'csv' 
-    ? `"CASE DATA WARNING: This file contains evidence data for forensic examination. Any modification may compromise the integrity of the evidence. Handle according to your organization's chain of custody procedures."\n\n`
-    : `/* CASE DATA WARNING
+export function addForensicDataWarning(content: string): string {
+  const warning = `/* CASE DATA WARNING
  * This file contains evidence data for forensic examination.
  * Any modification may compromise the integrity of the evidence.
  * Handle according to your organization's chain of custody procedures.

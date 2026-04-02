@@ -23,7 +23,7 @@ interface BundledAuditExportFile {
     exportVersion?: string;
     totalEntries?: number;
     application?: string;
-    exportType?: 'entries' | 'trail' | 'report';
+    exportType?: 'trail';
     scopeType?: 'case' | 'user';
     scopeIdentifier?: string;
     hash?: string;
@@ -164,7 +164,7 @@ async function verifyBundledAuditExport(
     const embeddedSignaturePayload: Partial<AuditExportSigningPayload> = metadata.signatureMetadata ?? {
       signatureVersion: metadata.signatureVersion,
       exportFormat: 'json',
-      exportType: metadata.exportType,
+      exportType: 'trail',
       scopeType: metadata.scopeType,
       scopeIdentifier: metadata.scopeIdentifier,
       generatedAt: metadata.exportTimestamp,
@@ -209,23 +209,15 @@ async function verifyBundledAuditExport(
 
 /**
  * Remove forensic warning from content for hash validation.
- * Supports the warning formats added to JSON and CSV case exports.
+ * Supports the warning format added to JSON case exports.
  */
 export function removeForensicWarning(content: string): string {
   const jsonForensicWarningRegex = /^\/\*\s*CASE\s+DATA\s+WARNING[\s\S]*?\*\/\s*\r?\n*/;
-  const csvForensicWarningRegex = /^"CASE DATA WARNING: This file contains evidence data for forensic examination\. Any modification may compromise the integrity of the evidence\. Handle according to your organization's chain of custody procedures\."(?:\r?\n){2}/;
 
   let cleaned = content;
 
   if (jsonForensicWarningRegex.test(content)) {
     cleaned = content.replace(jsonForensicWarningRegex, '');
-  } else if (csvForensicWarningRegex.test(content)) {
-    cleaned = content.replace(csvForensicWarningRegex, '');
-  } else if (content.startsWith('"CASE DATA WARNING:')) {
-    const match = content.match(/^"[^"]*"(?:\r?\n)+/);
-    if (match) {
-      cleaned = content.substring(match[0].length);
-    }
   }
 
   return cleaned.replace(/^\s+/, '');
