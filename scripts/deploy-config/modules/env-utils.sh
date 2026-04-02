@@ -45,6 +45,21 @@ normalize_domain_value() {
     printf '%s' "$domain"
 }
 
+trim_domain_to_origin() {
+    local domain="$1"
+
+    domain=$(normalize_domain_value "$domain")
+    domain=$(printf '%s' "$domain" | tr '[:upper:]' '[:lower:]')
+
+    if [ -z "$domain" ]; then
+        printf '%s' ""
+        return 0
+    fi
+
+    # Reduce hostnames to registrable-origin style domains for CORS wildcard matching.
+    node -e "const raw = (process.argv[1] || '').toLowerCase().replace(/\.$/, ''); if (!raw) { process.stdout.write(''); process.exit(0); } const labels = raw.split('.').filter(Boolean); if (labels.length <= 2) { process.stdout.write(raw); process.exit(0); } const secondLevelSuffixes = new Set(['co.uk', 'org.uk', 'gov.uk', 'ac.uk', 'com.au', 'net.au', 'org.au', 'edu.au', 'co.nz', 'com.br', 'com.mx', 'co.jp', 'co.kr', 'com.sg', 'com.tr', 'com.ar', 'com.cn', 'com.hk', 'com.tw']); const suffix2 = labels.slice(-2).join('.'); const keep = secondLevelSuffixes.has(suffix2) ? 3 : 2; process.stdout.write(labels.slice(-keep).join('.'));" "$domain" 2>/dev/null || printf '%s' "$domain"
+}
+
 normalize_worker_label_value() {
     local label="$1"
 
