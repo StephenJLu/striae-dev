@@ -38,15 +38,49 @@ const reportModuleLoaders: Record<string, () => Promise<ReportModule>> = {
   primershear: () => import('./formats/format-primer-shear'),
 
 };
-
-const corsHeaders: Record<string, string> = {
-  'Access-Control-Allow-Origin': 'PAGES_CUSTOM_DOMAIN',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, X-Custom-Auth-Key',
-};
+const APP_DOMAIN = 'PAGES_CUSTOM_DOMAIN';
 
 const hasValidHeader = (request: Request, env: Env): boolean =>
   request.headers.get('X-Custom-Auth-Key') === env.PDF_WORKER_AUTH;
+
+function isAllowedOrigin(origin: string): boolean {
+  try {
+    const allowedUrl = new URL(APP_DOMAIN);
+    const requestUrl = new URL(origin);
+
+    if (requestUrl.protocol !== allowedUrl.protocol) {
+      return false;
+    }
+
+    if (requestUrl.origin === allowedUrl.origin) {
+      return true;
+    }
+
+    return requestUrl.hostname.endsWith(`.${allowedUrl.hostname}`);
+  } catch {
+    return false;
+  }
+}
+
+function getCorsHeaders(origin?: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Custom-Auth-Key',
+  };
+  
+  if (origin && isAllowedOrigin(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+  
+  return headers;
+}
+
+function jsonResponse(body: unknown, status: number, origin?: string): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...getCorsHeaders(origin), 'content-type': 'application/json' },
+  });
+}
 
 function isTimeoutError(error: unknown): boolean {
   return error instanceof Error && (
@@ -54,13 +88,6 @@ function isTimeoutError(error: unknown): boolean {
     error.name === 'TimeoutError' ||
     /timed out/i.test(error.message)
   );
-}
-
-function jsonResponse(body: unknown, status: number): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'content-type': 'application/json' },
-  });
 }
 
 class MissingSecretError extends Error {
@@ -126,7 +153,7 @@ async function renderReport(reportFormat: string, data: PDFGenerationData): Prom
   };
 }
 
-async function renderPdfViaRestEndpoint(env: Env, html: string, pdfOptions: ReportPdfOptions): Promise<Response> {
+async function renderPdfViaRestEndpoint(env: Env, html: string, pdfOptions: ReportPdfOptions, origin?: string): Promise<Response> {
   const accountId = getRequiredSecret(env.ACCOUNT_ID, 'ACCOUNT_ID');
   const browserApiToken = getRequiredSecret(env.BROWSER_API_TOKEN, 'BROWSER_API_TOKEN');
 
@@ -156,7 +183,8 @@ async function renderPdfViaRestEndpoint(env: Env, html: string, pdfOptions: Repo
         endpoint,
         message,
       },
-      isTimeoutError(error) ? 504 : 502
+      isTimeoutError(error) ? 504 : 502,
+      origin
     );
   }
 
@@ -169,7 +197,8 @@ async function renderPdfViaRestEndpoint(env: Env, html: string, pdfOptions: Repo
         status: endpointResponse.status,
         details: failureText.slice(0, 512) || endpointResponse.statusText || 'Unknown endpoint failure',
       },
-      endpointResponse.status === 504 ? 504 : 502
+      endpointResponse.status === 504 ? 504 : 502,
+      origin
     );
   }
 
@@ -182,7 +211,7 @@ async function renderPdfViaRestEndpoint(env: Env, html: string, pdfOptions: Repo
     responseHeaders.set('cache-control', 'no-store');
   }
 
-  for (const [headerName, headerValue] of Object.entries(corsHeaders)) {
+  for (const [headerName, headerValue] of Object.entries(getCorsHeaders(origin))) {
     responseHeaders.set(headerName, headerValue);
   }
 
@@ -195,12 +224,15 @@ async function renderPdfViaRestEndpoint(env: Env, html: string, pdfOptions: Repo
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const origin = request.headers.get('Origin') ?? '';
+    const corsHeaders = getCorsHeaders(origin);
+    
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
     }
 
     if (!hasValidHeader(request, env)) {
-      return jsonResponse({ error: 'Forbidden' }, 403);
+      return jsonResponse({ error: 'Forbidden' }, 403, origin);
     }
 
     if (request.method === 'POST') {
@@ -209,26 +241,27 @@ export default {
         const { reportFormat, data } = resolveReportRequest(payload);
         const document = await renderReport(reportFormat, data);
 
-        return await renderPdfViaRestEndpoint(env, document.html, document.pdfOptions);
+        return await renderPdfViaRestEndpoint(env, document.html, document.pdfOptions, origin);
       } catch (error) {
         if (error instanceof MissingSecretError) {
           console.error(`[pdf-worker] Configuration error: ${error.message}`);
           return jsonResponse(
             { error: 'Worker configuration error', missing_secret: error.secretKey },
-            502
+            502,
+            origin
           );
         }
 
         if (isTimeoutError(error)) {
           const timeoutMessage = error instanceof Error ? error.message : 'PDF generation timed out';
-          return jsonResponse({ error: timeoutMessage }, 504);
+          return jsonResponse({ error: timeoutMessage }, 504, origin);
         }
 
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-        return jsonResponse({ error: errorMessage }, 500);
+        return jsonResponse({ error: errorMessage }, 500, origin);
       }
     }
 
-    return jsonResponse({ error: 'Method not allowed' }, 405);
+    return jsonResponse({ error: 'Method not allowed' }, 405, origin);
   },
 };

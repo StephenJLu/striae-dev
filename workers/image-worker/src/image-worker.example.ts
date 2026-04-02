@@ -73,19 +73,46 @@ interface SignedAccessPayload {
 
 const DEFAULT_SIGNED_URL_TTL_SECONDS = 3600;
 const MAX_SIGNED_URL_TTL_SECONDS = 86400;
+const APP_DOMAIN = 'PAGES_CUSTOM_DOMAIN';
 
-const corsHeaders: Record<string, string> = {
-  'Access-Control-Allow-Origin': 'PAGES_CUSTOM_DOMAIN',
-  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Custom-Auth-Key'
-};
+function isAllowedOrigin(origin: string): boolean {
+  try {
+    const allowedUrl = new URL(APP_DOMAIN);
+    const requestUrl = new URL(origin);
 
-const createJsonResponse = (data: APIResponse, status: number = 200): Response => new Response(
+    if (requestUrl.protocol !== allowedUrl.protocol) {
+      return false;
+    }
+
+    if (requestUrl.origin === allowedUrl.origin) {
+      return true;
+    }
+
+    return requestUrl.hostname.endsWith(`.${allowedUrl.hostname}`);
+  } catch {
+    return false;
+  }
+}
+
+function getCorsHeaders(origin?: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Custom-Auth-Key'
+  };
+  
+  if (origin && isAllowedOrigin(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+  
+  return headers;
+}
+
+const createJsonResponse = (data: APIResponse, status: number = 200, origin?: string): Response => new Response(
   JSON.stringify(data),
   {
     status,
     headers: {
-      ...corsHeaders,
+      ...getCorsHeaders(origin),
       'Content-Type': 'application/json'
     }
   }
@@ -509,7 +536,7 @@ function deriveFileKind(contentType: string): string {
   return 'file';
 }
 
-async function handleImageUpload(request: Request, env: Env): Promise<Response> {
+async function handleImageUpload(request: Request, env: Env, origin?: string): Promise<Response> {
   if (!hasValidToken(request, env)) {
     return createJsonResponse({ error: 'Unauthorized' }, 403);
   }
@@ -519,7 +546,7 @@ async function handleImageUpload(request: Request, env: Env): Promise<Response> 
   const formData = await request.formData();
   const fileValue = formData.get('file');
   if (!(fileValue instanceof Blob)) {
-    return createJsonResponse({ error: 'Missing file upload payload' }, 400);
+    return createJsonResponse({ error: 'Missing file upload payload' }, 400, origin);
   }
 
   const fileBlob = fileValue;
@@ -562,7 +589,8 @@ async function handleImageUpload(request: Request, env: Env): Promise<Response> 
   });
 }
 
-async function handleImageDelete(request: Request, env: Env): Promise<Response> {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function handleImageDelete(request: Request, env: Env, origin?: string): Promise<Response> {
   if (!hasValidToken(request, env)) {
     return createJsonResponse({ error: 'Unauthorized' }, 403);
   }
@@ -581,7 +609,8 @@ async function handleImageDelete(request: Request, env: Env): Promise<Response> 
   return createJsonResponse({ success: true });
 }
 
-async function handleSignedUrlMinting(request: Request, env: Env, fileId: string): Promise<Response> {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function handleSignedUrlMinting(request: Request, env: Env, fileId: string, origin?: string): Promise<Response> {
   if (!hasValidToken(request, env)) {
     return createJsonResponse({ error: 'Unauthorized' }, 403);
   }
@@ -640,7 +669,7 @@ async function handleSignedUrlMinting(request: Request, env: Env, fileId: string
   });
 }
 
-async function handleImageServing(request: Request, env: Env, fileId: string): Promise<Response> {
+async function handleImageServing(request: Request, env: Env, fileId: string, origin?: string): Promise<Response> {
   const requestUrl = new URL(request.url);
   const hasSignedToken = requestUrl.searchParams.has('st');
   const signedToken = requestUrl.searchParams.get('st');
@@ -648,27 +677,27 @@ async function handleImageServing(request: Request, env: Env, fileId: string): P
     requireSignedUrlConfig(env);
 
     if (!signedToken || signedToken.trim().length === 0) {
-      return createJsonResponse({ error: 'Invalid or expired signed URL token' }, 403);
+      return createJsonResponse({ error: 'Invalid or expired signed URL token' }, 403, origin);
     }
 
     const tokenValid = await verifySignedAccessToken(signedToken, fileId, env);
     if (!tokenValid) {
-      return createJsonResponse({ error: 'Invalid or expired signed URL token' }, 403);
+      return createJsonResponse({ error: 'Invalid or expired signed URL token' }, 403, origin);
     }
   } else if (!hasValidToken(request, env)) {
-    return createJsonResponse({ error: 'Unauthorized' }, 403);
+    return createJsonResponse({ error: 'Unauthorized' }, 403, origin);
   }
 
   requireEncryptionRetrievalConfig(env);
 
   const file = await env.STRIAE_FILES.get(fileId);
   if (!file) {
-    return createJsonResponse({ error: 'File not found' }, 404);
+    return createJsonResponse({ error: 'File not found' }, 404, origin);
   }
 
   const envelope = extractEnvelope(file);
   if (!envelope) {
-    return createJsonResponse({ error: 'Missing data-at-rest envelope metadata' }, 500);
+    return createJsonResponse({ error: 'Missing data-at-rest envelope metadata' }, 500, origin);
   }
 
   const encryptedData = await file.arrayBuffer();
@@ -684,7 +713,7 @@ async function handleImageServing(request: Request, env: Env, fileId: string): P
   return new Response(plaintext, {
     status: 200,
     headers: {
-      ...corsHeaders,
+      ...getCorsHeaders(origin),
       'Cache-Control': 'no-store',
       'Content-Type': contentType,
       'Content-Disposition': `inline; filename="${filename.replace(/"/g, '')}"`
@@ -694,6 +723,9 @@ async function handleImageServing(request: Request, env: Env, fileId: string): P
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const origin = request.headers.get('Origin') ?? '';
+    const corsHeaders = getCorsHeaders(origin);
+    
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
     }
@@ -702,37 +734,37 @@ export default {
       const requestUrl = new URL(request.url);
       const pathSegments = parsePathSegments(requestUrl.pathname);
       if (!pathSegments) {
-        return createJsonResponse({ error: 'Invalid image path encoding' }, 400);
+        return createJsonResponse({ error: 'Invalid image path encoding' }, 400, origin);
       }
 
       switch (request.method) {
         case 'POST': {
           if (pathSegments.length === 0) {
-            return handleImageUpload(request, env);
+            return handleImageUpload(request, env, origin);
           }
 
           if (pathSegments.length === 2 && pathSegments[1] === 'signed-url') {
-            return handleSignedUrlMinting(request, env, pathSegments[0]);
+            return handleSignedUrlMinting(request, env, pathSegments[0], origin);
           }
 
-          return createJsonResponse({ error: 'Not found' }, 404);
+          return createJsonResponse({ error: 'Not found' }, 404, origin);
         }
         case 'GET': {
           const fileId = pathSegments.length === 1 ? pathSegments[0] : null;
           if (!fileId) {
-            return createJsonResponse({ error: 'Image ID is required' }, 400);
+            return createJsonResponse({ error: 'Image ID is required' }, 400, origin);
           }
 
-          return handleImageServing(request, env, fileId);
+          return handleImageServing(request, env, fileId, origin);
         }
         case 'DELETE':
-          return handleImageDelete(request, env);
+          return handleImageDelete(request, env, origin);
         default:
-          return createJsonResponse({ error: 'Method not allowed' }, 405);
+          return createJsonResponse({ error: 'Method not allowed' }, 405, origin);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      return createJsonResponse({ error: errorMessage }, 500);
+      return createJsonResponse({ error: errorMessage }, 500, origin);
     }
   }
 };

@@ -10,15 +10,46 @@ import {
 } from './handlers/user-routes';
 import type { Env } from './types';
 
-const corsHeaders: Record<string, string> = {
-  'Access-Control-Allow-Origin': 'PAGES_CUSTOM_DOMAIN',
-  'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, X-Custom-Auth-Key',
-  'Content-Type': 'application/json'
-};
+const APP_DOMAIN = 'PAGES_CUSTOM_DOMAIN';
+
+function isAllowedOrigin(origin: string): boolean {
+  try {
+    const allowedUrl = new URL(APP_DOMAIN);
+    const requestUrl = new URL(origin);
+
+    if (requestUrl.protocol !== allowedUrl.protocol) {
+      return false;
+    }
+
+    if (requestUrl.origin === allowedUrl.origin) {
+      return true;
+    }
+
+    return requestUrl.hostname.endsWith(`.${allowedUrl.hostname}`);
+  } catch {
+    return false;
+  }
+}
+
+function getCorsHeaders(origin?: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Custom-Auth-Key',
+    'Content-Type': 'application/json'
+  };
+  
+  if (origin && isAllowedOrigin(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+  
+  return headers;
+}
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const origin = request.headers.get('Origin') ?? '';
+    const corsHeaders = getCorsHeaders(origin);
+    
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
     }
