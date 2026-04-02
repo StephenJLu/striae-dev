@@ -45,7 +45,7 @@ export interface AuditRetrievalResponse {
 
 export type APIResponse = SuccessResponse | ErrorResponse | AuditRetrievalResponse | Record<string, unknown>;
 
-export type CreateResponse = (data: APIResponse, status?: number) => Response;
+export type CreateResponse = (data: APIResponse, status?: number, origin?: string) => Response;
 
 export interface DataAtRestEnvelope {
   algorithm: string;

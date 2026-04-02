@@ -33,7 +33,8 @@ export const EmailVerification = ({
     onSuccess('');
     
     try {
-      await sendEmailVerification(user, buildActionCodeSettings());
+      const actionCodeSettings = await buildActionCodeSettings();
+      await sendEmailVerification(user, actionCodeSettings);
       
       // Log email verification resend audit event
       try {

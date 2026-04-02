@@ -43,4 +43,4 @@ export interface ErrorResponse {
 
 export type APIResponse = SuccessResponse | ErrorResponse | unknown[] | Record<string, unknown>;
 
-export type CreateResponse = (data: APIResponse, status?: number) => Response;
+export type CreateResponse = (data: APIResponse, status?: number, origin?: string) => Response;

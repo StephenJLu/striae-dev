@@ -83,6 +83,7 @@ required_vars=(
     # Firebase Auth Configuration
     "API_KEY"
     "AUTH_DOMAIN"
+    "AUTH_ACTION_DOMAIN"
     "PROJECT_ID"
     "STORAGE_BUCKET"
     "MESSAGING_SENDER_ID"
@@ -118,6 +119,7 @@ required_vars=(
     # Worker-Specific Secrets (required for deployment)
     "PDF_WORKER_AUTH"
     "IMAGE_SIGNED_URL_SECRET"
+    "AUTH_ACTION_STATE_SECRET"
     "BROWSER_API_TOKEN"
     "MANIFEST_SIGNING_PRIVATE_KEY"
     "MANIFEST_SIGNING_KEY_ID"
@@ -212,6 +214,7 @@ validate_env_value_formats() {
     echo -e "${YELLOW}🔍 Validating environment value formats...${NC}"
 
     validate_domain_var "PAGES_CUSTOM_DOMAIN"
+    validate_domain_var "AUTH_ACTION_DOMAIN"
     validate_domain_var "USER_WORKER_DOMAIN"
     validate_domain_var "DATA_WORKER_DOMAIN"
     validate_domain_var "AUDIT_WORKER_DOMAIN"
@@ -251,6 +254,11 @@ validate_env_file_entries() {
 
 validate_generated_configs() {
     echo -e "${YELLOW}🔍 Running generated configuration checkpoint validations...${NC}"
+    local pages_origin_domain
+    local auth_action_origin_domain
+
+    pages_origin_domain=$(trim_domain_to_origin "$PAGES_CUSTOM_DOMAIN")
+    auth_action_origin_domain=$(trim_domain_to_origin "$AUTH_ACTION_DOMAIN")
 
     local required_files=(
         "wrangler.toml"
@@ -301,6 +309,7 @@ validate_generated_configs() {
     assert_contains_literal "workers/user-worker/wrangler.jsonc" "$FILES_BUCKET_NAME" "FILES_BUCKET_NAME missing in user worker config"
 
     assert_contains_literal "app/config/config.json" "https://$PAGES_CUSTOM_DOMAIN" "PAGES_CUSTOM_DOMAIN missing in app/config/config.json"
+    assert_contains_literal "app/config/config.json" "\"auth_action_url\": \"https://$auth_action_origin_domain\"" "AUTH_ACTION_DOMAIN missing in app/config/config.json"
     assert_contains_literal "app/config/config.json" "$EXPORT_ENCRYPTION_KEY_ID" "EXPORT_ENCRYPTION_KEY_ID missing in app/config/config.json"
     assert_contains_literal "app/config/config.json" "\"export_encryption_public_key\":" "export_encryption_public_key missing in app/config/config.json"
 
@@ -312,14 +321,14 @@ validate_generated_configs() {
     assert_contains_literal "app/config/firebase.ts" "$APP_ID" "APP_ID missing in app/config/firebase.ts"
     assert_contains_literal "app/config/firebase.ts" "$MEASUREMENT_ID" "MEASUREMENT_ID missing in app/config/firebase.ts"
 
-    assert_contains_literal "workers/audit-worker/src/audit-worker.ts" "https://$PAGES_CUSTOM_DOMAIN" "PAGES_CUSTOM_DOMAIN missing in audit-worker source"
-    assert_contains_literal "workers/data-worker/src/data-worker.ts" "https://$PAGES_CUSTOM_DOMAIN" "PAGES_CUSTOM_DOMAIN missing in data-worker source"
-    assert_contains_literal "workers/image-worker/src/image-worker.ts" "https://$PAGES_CUSTOM_DOMAIN" "PAGES_CUSTOM_DOMAIN missing in image-worker source"
-    assert_contains_literal "workers/pdf-worker/src/pdf-worker.ts" "https://$PAGES_CUSTOM_DOMAIN" "PAGES_CUSTOM_DOMAIN missing in pdf-worker source"
-    assert_contains_literal "workers/user-worker/src/user-worker.ts" "https://$PAGES_CUSTOM_DOMAIN" "PAGES_CUSTOM_DOMAIN missing in user-worker source"
+    assert_contains_literal "workers/audit-worker/src/audit-worker.ts" "https://$pages_origin_domain" "Origin domain missing in audit-worker source"
+    assert_contains_literal "workers/data-worker/src/data-worker.ts" "https://$pages_origin_domain" "Origin domain missing in data-worker source"
+    assert_contains_literal "workers/image-worker/src/image-worker.ts" "https://$pages_origin_domain" "Origin domain missing in image-worker source"
+    assert_contains_literal "workers/pdf-worker/src/pdf-worker.ts" "https://$pages_origin_domain" "Origin domain missing in pdf-worker source"
+    assert_contains_literal "workers/user-worker/src/user-worker.ts" "https://$pages_origin_domain" "Origin domain missing in user-worker source"
 
     local placeholder_pattern
-    placeholder_pattern="(\"(ACCOUNT_ID|PAGES_PROJECT_NAME|PAGES_CUSTOM_DOMAIN|USER_WORKER_NAME|DATA_WORKER_NAME|AUDIT_WORKER_NAME|IMAGES_WORKER_NAME|PDF_WORKER_NAME|USER_WORKER_DOMAIN|DATA_WORKER_DOMAIN|AUDIT_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN|PDF_WORKER_DOMAIN|DATA_BUCKET_NAME|AUDIT_BUCKET_NAME|FILES_BUCKET_NAME|KV_STORE_ID|MANIFEST_SIGNING_KEY_ID|MANIFEST_SIGNING_PUBLIC_KEY|EXPORT_ENCRYPTION_KEY_ID|EXPORT_ENCRYPTION_PUBLIC_KEY|YOUR_FIREBASE_API_KEY|YOUR_FIREBASE_AUTH_DOMAIN|YOUR_FIREBASE_PROJECT_ID|YOUR_FIREBASE_STORAGE_BUCKET|YOUR_FIREBASE_MESSAGING_SENDER_ID|YOUR_FIREBASE_APP_ID|YOUR_FIREBASE_MEASUREMENT_ID)\"|'(PAGES_CUSTOM_DOMAIN|DATA_WORKER_DOMAIN|AUDIT_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN)')"
+    placeholder_pattern="(\"(ACCOUNT_ID|PAGES_PROJECT_NAME|PAGES_CUSTOM_DOMAIN|AUTH_ACTION_URL|USER_WORKER_NAME|DATA_WORKER_NAME|AUDIT_WORKER_NAME|IMAGES_WORKER_NAME|PDF_WORKER_NAME|USER_WORKER_DOMAIN|DATA_WORKER_DOMAIN|AUDIT_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN|PDF_WORKER_DOMAIN|DATA_BUCKET_NAME|AUDIT_BUCKET_NAME|FILES_BUCKET_NAME|KV_STORE_ID|MANIFEST_SIGNING_KEY_ID|MANIFEST_SIGNING_PUBLIC_KEY|EXPORT_ENCRYPTION_KEY_ID|EXPORT_ENCRYPTION_PUBLIC_KEY|YOUR_FIREBASE_API_KEY|YOUR_FIREBASE_AUTH_DOMAIN|YOUR_FIREBASE_PROJECT_ID|YOUR_FIREBASE_STORAGE_BUCKET|YOUR_FIREBASE_MESSAGING_SENDER_ID|YOUR_FIREBASE_APP_ID|YOUR_FIREBASE_MEASUREMENT_ID)\"|'(PAGES_CUSTOM_DOMAIN|AUTH_ACTION_DOMAIN|DATA_WORKER_DOMAIN|AUDIT_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN)')"
 
     local files_to_scan=(
         "wrangler.toml"

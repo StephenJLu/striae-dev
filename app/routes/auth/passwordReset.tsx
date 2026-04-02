@@ -28,7 +28,8 @@ export const PasswordReset = ({ isModal, onBack }: PasswordResetProps) => {
     setSuccess('');
     
     try {
-      await sendPasswordResetEmail(auth, email, buildActionCodeSettings());
+      const actionCodeSettings = await buildActionCodeSettings();
+      await sendPasswordResetEmail(auth, email, actionCodeSettings);
 
       // Sign out immediately after issuing the reset email to reduce session risk.
       try {
