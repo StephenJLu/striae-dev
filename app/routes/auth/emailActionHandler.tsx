@@ -11,6 +11,7 @@ import { handleAuthError } from '~/services/firebase/errors';
 import { evaluatePasswordPolicy, getSafeContinueDestination } from '~/utils/auth';
 import { auditService } from '~/services/audit';
 import { Icon } from '~/components/icon/icon';
+import paths from '~/config/config.json';
 import styles from './emailActionHandler.module.css';
 
 interface EmailActionHandlerProps {
@@ -165,7 +166,7 @@ export const EmailActionHandler = ({ mode, oobCode, continueUrl, lang }: EmailAc
           }
 
           setResolvedEmail(verificationEmail);
-          setSuccess('Email verified successfully. You can continue to Striae.');
+          setSuccess('Email verified successfully. You can continue.');
           setState('success');
         } catch (err) {
           const { message } = handleAuthError(err);
@@ -298,6 +299,27 @@ export const EmailActionHandler = ({ mode, oobCode, continueUrl, lang }: EmailAc
       ? 'Verify Email Address'
       : 'Email Action';
 
+  const resolveLoginTarget = () => {
+    const configuredBaseUrl = paths.url?.trim().length ? paths.url : 'https://localhost';
+    const fallbackOrigin = new URL(configuredBaseUrl).origin;
+    const currentOrigin = typeof window !== 'undefined' ? window.location.origin : fallbackOrigin;
+
+    try {
+      const destinationUrl = new URL(safeContinueDestination.url, currentOrigin);
+      const loginUrl = `${destinationUrl.origin}/`;
+
+      return {
+        url: loginUrl,
+        isCrossOrigin: destinationUrl.origin !== currentOrigin,
+      };
+    } catch {
+      return {
+        url: `${currentOrigin}/`,
+        isCrossOrigin: false,
+      };
+    }
+  };
+
   const handleContinue = () => {
     if (safeContinueDestination.isCrossOrigin && typeof window !== 'undefined') {
       window.location.assign(safeContinueDestination.url);
@@ -307,6 +329,20 @@ export const EmailActionHandler = ({ mode, oobCode, continueUrl, lang }: EmailAc
     navigate(safeContinueDestination.path);
   };
 
+  const handleLogin = () => {
+    const loginTarget = resolveLoginTarget();
+
+    if (loginTarget.isCrossOrigin && typeof window !== 'undefined') {
+      window.location.assign(loginTarget.url);
+      return;
+    }
+
+    navigate('/');
+  };
+
+  const loginTarget = resolveLoginTarget();
+  const logoLoginHref = loginTarget.url;
+
   const showContinueButton = state === 'success' && !safeContinueDestination.isDefault;
   const showLanguageHint = !!lang && lang.toLowerCase() !== 'en';
 
@@ -315,7 +351,7 @@ export const EmailActionHandler = ({ mode, oobCode, continueUrl, lang }: EmailAc
       <Link
         viewTransition
         prefetch="intent"
-        to="https://striae.app"
+        to={logoLoginHref}
         className={styles.logoLink}
       >
         <div className={styles.logo} />
@@ -404,7 +440,7 @@ export const EmailActionHandler = ({ mode, oobCode, continueUrl, lang }: EmailAc
             <button
               type="button"
               className={styles.secondaryButton}
-              onClick={() => navigate('/')}
+              onClick={handleLogin}
             >
               Back to Login
             </button>
@@ -425,9 +461,9 @@ export const EmailActionHandler = ({ mode, oobCode, continueUrl, lang }: EmailAc
             <button
               type="button"
               className={styles.loginToStriaeButton}
-              onClick={() => navigate('/')}
+              onClick={handleLogin}
             >
-              Login to Striae
+              Go to Login
             </button>
           </div>
         )}
