@@ -245,25 +245,6 @@ export const getSafeContinueDestination = async (continueUrl: string | null | un
   }
 };
 
-export const getAllowedContinueDestinationFromActionCode = (
-  continueUrl: string | null | undefined
-): SafeContinueDestination | null => {
-  if (!continueUrl || continueUrl.trim().length === 0) {
-    return null;
-  }
-
-  try {
-    const destinationUrl = extractDestinationUrl(continueUrl);
-    if (!destinationUrl || !isAllowedReturnUrl(destinationUrl)) {
-      return null;
-    }
-
-    return toSafeDestination(destinationUrl);
-  } catch {
-    return null;
-  }
-};
-
 export const getSafeContinuePath = (continueUrl: string | null | undefined): string => {
   void continueUrl;
   return DEFAULT_CONTINUE_PATH;
