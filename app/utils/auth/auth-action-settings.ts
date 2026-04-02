@@ -39,7 +39,7 @@ export const getSafeContinuePath = (continueUrl: string | null | undefined): str
     }
 
     const safePath = `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
-    return safePath.startsWith('/') ? safePath : DEFAULT_CONTINUE_PATH;
+    return normalizeContinuePath(safePath);
   } catch {
     return DEFAULT_CONTINUE_PATH;
   }
