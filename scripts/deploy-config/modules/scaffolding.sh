@@ -184,9 +184,6 @@ update_wrangler_configs() {
     local escaped_pages_custom_domain
     local pages_origin_domain
     local escaped_pages_origin_domain
-    local normalized_auth_action_domain
-    local auth_action_origin_domain
-    local escaped_auth_action_origin_domain
 
     normalized_account_id=$(printf '%s' "$ACCOUNT_ID" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
     ACCOUNT_ID="$normalized_account_id"
@@ -200,16 +197,8 @@ update_wrangler_configs() {
     write_env_var "PAGES_CUSTOM_DOMAIN" "$PAGES_CUSTOM_DOMAIN"
     escaped_pages_custom_domain=$(escape_for_sed_replacement "$PAGES_CUSTOM_DOMAIN")
 
-    normalized_auth_action_domain=$(normalize_domain_value "$AUTH_ACTION_DOMAIN")
-    AUTH_ACTION_DOMAIN="$normalized_auth_action_domain"
-    export AUTH_ACTION_DOMAIN
-    write_env_var "AUTH_ACTION_DOMAIN" "$AUTH_ACTION_DOMAIN"
-
     pages_origin_domain=$(trim_domain_to_origin "$PAGES_CUSTOM_DOMAIN")
     escaped_pages_origin_domain=$(escape_for_sed_replacement "$pages_origin_domain")
-
-    auth_action_origin_domain=$(trim_domain_to_origin "$AUTH_ACTION_DOMAIN")
-    escaped_auth_action_origin_domain=$(escape_for_sed_replacement "$auth_action_origin_domain")
 
     # Audit Worker
     if [ -f "workers/audit-worker/wrangler.jsonc" ]; then
@@ -303,7 +292,6 @@ update_wrangler_configs() {
         escaped_export_encryption_public_key=$(escape_for_sed_replacement "$EXPORT_ENCRYPTION_PUBLIC_KEY")
 
         sed -i "s|\"url\": \"[^\"]*\"|\"url\": \"https://$escaped_pages_custom_domain\"|g" app/config/config.json
-        sed -i "s|\"auth_action_url\": \"[^\"]*\"|\"auth_action_url\": \"https://$escaped_auth_action_origin_domain\"|g" app/config/config.json
         sed -i "s|\"MANIFEST_SIGNING_KEY_ID\"|\"$escaped_manifest_signing_key_id\"|g" app/config/config.json
         sed -i "s|\"MANIFEST_SIGNING_PUBLIC_KEY\"|\"$escaped_manifest_signing_public_key\"|g" app/config/config.json
         sed -i "s|\"EXPORT_ENCRYPTION_KEY_ID\"|\"$escaped_export_encryption_key_id\"|g" app/config/config.json
