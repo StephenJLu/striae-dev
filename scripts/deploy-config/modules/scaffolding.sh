@@ -206,7 +206,7 @@ update_wrangler_configs() {
 
     if [ -f "workers/audit-worker/src/audit-worker.ts" ]; then
         echo -e "${YELLOW}  Updating audit-worker source placeholders...${NC}"
-        sed -i "s|'Access-Control-Allow-Origin': '[^']*'|'Access-Control-Allow-Origin': 'https://$escaped_pages_custom_domain'|g" workers/audit-worker/src/audit-worker.ts
+        sed -i "s|const APP_DOMAIN = 'PAGES_CUSTOM_DOMAIN';|const APP_DOMAIN = 'https://$escaped_pages_custom_domain';|g" workers/audit-worker/src/audit-worker.ts
         echo -e "${GREEN}    ✅ audit-worker source placeholders updated${NC}"
     fi
 
@@ -220,7 +220,7 @@ update_wrangler_configs() {
 
     if [ -f "workers/data-worker/src/data-worker.ts" ]; then
         echo -e "${YELLOW}  Updating data-worker source placeholders...${NC}"
-        sed -i "s|'Access-Control-Allow-Origin': '[^']*'|'Access-Control-Allow-Origin': 'https://$escaped_pages_custom_domain'|g" workers/data-worker/src/data-worker.ts
+        sed -i "s|const APP_DOMAIN = 'PAGES_CUSTOM_DOMAIN';|const APP_DOMAIN = 'https://$escaped_pages_custom_domain';|g" workers/data-worker/src/data-worker.ts
         echo -e "${GREEN}    ✅ data-worker source placeholders updated${NC}"
     fi
 
@@ -234,7 +234,7 @@ update_wrangler_configs() {
 
     if [ -f "workers/image-worker/src/image-worker.ts" ]; then
         echo -e "${YELLOW}  Updating image-worker source placeholders...${NC}"
-        sed -i "s|'Access-Control-Allow-Origin': '[^']*'|'Access-Control-Allow-Origin': 'https://$escaped_pages_custom_domain'|g" workers/image-worker/src/image-worker.ts
+        sed -i "s|const APP_DOMAIN = 'PAGES_CUSTOM_DOMAIN';|const APP_DOMAIN = 'https://$escaped_pages_custom_domain';|g" workers/image-worker/src/image-worker.ts
         echo -e "${GREEN}    ✅ image-worker source placeholders updated${NC}"
     fi
 
@@ -247,7 +247,7 @@ update_wrangler_configs() {
 
     if [ -f "workers/pdf-worker/src/pdf-worker.ts" ]; then
         echo -e "${YELLOW}  Updating pdf-worker source placeholders...${NC}"
-        sed -i "s|'Access-Control-Allow-Origin': '[^']*'|'Access-Control-Allow-Origin': 'https://$escaped_pages_custom_domain'|g" workers/pdf-worker/src/pdf-worker.ts
+        sed -i "s|const APP_DOMAIN = 'PAGES_CUSTOM_DOMAIN';|const APP_DOMAIN = 'https://$escaped_pages_custom_domain';|g" workers/pdf-worker/src/pdf-worker.ts
         echo -e "${GREEN}    ✅ pdf-worker source placeholders updated${NC}"
     fi
 
@@ -263,7 +263,7 @@ update_wrangler_configs() {
 
     if [ -f "workers/user-worker/src/user-worker.ts" ]; then
         echo -e "${YELLOW}  Updating user-worker source placeholders...${NC}"
-        sed -i "s|'Access-Control-Allow-Origin': '[^']*'|'Access-Control-Allow-Origin': 'https://$escaped_pages_custom_domain'|g" workers/user-worker/src/user-worker.ts
+        sed -i "s|const APP_DOMAIN = 'PAGES_CUSTOM_DOMAIN';|const APP_DOMAIN = 'https://$escaped_pages_custom_domain';|g" workers/user-worker/src/user-worker.ts
         echo -e "${GREEN}    ✅ user-worker source placeholders updated${NC}"
     fi
 
