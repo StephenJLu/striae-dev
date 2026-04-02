@@ -1,6 +1,5 @@
 {    
   "url": "PAGES_CUSTOM_DOMAIN",  
-  "auth_action_url": "AUTH_ACTION_URL",
   "manifest_signing_key_id": "MANIFEST_SIGNING_KEY_ID",
   "manifest_signing_public_key": "MANIFEST_SIGNING_PUBLIC_KEY",
   "manifest_signing_public_keys": {
