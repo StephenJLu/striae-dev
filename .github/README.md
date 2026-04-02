@@ -20,6 +20,13 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-04-02] - *[Patch Release v5.4.3](https://github.com/striae-org/striae/releases/tag/v5.4.3)*
+
+- **💻 Desktop-Only Mobile Warning** - Added a session-dismissible mobile/tablet warning overlay at the app root so users are clearly told Striae is intended for desktop browsers.
+- **🧭 Demo Limit Guardrail Follow-Ups** - Refined demo account case/file limit wiring and aligned the example config keys with the active permission checks.
+- **🧹 Audit Export and API Cleanup** - Removed obsolete audit export code paths and narrowed the audit worker to GET/POST-only routes.
+- **⚙️ Wrangler and Compatibility Maintenance** - Bumped Wrangler to `4.80.0` across the app and workers and refreshed example compatibility-date metadata.
+
 ## [2026-03-31] - *[Patch Release v5.4.2](https://github.com/striae-org/striae/releases/tag/v5.4.2)*
 
 - **🔐 Original Case Owner UID in Confirmation Signing** - Threaded original case owner UID through confirmation export, import, and signing flows with an import-time guard that rejects packages not intended for the importing user.
