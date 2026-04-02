@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import {
   applyActionCode,
@@ -8,7 +8,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '~/services/firebase';
 import { handleAuthError } from '~/services/firebase/errors';
-import { evaluatePasswordPolicy, getSafeContinuePath } from '~/utils/auth';
+import { evaluatePasswordPolicy, getSafeContinueDestination } from '~/utils/auth';
 import { auditService } from '~/services/audit';
 import { Icon } from '~/components/icon/icon';
 import styles from './emailActionHandler.module.css';
@@ -43,7 +43,12 @@ const getPolicyFeedback = (password: string, confirmPassword: string): string =>
 
 export const EmailActionHandler = ({ mode, oobCode, continueUrl, lang }: EmailActionHandlerProps) => {
   const navigate = useNavigate();
-  const safeContinuePath = useMemo(() => getSafeContinuePath(continueUrl), [continueUrl]);
+  const [safeContinueDestination, setSafeContinueDestination] = useState({
+    path: '/',
+    url: '/',
+    isCrossOrigin: false,
+    isDefault: true,
+  });
 
   const [state, setState] = useState<HandlerState>('loading');
   const [error, setError] = useState('');
@@ -55,6 +60,25 @@ export const EmailActionHandler = ({ mode, oobCode, continueUrl, lang }: EmailAc
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordFeedback, setPasswordFeedback] = useState('');
   const [isSubmittingReset, setIsSubmittingReset] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const resolveContinueDestination = async () => {
+      const resolvedDestination = await getSafeContinueDestination(continueUrl);
+      if (!isMounted) {
+        return;
+      }
+
+      setSafeContinueDestination(resolvedDestination);
+    };
+
+    void resolveContinueDestination();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [continueUrl]);
 
   useEffect(() => {
     let isMounted = true;
@@ -274,7 +298,16 @@ export const EmailActionHandler = ({ mode, oobCode, continueUrl, lang }: EmailAc
       ? 'Verify Email Address'
       : 'Email Action';
 
-  const showContinueButton = state === 'success' && safeContinuePath !== '/';
+  const handleContinue = () => {
+    if (safeContinueDestination.isCrossOrigin && typeof window !== 'undefined') {
+      window.location.assign(safeContinueDestination.url);
+      return;
+    }
+
+    navigate(safeContinueDestination.path);
+  };
+
+  const showContinueButton = state === 'success' && !safeContinueDestination.isDefault;
   const showLanguageHint = !!lang && lang.toLowerCase() !== 'en';
 
   return (
@@ -384,7 +417,7 @@ export const EmailActionHandler = ({ mode, oobCode, continueUrl, lang }: EmailAc
               <button
                 type="button"
                 className={styles.button}
-                onClick={() => navigate(safeContinuePath)}
+                onClick={handleContinue}
               >
                 Continue
               </button>

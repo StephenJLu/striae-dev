@@ -336,7 +336,8 @@ export const Login = () => {
         // Continue with registration flow even if audit logging fails
       }
 
-      await sendEmailVerification(createCredential.user, buildActionCodeSettings());
+      const actionCodeSettings = await buildActionCodeSettings();
+      await sendEmailVerification(createCredential.user, actionCodeSettings);
       
       // Log email verification sent audit event
       try {

@@ -253,6 +253,7 @@ prompt_for_secrets() {
     echo "==============================="
     prompt_for_var "API_KEY" "Firebase API key"
     prompt_for_var "AUTH_DOMAIN" "Firebase auth domain (project-id.firebaseapp.com)"
+    prompt_for_var "AUTH_ACTION_DOMAIN" "Firebase auth action domain (canonical email action host, no protocol)"
     prompt_for_var "STORAGE_BUCKET" "Firebase storage bucket"
     prompt_for_var "MESSAGING_SENDER_ID" "Firebase messaging sender ID"
     prompt_for_var "APP_ID" "Firebase app ID"
@@ -348,6 +349,7 @@ prompt_for_secrets() {
     echo "============================"
     prompt_for_var "PDF_WORKER_AUTH" "PDF worker authentication token (generate with: openssl rand -hex 16)"
     prompt_for_var "IMAGE_SIGNED_URL_SECRET" "Image signed URL secret (generate with: openssl rand -base64 48 | tr '+/' '-_' | tr -d '=')"
+    prompt_for_var "AUTH_ACTION_STATE_SECRET" "Email action return-state signing secret (generate with: openssl rand -base64 48 | tr '+/' '-_' | tr -d '=')"
 
     # Auto-derive IMAGE_SIGNED_URL_BASE_URL from PAGES_CUSTOM_DOMAIN if not yet set or still
     # contains a placeholder-domain pattern (i.e. was expanded from .env.example at source time).
