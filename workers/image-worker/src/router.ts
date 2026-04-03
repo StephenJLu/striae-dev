@@ -39,8 +39,13 @@ export async function routeImageWorkerRequest(
       return handleImageServing(request, env, fileId, createJsonResponse, corsHeaders);
     }
 
-    case 'DELETE':
+    case 'DELETE': {
+      if (pathSegments.length !== 1) {
+        return createJsonResponse({ error: 'Not found' }, 404);
+      }
+
       return handleImageDelete(request, env, createJsonResponse);
+    }
 
     default:
       return createJsonResponse({ error: 'Method not allowed' }, 405);
