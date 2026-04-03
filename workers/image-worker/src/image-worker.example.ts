@@ -509,6 +509,32 @@ function deriveFileKind(contentType: string): string {
   return 'file';
 }
 
+function buildSafeContentDisposition(filename: string, fallbackFileId: string): string {
+  const normalizedFilename = filename
+    .normalize('NFKC')
+    .replace(/[\r\n]+/g, ' ')
+    .split('')
+    .filter((character) => {
+      const codePoint = character.charCodeAt(0);
+      return codePoint >= 0x20 && codePoint !== 0x7f;
+    })
+    .join('')
+    .trim();
+
+  const safeFilename = normalizedFilename.length > 0 ? normalizedFilename : fallbackFileId;
+  const asciiFallback = safeFilename
+    .replace(/[^\x20-\x7E]/g, '_')
+    .replace(/["\\]/g, '_')
+    .trim();
+  const asciiFilename = asciiFallback.length > 0 ? asciiFallback : fallbackFileId;
+  const encodedUtf8Filename = encodeURIComponent(safeFilename).replace(
+    /['()*]/g,
+    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`
+  );
+
+  return `inline; filename="${asciiFilename}"; filename*=UTF-8''${encodedUtf8Filename}`;
+}
+
 async function handleImageUpload(request: Request, env: Env): Promise<Response> {
   if (!hasValidToken(request, env)) {
     return createJsonResponse({ error: 'Unauthorized' }, 403);
@@ -680,6 +706,7 @@ async function handleImageServing(request: Request, env: Env, fileId: string): P
 
   const contentType = file.customMetadata?.contentType || 'application/octet-stream';
   const filename = file.customMetadata?.originalFilename || fileId;
+  const contentDisposition = buildSafeContentDisposition(filename, fileId);
 
   return new Response(plaintext, {
     status: 200,
@@ -687,7 +714,7 @@ async function handleImageServing(request: Request, env: Env, fileId: string): P
       ...corsHeaders,
       'Cache-Control': 'no-store',
       'Content-Type': contentType,
-      'Content-Disposition': `inline; filename="${filename.replace(/"/g, '')}"`
+      'Content-Disposition': contentDisposition
     }
   });
 }

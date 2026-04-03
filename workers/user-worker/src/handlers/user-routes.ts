@@ -13,7 +13,20 @@ import type {
 function createJsonResponse(data: unknown, headers: ResponseHeaders, status: number = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json; charset=utf-8'
+    }
+  });
+}
+
+function createTextResponse(message: string, headers: ResponseHeaders, status: number): Response {
+  return new Response(message, {
+    status,
+    headers: {
+      ...headers,
+      'Content-Type': 'text/plain; charset=utf-8'
+    }
   });
 }
 
@@ -25,10 +38,7 @@ export async function handleGetUser(
   try {
     const userData = await readUserRecord(env, userUid);
     if (userData === null) {
-      return new Response('User not found', {
-        status: 404,
-        headers: corsHeaders
-      });
+      return createTextResponse('User not found', corsHeaders, 404);
     }
 
     return createJsonResponse(userData, corsHeaders);
@@ -36,10 +46,7 @@ export async function handleGetUser(
     const errorMessage = error instanceof Error ? error.message : 'Unknown user data read error';
     console.error('Failed to get user data:', { uid: userUid, reason: errorMessage });
 
-    return new Response('Failed to get user data', {
-      status: 500,
-      headers: corsHeaders
-    });
+    return createTextResponse('Failed to get user data', corsHeaders, 500);
   }
 }
 
@@ -91,10 +98,7 @@ export async function handleAddUser(
 
     return createJsonResponse(userData, corsHeaders, existingUser !== null ? 200 : 201);
   } catch {
-    return new Response('Failed to save user data', {
-      status: 500,
-      headers: corsHeaders
-    });
+    return createTextResponse('Failed to save user data', corsHeaders, 500);
   }
 }
 
@@ -115,10 +119,7 @@ export async function handleDeleteUser(
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 
     if (errorMessage === 'User not found') {
-      return new Response('User not found', {
-        status: 404,
-        headers: corsHeaders
-      });
+      return createTextResponse('User not found', corsHeaders, 404);
     }
 
     return createJsonResponse({
@@ -135,7 +136,7 @@ export function handleDeleteUserWithProgress(
 ): Response {
   const sseHeaders: ResponseHeaders = {
     ...corsHeaders,
-    'Content-Type': 'text/event-stream',
+    'Content-Type': 'text/event-stream; charset=utf-8',
     'Cache-Control': 'no-cache, no-transform',
     Connection: 'keep-alive'
   };
@@ -188,10 +189,7 @@ export async function handleAddCases(
     const { cases = [] }: AddCasesRequest = await request.json();
     const userData = await readUserRecord(env, userUid);
     if (!userData) {
-      return new Response('User not found', {
-        status: 404,
-        headers: corsHeaders
-      });
+      return createTextResponse('User not found', corsHeaders, 404);
     }
 
     const existingCases = userData.cases || [];
@@ -205,10 +203,7 @@ export async function handleAddCases(
 
     return createJsonResponse(userData, corsHeaders);
   } catch {
-    return new Response('Failed to add cases', {
-      status: 500,
-      headers: corsHeaders
-    });
+    return createTextResponse('Failed to add cases', corsHeaders, 500);
   }
 }
 
@@ -222,10 +217,7 @@ export async function handleDeleteCases(
     const { casesToDelete }: DeleteCasesRequest = await request.json();
     const userData = await readUserRecord(env, userUid);
     if (!userData) {
-      return new Response('User not found', {
-        status: 404,
-        headers: corsHeaders
-      });
+      return createTextResponse('User not found', corsHeaders, 404);
     }
 
     userData.cases = userData.cases.filter((caseItem) => !casesToDelete.includes(caseItem.caseNumber));
@@ -234,9 +226,6 @@ export async function handleDeleteCases(
 
     return createJsonResponse(userData, corsHeaders);
   } catch {
-    return new Response('Failed to delete cases', {
-      status: 500,
-      headers: corsHeaders
-    });
+    return createTextResponse('Failed to delete cases', corsHeaders, 500);
   }
 }
