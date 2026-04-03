@@ -13,9 +13,18 @@ import type { Env } from './types';
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': 'PAGES_CUSTOM_DOMAIN',
   'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, X-Custom-Auth-Key',
-  'Content-Type': 'application/json'
+  'Access-Control-Allow-Headers': 'Content-Type, X-Custom-Auth-Key'
 };
+
+function createTextResponse(message: string, status: number, headers: Record<string, string>): Response {
+  return new Response(message, {
+    status,
+    headers: {
+      ...headers,
+      'Content-Type': 'text/plain; charset=utf-8'
+    }
+  });
+}
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -39,7 +48,7 @@ export default {
       const isCasesEndpoint = parts[2] === USER_CASES_SEGMENT;
       
       if (!userUid) {
-        return new Response('Not Found', { status: 404 });
+        return createTextResponse('Not Found', 404, corsHeaders);
       }
 
       // Handle regular cases endpoint
@@ -47,10 +56,7 @@ export default {
         switch (request.method) {
           case 'PUT': return handleAddCases(request, env, userUid, corsHeaders);
           case 'DELETE': return handleDeleteCases(request, env, userUid, corsHeaders);
-          default: return new Response('Method not allowed', {
-            status: 405,
-            headers: corsHeaders
-          });
+          default: return createTextResponse('Method not allowed', 405, corsHeaders);
         }
       }
 
@@ -64,31 +70,19 @@ export default {
         case 'DELETE': return streamProgress
           ? handleDeleteUserWithProgress(env, userUid, corsHeaders)
           : handleDeleteUser(env, userUid, corsHeaders);
-        default: return new Response('Method not allowed', {
-          status: 405,
-          headers: corsHeaders
-        });
+        default: return createTextResponse('Method not allowed', 405, corsHeaders);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       if (errorMessage === 'Unauthorized') {
-        return new Response('Forbidden', { 
-          status: 403, 
-          headers: corsHeaders 
-        });
+        return createTextResponse('Forbidden', 403, corsHeaders);
       }
 
       if (errorMessage === 'User KV encryption is not fully configured') {
-        return new Response(errorMessage, {
-          status: 500,
-          headers: corsHeaders
-        });
+        return createTextResponse(errorMessage, 500, corsHeaders);
       }
       
-      return new Response('Internal Server Error', { 
-        status: 500, 
-        headers: corsHeaders 
-      });
+      return createTextResponse('Internal Server Error', 500, corsHeaders);
     }
   }
 };
