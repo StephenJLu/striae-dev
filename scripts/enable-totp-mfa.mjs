@@ -41,7 +41,7 @@ try {
         {
           state: 'ENABLED',
           totpProviderConfig: {
-            adjacentIntervals: 5,
+            adjacentIntervals: 0,
           },
         },
       ],
@@ -49,7 +49,7 @@ try {
   });
 
   console.log('✅ TOTP MFA provider enabled successfully.');
-  console.log('   adjacentIntervals: 5 (allows ±2.5 minutes clock skew)');
+  console.log('   adjacentIntervals: 0 (allows ±0 seconds clock skew)');
 } catch (err) {
   console.error('\n❌ Failed to enable TOTP MFA provider:');
   console.error(err?.message ?? err);
