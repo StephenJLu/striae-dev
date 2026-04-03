@@ -20,6 +20,11 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-04-02] - *[Patch Release v5.4.4](https://github.com/striae-org/striae/releases/tag/v5.4.4)*
+
+- **🔧 Image Worker Refactor** - Restructured the image worker codebase for improved modularity and maintainability while preserving all existing functionality and backward compatibility.
+- **🧪 Experimental Cleanup** - Explored CORS and Firebase Auth enhancements but reverted to maintain stability and preserve the current production auth flow.
+
 ## [2026-04-02] - *[Patch Release v5.4.3](https://github.com/striae-org/striae/releases/tag/v5.4.3)*
 
 - **💻 Desktop-Only Mobile Warning** - Added a session-dismissible mobile/tablet warning overlay at the app root so users are clearly told Striae is intended for desktop browsers.
