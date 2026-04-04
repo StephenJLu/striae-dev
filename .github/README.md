@@ -20,6 +20,11 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-04-03] - *[Patch Release v5.4.5](https://github.com/striae-org/striae/releases/tag/v5.4.5)*
+
+- **🔐 TOTP Script Follow-Ups** - Applied targeted follow-up adjustments in the TOTP MFA enablement script to improve script-level reliability without changing the broader auth flow.
+- **🛠️ Code Review Cleanup** - Incorporated additional review-driven refinements in the same script for maintainability and correctness.
+
 ## [2026-04-02] - *[Patch Release v5.4.4](https://github.com/striae-org/striae/releases/tag/v5.4.4)*
 
 - **🔧 Image Worker Refactor** - Restructured the image worker codebase for improved modularity and maintainability while preserving all existing functionality and backward compatibility.
