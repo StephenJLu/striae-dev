@@ -49,7 +49,7 @@ try {
   });
 
   console.log('✅ TOTP MFA provider enabled successfully.');
-  console.log('   adjacentIntervals: 0 (allows ±0 seconds clock skew)');
+  console.log('   adjacentIntervals: 0 (accepts only the current TOTP interval; no adjacent interval tolerance)');
 } catch (err) {
   console.error('\n❌ Failed to enable TOTP MFA provider:');
   console.error(err?.message ?? err);
