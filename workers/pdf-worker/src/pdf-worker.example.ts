@@ -1,4 +1,5 @@
 import type { PDFGenerationData, PDFGenerationRequest, ReportModule, ReportPdfOptions } from './report-types';
+import { getAuditTrailPdfOptions, isAuditTrailReportMode, renderAuditTrailReport } from './audit-trail-report';
 
 interface Env {
   PDF_WORKER_AUTH: string;
@@ -112,6 +113,13 @@ function resolveReportRequest(payload: unknown): PDFGenerationRequest {
 }
 
 async function renderReport(reportFormat: string, data: PDFGenerationData): Promise<{ html: string; pdfOptions: ReportPdfOptions }> {
+  if (isAuditTrailReportMode(data)) {
+    return {
+      html: renderAuditTrailReport(data),
+      pdfOptions: resolvePdfOptions(getAuditTrailPdfOptions(data)),
+    };
+  }
+
   const loader = reportModuleLoaders[reportFormat];
 
   if (!loader) {

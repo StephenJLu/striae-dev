@@ -1,13 +1,8 @@
 import type { PDFGenerationData, ReportPdfOptionsBuilder, ReportRenderer } from '../report-types';
 import { ICON_256 } from '../assets/generated-assets';
 import { buildRepeatedChromePdfOptions, escapeHtml } from '../report-layout';
-import { getAuditTrailPdfOptions, isAuditTrailReportMode, renderAuditTrailReport } from '../audit-trail-report';
 
 export const renderReport: ReportRenderer = (data: PDFGenerationData): string => {
-  if (isAuditTrailReportMode(data)) {
-    return renderAuditTrailReport(data);
-  }
-
   const { imageUrl, annotationData, activeAnnotations } = data;
   const annotationsSet = new Set(activeAnnotations);
   const hasImage = Boolean(imageUrl && imageUrl !== '/clear.jpg');
@@ -486,10 +481,6 @@ export const renderReport: ReportRenderer = (data: PDFGenerationData): string =>
 };
 
 export const getPdfOptions: ReportPdfOptionsBuilder = (data: PDFGenerationData) => {
-  if (isAuditTrailReportMode(data)) {
-    return getAuditTrailPdfOptions(data);
-  }
-
   return buildRepeatedChromePdfOptions({
     headerLeft: data.currentDate,
     headerRight: data.caseNumber,
