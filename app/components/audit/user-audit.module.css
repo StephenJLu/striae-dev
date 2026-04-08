@@ -72,6 +72,12 @@
   transform: translateY(0);
 }
 
+.exportButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .title {
   margin: 0;
   color: var(--textTitle);
@@ -176,6 +182,17 @@
   background: var(--backgroundLight);
   border-radius: 6px;
   border: 1px solid color-mix(in lab, var(--textLight) 20%, transparent);
+}
+
+.exportScopeNote {
+  margin: -12px 0 16px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in lab, var(--primary) 30%, transparent);
+  background: color-mix(in lab, var(--primary) 10%, transparent);
+  color: var(--textBody);
+  font-size: 0.85rem;
+  line-height: 1.45;
 }
 
 /* Common heading styles */

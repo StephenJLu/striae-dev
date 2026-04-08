@@ -1,8 +1,13 @@
 import type { PDFGenerationData, ReportPdfOptionsBuilder, ReportRenderer } from '../report-types';
 import { ICON_256 } from '../assets/generated-assets';
 import { buildRepeatedChromePdfOptions, escapeHtml } from '../report-layout';
+import { getAuditTrailPdfOptions, isAuditTrailReportMode, renderAuditTrailReport } from '../audit-trail-report';
 
 export const renderReport: ReportRenderer = (data: PDFGenerationData): string => {
+  if (isAuditTrailReportMode(data)) {
+    return renderAuditTrailReport(data);
+  }
+
   const { imageUrl, annotationData, activeAnnotations } = data;
   const annotationsSet = new Set(activeAnnotations);
   const hasImage = Boolean(imageUrl && imageUrl !== '/clear.jpg');
@@ -480,17 +485,23 @@ export const renderReport: ReportRenderer = (data: PDFGenerationData): string =>
 `;
 };
 
-export const getPdfOptions: ReportPdfOptionsBuilder = (data: PDFGenerationData) => buildRepeatedChromePdfOptions({
-  headerLeft: data.currentDate,
-  headerRight: data.caseNumber,
-  headerDetailLeft: [data.annotationData?.leftCase, data.annotationData?.leftItem].filter(Boolean).join(' / ')
-    ? `Left Case / Item: ${[data.annotationData?.leftCase, data.annotationData?.leftItem].filter(Boolean).join(' / ')}`
-    : undefined,
-  headerDetailRight: [data.annotationData?.rightCase, data.annotationData?.rightItem].filter(Boolean).join(' / ')
-    ? `Right Case / Item: ${[data.annotationData?.rightCase, data.annotationData?.rightItem].filter(Boolean).join(' / ')}`
-    : undefined,
-  footerLeft: 'Notes formatted by Striae',
-  footerCenter: data.userCompany,
-  footerRight: data.notesUpdatedFormatted ? `Notes updated ${data.notesUpdatedFormatted}` : undefined,
-  footerLeftImageSrc: ICON_256,
-});
+export const getPdfOptions: ReportPdfOptionsBuilder = (data: PDFGenerationData) => {
+  if (isAuditTrailReportMode(data)) {
+    return getAuditTrailPdfOptions(data);
+  }
+
+  return buildRepeatedChromePdfOptions({
+    headerLeft: data.currentDate,
+    headerRight: data.caseNumber,
+    headerDetailLeft: [data.annotationData?.leftCase, data.annotationData?.leftItem].filter(Boolean).join(' / ')
+      ? `Left Case / Item: ${[data.annotationData?.leftCase, data.annotationData?.leftItem].filter(Boolean).join(' / ')}`
+      : undefined,
+    headerDetailRight: [data.annotationData?.rightCase, data.annotationData?.rightItem].filter(Boolean).join(' / ')
+      ? `Right Case / Item: ${[data.annotationData?.rightCase, data.annotationData?.rightItem].filter(Boolean).join(' / ')}`
+      : undefined,
+    footerLeft: 'Notes formatted by Striae',
+    footerCenter: data.userCompany,
+    footerRight: data.notesUpdatedFormatted ? `Notes updated ${data.notesUpdatedFormatted}` : undefined,
+    footerLeftImageSrc: ICON_256,
+  });
+};
