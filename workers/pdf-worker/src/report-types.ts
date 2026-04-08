@@ -58,6 +58,20 @@ export interface PDFGenerationData {
   userFirstName?: string;
   userLastName?: string;
   userBadgeId?: string;
+  reportMode?: 'audit-trail';
+  auditTrailReport?: AuditTrailReportPayload;
+}
+
+export interface AuditTrailReportPayload {
+  caseNumber: string;
+  exportedAt: string;
+  exportRangeStart: string;
+  exportRangeEnd: string;
+  chunkIndex: number;
+  totalChunks: number;
+  totalEntries: number;
+  includeRawJsonAppendix: boolean;
+  entries: unknown[];
 }
 
 export interface PDFGenerationRequest {
