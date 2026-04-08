@@ -86,6 +86,28 @@ const normalizeIsoDate = (value?: string): string | null => {
   return parsed.toISOString();
 };
 
+const extractErrorMessage = async (response: Response): Promise<string> => {
+  const contentType = response.headers.get('Content-Type') ?? '';
+
+  if (contentType.includes('application/json')) {
+    try {
+      const json = await response.json() as { error?: string; details?: string };
+      if (json.error) {
+        return json.details ? `${json.error}: ${json.details}` : json.error;
+      }
+    } catch {
+      // fall through to text fallback
+    }
+  }
+
+  try {
+    const text = await response.text();
+    return text.trim() || `HTTP ${response.status} ${response.statusText}`;
+  } catch {
+    return `HTTP ${response.status} ${response.statusText}`;
+  }
+};
+
 const buildPartFilename = (
   caseNumber: string,
   exportDate: Date,
@@ -198,6 +220,9 @@ export const exportAuditPDF = async ({
     const exportRangeStartIso = isBundledArchivedCase
       ? normalizeIsoDate(sortedEntries[0]?.timestamp) || caseCreatedAtIso
       : caseCreatedAtIso;
+    const exportRangeEndIso = isBundledArchivedCase
+      ? normalizeIsoDate(sortedEntries[sortedEntries.length - 1]?.timestamp) || nowIso
+      : nowIso;
 
     const chunks = chunkEntries(sortedEntries);
     const totalChunks = chunks.length;
@@ -225,7 +250,7 @@ export const exportAuditPDF = async ({
           caseNumber,
           chunkEntriesForPart,
           exportRangeStartIso,
-          nowIso,
+          exportRangeEndIso,
           partNumber,
           totalChunks,
           sortedEntries.length,
@@ -247,8 +272,8 @@ export const exportAuditPDF = async ({
         });
 
         if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(errorText || `PDF service returned HTTP ${response.status}`);
+          const errorMessage = await extractErrorMessage(response);
+          throw new Error(errorMessage);
         }
 
         const blob = await response.blob();

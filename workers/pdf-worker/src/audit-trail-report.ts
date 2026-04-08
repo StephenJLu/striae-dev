@@ -31,6 +31,30 @@ const renderEntryDetailsSummary = (entry: Record<string, unknown>): string => {
   return summaryRows.join('');
 };
 
+const renderRawJsonAppendix = (entry: unknown): string => {
+  if (entry === null || entry === undefined) {
+    return '';
+  }
+
+  let rawJson: string;
+  try {
+    rawJson = JSON.stringify(entry, null, 2) ?? '';
+  } catch {
+    return '';
+  }
+
+  if (!rawJson) {
+    return '';
+  }
+
+  return `
+    <div class="entry-raw-json">
+      <div class="entry-raw-label">Raw JSON Entry</div>
+      <pre>${escapeHtml(rawJson)}</pre>
+    </div>
+  `;
+};
+
 export const isAuditTrailReportMode = (data: PDFGenerationData): boolean =>
   data.reportMode === 'audit-trail';
 
@@ -69,10 +93,7 @@ export const renderAuditTrailReport = (data: PDFGenerationData): string => {
         <div class="entry-meta">
           ${renderEntryDetailsSummary(entryRecord)}
         </div>
-        <div class="entry-raw-json">
-          <div class="entry-raw-label">Raw JSON Entry</div>
-          <pre>${escapeHtml(JSON.stringify(entry, null, 2))}</pre>
-        </div>
+        ${renderRawJsonAppendix(entry)}
       </section>
     `;
   }).join('');
@@ -180,7 +201,7 @@ export const renderAuditTrailReport = (data: PDFGenerationData): string => {
           <div><strong>Total Entries (All Parts):</strong> ${safeText(payload.totalEntries)}</div>
           <div><strong>This Part:</strong> ${safeText(payload.chunkIndex)} of ${safeText(payload.totalChunks)}</div>
           <div><strong>Entries in Part:</strong> ${safeText(entries.length)}</div>
-          <div><strong>Raw JSON Appendix:</strong> ${payload.includeRawJsonAppendix ? 'Included' : 'Excluded'}</div>
+          <div><strong>Raw JSON Appendix:</strong> Included when available</div>
         </div>
       </section>
       ${entrySections}
