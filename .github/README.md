@@ -20,6 +20,13 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-04-08] - *[Minor Release v5.5.0](https://github.com/striae-org/striae/releases/tag/v5.5.0)*
+
+- **📄 Audit Trail PDF Export** - Added PDF export capability for the audit trail with a new format-independent worker report path and updated audit viewer header UI.
+- **🧹 Audit History Fix and Code Review** - Applied a targeted audit history processing fix and incorporated review-driven refinements across the audit export pipeline.
+- **🎨 Notes Save Button Polish** - Adjusted gradient styling on the save notes button for improved visual consistency.
+- **📦 Dependency Maintenance** - Bumped Vite and Wrangler across the app and all workers; applied compatibility-date refreshes.
+
 ## [2026-04-03] - *[Patch Release v5.4.5](https://github.com/striae-org/striae/releases/tag/v5.4.5)*
 
 - **🔐 TOTP Script Follow-Ups** - Applied targeted follow-up adjustments in the TOTP MFA enablement script to improve script-level reliability without changing the broader auth flow.
