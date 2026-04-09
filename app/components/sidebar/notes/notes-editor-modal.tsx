@@ -43,6 +43,14 @@ export const NotesEditorModal = ({
     onClose();
   }, [hasUnsavedChanges, onClose]);
 
+  const handleDirtyChange = useCallback((isDirty: boolean) => {
+    setHasUnsavedChanges((previous) => (previous === isDirty ? previous : isDirty));
+  }, []);
+
+  const handleRegisterSaveHandler = useCallback((handler: (() => Promise<boolean>) | null) => {
+    setSaveHandler((previous) => (previous === handler ? previous : handler));
+  }, []);
+
   const {
     overlayProps,
     getCloseButtonProps,
@@ -159,8 +167,8 @@ export const NotesEditorModal = ({
             originalFileName={originalFileName}
             isUploading={isUploading}
             showNotification={showNotification}
-            onDirtyChange={(isDirty) => setHasUnsavedChanges(isDirty)}
-            onRegisterSaveHandler={(handler) => setSaveHandler(() => handler)}
+            onDirtyChange={handleDirtyChange}
+            onRegisterSaveHandler={handleRegisterSaveHandler}
           />
         </div>
       </div>
