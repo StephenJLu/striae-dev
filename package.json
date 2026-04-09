@@ -101,7 +101,7 @@
   },
   "dependencies": {
     "@react-router/cloudflare": "^7.14.0",
-    "firebase": "^12.11.0",
+    "firebase": "^12.12.0",
     "isbot": "^5.1.37",
     "jszip": "^3.10.1",
     "qrcode": "^1.5.4",
@@ -123,7 +123,7 @@
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
-    "firebase-admin": "^13.7.0",
+    "firebase-admin": "^13.8.0",
     "modern-normalize": "^3.0.1",
     "typescript": "^5.9.3",
     "vite": "^7.3.2",
