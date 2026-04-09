@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import type { User } from 'firebase/auth';
 import { ColorSelector } from '~/components/colors/colors';
 import { AddlNotesModal } from './addl-notes-modal';
@@ -47,7 +47,40 @@ interface NotesFormSnapshot {
   additionalNotes: string;
 }
 
-const serializeNotesSnapshot = (snapshot: NotesFormSnapshot): string => JSON.stringify(snapshot);
+const hasMeaningfulValue = (value: unknown): boolean => {
+  if (value === undefined || value === null) {
+    return false;
+  }
+
+  if (Array.isArray(value)) {
+    return value.some(hasMeaningfulValue);
+  }
+
+  if (typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).some(hasMeaningfulValue);
+  }
+
+  return true;
+};
+
+const normalizeNestedAnnotationData = <T extends object>(data: T | undefined): T | undefined => {
+  if (data === undefined || data === null) {
+    return undefined;
+  }
+
+  return hasMeaningfulValue(data) ? data : undefined;
+};
+
+const normalizeNotesSnapshot = (snapshot: NotesFormSnapshot): NotesFormSnapshot => ({
+  ...snapshot,
+  bulletData: normalizeNestedAnnotationData(snapshot.bulletData),
+  cartridgeCaseData: normalizeNestedAnnotationData(snapshot.cartridgeCaseData),
+  shotshellData: normalizeNestedAnnotationData(snapshot.shotshellData),
+});
+
+const serializeNotesSnapshot = (snapshot: NotesFormSnapshot): string => JSON.stringify(normalizeNotesSnapshot(snapshot));
+const DIRTY_CHECK_DEBOUNCE_MS = 180;
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefresh, originalFileName, isUploading = false, showNotification: externalShowNotification, onDirtyChange, onRegisterSaveHandler }: NotesEditorFormProps) => {
   // Loading/Saving Notes States
@@ -91,6 +124,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
   const [isSupportOpen, setIsSupportOpen] = useState(true);
   const [savedSnapshot, setSavedSnapshot] = useState<string>('');
   const [hasLoadedSnapshot, setHasLoadedSnapshot] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const areInputsDisabled = isUploading || isConfirmedImage;
 
   const notificationHandler = useCallback((message: string, type: 'success' | 'error' | 'warning' = 'success') => {
@@ -100,6 +134,62 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
   }, [externalShowNotification]);
 
   useEffect(() => {
+    if (!hasLoadedSnapshot) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      const nextSnapshot = serializeNotesSnapshot({
+        leftCase,
+        rightCase,
+        leftItem,
+        rightItem,
+        caseFontColor,
+        classType,
+        customClass,
+        classNote,
+        hasSubclass,
+        bulletData,
+        cartridgeCaseData,
+        shotshellData,
+        indexType,
+        indexNumber,
+        indexColor,
+        supportLevel,
+        includeConfirmation,
+        additionalNotes,
+      });
+
+      setIsDirty(nextSnapshot !== savedSnapshot);
+    }, DIRTY_CHECK_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    additionalNotes,
+    bulletData,
+    cartridgeCaseData,
+    caseFontColor,
+    classNote,
+    classType,
+    customClass,
+    hasLoadedSnapshot,
+    hasSubclass,
+    includeConfirmation,
+    indexColor,
+    indexNumber,
+    indexType,
+    leftCase,
+    leftItem,
+    rightCase,
+    rightItem,
+    savedSnapshot,
+    shotshellData,
+    supportLevel,
+  ]);
+
+  useEffect(() => {
     const loadExistingNotes = async () => {
       if (!imageId || !currentCase) return;
       
@@ -107,6 +197,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
       setLoadError(undefined);
       setIsConfirmedImage(false);
       setHasLoadedSnapshot(false);
+      setIsDirty(false);
       onDirtyChange?.(false);
       
       try {
@@ -192,56 +283,9 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
     loadExistingNotes();
   }, [imageId, currentCase, onDirtyChange, user]);
 
-  useEffect(() => {
-    if (!hasLoadedSnapshot) {
-      return;
-    }
-
-    const currentSnapshot = serializeNotesSnapshot({
-      leftCase,
-      rightCase,
-      leftItem,
-      rightItem,
-      caseFontColor,
-      classType,
-      customClass,
-      classNote,
-      hasSubclass,
-      bulletData,
-      cartridgeCaseData,
-      shotshellData,
-      indexType,
-      indexNumber,
-      indexColor,
-      supportLevel,
-      includeConfirmation,
-      additionalNotes,
-    });
-
-    onDirtyChange?.(currentSnapshot !== savedSnapshot);
-  }, [
-    additionalNotes,
-    bulletData,
-    cartridgeCaseData,
-    caseFontColor,
-    classNote,
-    classType,
-    customClass,
-    hasLoadedSnapshot,
-    hasSubclass,
-    includeConfirmation,
-    indexColor,
-    indexNumber,
-    indexType,
-    leftCase,
-    leftItem,
-    onDirtyChange,
-    rightCase,
-    rightItem,
-    savedSnapshot,
-    shotshellData,
-    supportLevel,
-  ]);
+  useIsomorphicLayoutEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
  useEffect(() => {
     if (useCurrentCaseLeft) {
@@ -270,6 +314,10 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         notificationHandler('This image is confirmed. Notes cannot be modified.', 'error');
         return false;
       }
+
+      const normalizedBulletData = normalizeNestedAnnotationData(bulletData);
+      const normalizedCartridgeCaseData = normalizeNestedAnnotationData(cartridgeCaseData);
+      const normalizedShotshellData = normalizeNestedAnnotationData(shotshellData);
       
       // Create updated annotation data, preserving box annotations and earliest timestamp
       const now = new Date().toISOString();
@@ -286,9 +334,9 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         customClass: customClass,
         classNote: classNote || undefined,
         hasSubclass: hasSubclass,
-        bulletData: bulletData,
-        cartridgeCaseData: cartridgeCaseData,
-        shotshellData: shotshellData,
+        bulletData: normalizedBulletData,
+        cartridgeCaseData: normalizedCartridgeCaseData,
+        shotshellData: normalizedShotshellData,
         
         // Index Information
         indexType: indexType,
@@ -351,6 +399,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         includeConfirmation,
         additionalNotes,
       }));
+      setIsDirty(false);
       onDirtyChange?.(false);
       
       // Refresh annotation data after saving notes

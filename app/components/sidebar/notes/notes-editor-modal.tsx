@@ -1,5 +1,5 @@
 import type { User } from 'firebase/auth';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useOverlayDismiss } from '~/hooks/useOverlayDismiss';
 import { NotesEditorForm } from './notes-editor-form';
 import styles from './notes.module.css';
@@ -33,6 +33,8 @@ export const NotesEditorModal = ({
   const [saveHandler, setSaveHandler] = useState<(() => Promise<boolean>) | null>(null);
   const closeAlertRef = useRef<HTMLDivElement | null>(null);
   const saveAndCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+  const closeAlertTitleId = useId();
+  const closeAlertDescriptionId = useId();
 
   const handleCloseAttempt = useCallback(() => {
     if (hasUnsavedChanges) {
@@ -70,15 +72,26 @@ export const NotesEditorModal = ({
     setIsCloseAlertOpen(false);
   };
 
+  const canSaveBeforeClose = !!saveHandler && !isSavingBeforeClose;
+
   const handleSaveBeforeClose = async () => {
     if (!saveHandler) {
-      handleDiscardAndClose();
+      showNotification?.('Save is not ready yet. Please wait a moment and try again.', 'warning');
       return;
     }
 
     setIsSavingBeforeClose(true);
-    const didSave = await saveHandler();
-    setIsSavingBeforeClose(false);
+    let didSave = false;
+
+    try {
+      didSave = await saveHandler();
+    } catch (error) {
+      console.error('Failed to save notes before closing:', error);
+      showNotification?.('Failed to save notes. Please try again.', 'error');
+      didSave = false;
+    } finally {
+      setIsSavingBeforeClose(false);
+    }
 
     if (!didSave) {
       return;
@@ -151,7 +164,14 @@ export const NotesEditorModal = ({
 
   return (
     <div className={styles.overlay} aria-label="Close image notes dialog" {...overlayProps}>
-      <div className={styles.editorModal} role="dialog" aria-modal="true" aria-label="Image Notes">
+      <div
+        className={styles.editorModal}
+        role="dialog"
+        aria-modal={isCloseAlertOpen ? undefined : true}
+        aria-label="Image Notes"
+        aria-hidden={isCloseAlertOpen}
+        inert={isCloseAlertOpen}
+      >
         <div className={styles.editorModalHeader}>
           <h2 className={styles.editorModalTitle}>Image Notes</h2>
           <button className={styles.editorModalCloseButton} {...getCloseButtonProps({ ariaLabel: 'Close image notes dialog' })}>
@@ -173,10 +193,17 @@ export const NotesEditorModal = ({
         </div>
       </div>
       {isCloseAlertOpen && (
-        <div className={styles.modalOverlay} role="alertdialog" aria-modal="true" aria-label="Unsaved notes warning">
-          <div className={`${styles.modal} ${styles.unsavedChangesModal}`} ref={closeAlertRef}>
-            <h3 className={styles.modalTitle}>You have unsaved notes!</h3>
-            <p className={styles.unsavedChangesMessage}>
+        <div className={styles.modalOverlay}>
+          <div
+            className={`${styles.modal} ${styles.unsavedChangesModal}`}
+            ref={closeAlertRef}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby={closeAlertTitleId}
+            aria-describedby={closeAlertDescriptionId}
+          >
+            <h3 id={closeAlertTitleId} className={styles.modalTitle}>You have unsaved notes!</h3>
+            <p id={closeAlertDescriptionId} className={styles.unsavedChangesMessage}>
               You have unsaved changes to notes and data. Save before closing?
             </p>
             <div className={styles.unsavedChangesActions}>
@@ -186,7 +213,7 @@ export const NotesEditorModal = ({
                   type="button"
                   onClick={handleSaveBeforeClose}
                   className={`${styles.saveButton} ${styles.unsavedChangesPrimaryAction}`}
-                  disabled={isSavingBeforeClose}
+                  disabled={!canSaveBeforeClose}
                 >
                   {isSavingBeforeClose ? 'Saving...' : 'Save and Close'}
                 </button>
