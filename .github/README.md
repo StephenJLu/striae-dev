@@ -20,6 +20,13 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-04-09] - *[Patch Release v5.5.1](https://github.com/striae-org/striae/releases/tag/v5.5.1)*
+
+- **🕒 Timestamp UX Refinements** - Converted ISO timestamps to user-timezone display and refined timestamp/range-end presentation behavior for improved readability.
+- **🎨 Notes UI Polish** - Applied iterative notes/button styling updates, wording/spacing improvements, prop-handling fixes, and follow-up review adjustments.
+- **📦 Worker and Dependency Maintenance** - Added/fixed worker package version update flows, updated worker dependency metadata (including audit-worker Puppeteer entries), bumped data-worker wrangler, and included React/React DOM maintenance updates.
+- **⚙️ Compatibility and Release Metadata Updates** - Applied compatibility-date refreshes and aligned the v5.5.1 release-version metadata.
+
 ## [2026-04-08] - *[Minor Release v5.5.0](https://github.com/striae-org/striae/releases/tag/v5.5.0)*
 
 - **📄 Audit Trail PDF Export** - Added PDF export capability for the audit trail with a new format-independent worker report path and updated audit viewer header UI.
