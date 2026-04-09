@@ -287,9 +287,7 @@ export const exportAuditPDF = async ({
     const exportRangeStartIso = isBundledArchivedCase
       ? normalizeIsoDate(sortedEntries[0]?.timestamp) || caseCreatedAtIso
       : caseCreatedAtIso;
-    const exportRangeEndIso = isBundledArchivedCase
-      ? normalizeIsoDate(sortedEntries[sortedEntries.length - 1]?.timestamp) || nowIso
-      : nowIso;
+    const exportRangeEndIso = normalizeIsoDate(sortedEntries[sortedEntries.length - 1]?.timestamp) || nowIso;
 
     const chunks = chunkEntries(sortedEntries);
     const totalChunks = chunks.length;
