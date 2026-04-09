@@ -688,6 +688,15 @@ textarea:focus {
   justify-content: flex-end;
 }
 
+.modalButtons .saveButton,
+.modalButtons .cancelButton {
+  min-height: 42px;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .unsavedChangesModal {
   max-width: 520px;
 }
