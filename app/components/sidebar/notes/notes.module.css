@@ -715,6 +715,12 @@ textarea:focus {
   margin: 0;
 }
 
+.unsavedChangesPrimaryRow .cancelButton,
+.unsavedChangesPrimaryRow .saveButton {
+  width: 100%;
+  margin: 0;
+}
+
 .secondaryButton {
   width: 100%;
   padding: 0.75rem;
