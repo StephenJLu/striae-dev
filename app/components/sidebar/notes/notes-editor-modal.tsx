@@ -180,23 +180,25 @@ export const NotesEditorModal = ({
               You have unsaved changes to notes and data. Save before closing?
             </p>
             <div className={styles.unsavedChangesActions}>
-              <button
-                ref={saveAndCloseButtonRef}
-                type="button"
-                onClick={handleSaveBeforeClose}
-                className={styles.saveButton}
-                disabled={isSavingBeforeClose}
-              >
-                {isSavingBeforeClose ? 'Saving...' : 'Save and Close'}
-              </button>
-              <button
-                type="button"
-                onClick={handleDiscardAndClose}
-                className={styles.cancelButton}
-                disabled={isSavingBeforeClose}
-              >
-                Close Without Saving
-              </button>
+              <div className={styles.unsavedChangesPrimaryRow}>
+                <button
+                  ref={saveAndCloseButtonRef}
+                  type="button"
+                  onClick={handleSaveBeforeClose}
+                  className={`${styles.saveButton} ${styles.unsavedChangesPrimaryAction}`}
+                  disabled={isSavingBeforeClose}
+                >
+                  {isSavingBeforeClose ? 'Saving...' : 'Save and Close'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDiscardAndClose}
+                  className={`${styles.cancelButton} ${styles.unsavedChangesPrimaryAction}`}
+                  disabled={isSavingBeforeClose}
+                >
+                  Close Without Saving
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={handleCancelClose}
