@@ -693,7 +693,7 @@ textarea:focus {
 }
 
 .unsavedChangesMessage {
-  margin: 0;
+  margin: 0.75rem;
   color: #495057;
   line-height: 1.5;
 }
