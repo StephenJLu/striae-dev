@@ -313,6 +313,7 @@ export const exportAuditPDF = async ({
         userFirstName,
         userLastName,
         userBadgeId,
+        userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         auditTrailReport: buildAuditTrailPayload(
           caseNumber,
           chunkEntriesForPart,

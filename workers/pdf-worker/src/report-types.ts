@@ -60,6 +60,7 @@ export interface PDFGenerationData {
   userBadgeId?: string;
   reportMode?: 'audit-trail';
   auditTrailReport?: AuditTrailReportPayload;
+  userTimezone?: string;
 }
 
 export interface AuditTrailReportPayload {
