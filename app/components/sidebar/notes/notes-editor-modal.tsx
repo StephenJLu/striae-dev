@@ -175,7 +175,7 @@ export const NotesEditorModal = ({
       {isCloseAlertOpen && (
         <div className={styles.modalOverlay} role="alertdialog" aria-modal="true" aria-label="Unsaved notes warning">
           <div className={`${styles.modal} ${styles.unsavedChangesModal}`} ref={closeAlertRef}>
-            <h3 className={styles.modalTitle}>Unsaved notes</h3>
+            <h3 className={styles.modalTitle}>You have unsaved notes!</h3>
             <p className={styles.unsavedChangesMessage}>
               You have unsaved changes to notes and data. Save before closing?
             </p>

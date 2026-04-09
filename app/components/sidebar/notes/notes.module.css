@@ -692,6 +692,10 @@ textarea:focus {
   max-width: 520px;
 }
 
+.unsavedChangesModal .modalTitle {
+  margin-top: 0;
+}
+
 .unsavedChangesMessage {
   margin: 0.75rem;
   color: #495057;
