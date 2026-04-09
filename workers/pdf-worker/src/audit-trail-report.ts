@@ -14,16 +14,20 @@ const formatTimestamp = (timestamp: string, timezone?: string): string => {
   }
 
   try {
-    return new Intl.DateTimeFormat('en-US', {
-      timeZone: timezone,
-      month: '2-digit',
-      day: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-      timeZoneName: 'short'
-    }).format(parsed);
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+        timeZoneName: 'short'
+      }).formatToParts(parsed);
+
+      const get = (type: string): string => parts.find(p => p.type === type)?.value ?? '';
+      return `${get('month')}/${get('day')}/${get('year')} ${get('hour')}:${get('minute')}:${get('second')} ${get('timeZoneName')}`;
   } catch {
     return parsed.toISOString();
   }
