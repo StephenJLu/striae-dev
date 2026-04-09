@@ -697,6 +697,14 @@ textarea:focus {
   justify-content: center;
 }
 
+.classDetailsModalButtons .classDetailsModalAction {
+  min-height: 42px;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .unsavedChangesModal {
   max-width: 520px;
 }

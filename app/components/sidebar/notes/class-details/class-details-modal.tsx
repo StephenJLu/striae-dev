@@ -118,10 +118,10 @@ const ClassDetailsModalContent = ({
             />
           )}
         </div>
-        <div className={styles.modalButtons}>
+        <div className={`${styles.modalButtons} ${styles.classDetailsModalButtons}`}>
           <button
             onClick={handleSave}
-            className={styles.saveButton}
+            className={`${styles.saveButton} ${styles.classDetailsModalAction}`}
             disabled={isSaving || isReadOnly}
             aria-busy={isSaving}
           >
@@ -129,7 +129,7 @@ const ClassDetailsModalContent = ({
           </button>
           <button
             onClick={requestClose}
-            className={styles.cancelButton}
+            className={`${styles.cancelButton} ${styles.classDetailsModalAction}`}
             disabled={isSaving}
           >
             Cancel
