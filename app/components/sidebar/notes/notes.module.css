@@ -688,6 +688,76 @@ textarea:focus {
   justify-content: flex-end;
 }
 
+.modalButtons .saveButton,
+.modalButtons .cancelButton {
+  min-height: 42px;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.classDetailsModalButtons .classDetailsModalAction {
+  min-height: 42px;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.unsavedChangesModal {
+  max-width: 520px;
+}
+
+.unsavedChangesModal .modalTitle {
+  margin-top: 0;
+}
+
+.unsavedChangesMessage {
+  margin: 0.75rem;
+  color: #495057;
+  line-height: 1.5;
+}
+
+.unsavedChangesActions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.unsavedChangesPrimaryRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.unsavedChangesPrimaryAction {
+  width: 100%;
+  margin: 0;
+}
+
+.unsavedChangesPrimaryRow .cancelButton,
+.unsavedChangesPrimaryRow .saveButton {
+  width: 100%;
+  margin: 0;
+}
+
+.secondaryButton {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1.5px solid #ced4da;
+  border-radius: 6px;
+  background: white;
+  color: #495057;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.secondaryButton:hover {
+  background-color: #f8f9fa;
+}
+
 .cancelButton {
   width: 30%;
   padding: 0.75rem;
@@ -703,6 +773,13 @@ textarea:focus {
 
 .cancelButton:hover {
   background-color: #bd2130;
+}
+
+.cancelButton:disabled,
+.saveButton:disabled,
+.secondaryButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .saveButton {

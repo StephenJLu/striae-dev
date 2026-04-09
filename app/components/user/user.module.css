@@ -156,7 +156,7 @@
 .sectionLabel {
   display: block;
   font-weight: 600;
-  color: var(--textBody);
+  color: var(--textTitle);
   margin-bottom: var(--spaceS);
 }
 
