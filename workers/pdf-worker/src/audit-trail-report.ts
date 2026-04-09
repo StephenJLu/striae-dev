@@ -3,13 +3,34 @@ import { buildRepeatedChromePdfOptions, escapeHtml } from './report-layout';
 
 const safeText = (value: unknown): string => escapeHtml(String(value ?? ''));
 
-const formatTimestamp = (timestamp: string): string => {
+const formatTimestamp = (timestamp: string, timezone?: string): string => {
   const parsed = new Date(timestamp);
   if (Number.isNaN(parsed.getTime())) {
     return timestamp;
   }
 
-  return parsed.toISOString();
+  if (!timezone) {
+    return parsed.toISOString();
+  }
+
+  try {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+        timeZoneName: 'short'
+      }).formatToParts(parsed);
+
+      const get = (type: string): string => parts.find(p => p.type === type)?.value ?? '';
+      return `${get('month')}/${get('day')}/${get('year')} ${get('hour')}:${get('minute')}:${get('second')} ${get('timeZoneName')}`;
+  } catch {
+    return parsed.toISOString();
+  }
 };
 
 const renderEntryDetailsSummary = (entry: Record<string, unknown>): string => {
@@ -71,6 +92,7 @@ export const getAuditTrailPayload = (data: PDFGenerationData): AuditTrailReportP
 export const renderAuditTrailReport = (data: PDFGenerationData): string => {
   const payload = getAuditTrailPayload(data);
   const entries = payload.entries || [];
+  const timezone = data.userTimezone;
 
   const entrySections = entries.map((entry, index) => {
     const entryRecord = entry as Record<string, unknown>;
@@ -84,7 +106,7 @@ export const renderAuditTrailReport = (data: PDFGenerationData): string => {
       <section class="entry-section">
         <h3 class="entry-title">Entry ${index + 1} of ${entries.length}</h3>
         <div class="entry-core-grid">
-          <div><strong>Timestamp:</strong> ${safeText(formatTimestamp(timestamp))}</div>
+          <div><strong>Timestamp:</strong> ${safeText(formatTimestamp(timestamp, timezone))}</div>
           <div><strong>Action:</strong> ${safeText(action)}</div>
           <div><strong>Result:</strong> ${safeText(result)}</div>
           <div><strong>User Email:</strong> ${safeText(userEmail)}</div>
@@ -195,9 +217,9 @@ export const renderAuditTrailReport = (data: PDFGenerationData): string => {
         <h1>Case Audit Trail Report</h1>
         <div class="summary-grid">
           <div><strong>Case Number:</strong> ${safeText(payload.caseNumber)}</div>
-          <div><strong>Exported At:</strong> ${safeText(formatTimestamp(payload.exportedAt))}</div>
-          <div><strong>Range Start:</strong> ${safeText(formatTimestamp(payload.exportRangeStart))}</div>
-          <div><strong>Range End:</strong> ${safeText(formatTimestamp(payload.exportRangeEnd))}</div>
+          <div><strong>Exported At:</strong> ${safeText(formatTimestamp(payload.exportedAt, timezone))}</div>
+          <div><strong>Range Start:</strong> ${safeText(formatTimestamp(payload.exportRangeStart, timezone))}</div>
+          <div><strong>Range End:</strong> ${safeText(formatTimestamp(payload.exportRangeEnd, timezone))}</div>
           <div><strong>Total Entries (All Parts):</strong> ${safeText(payload.totalEntries)}</div>
           <div><strong>This Part:</strong> ${safeText(payload.chunkIndex)} of ${safeText(payload.totalChunks)}</div>
           <div><strong>Entries in Part:</strong> ${safeText(entries.length)}</div>

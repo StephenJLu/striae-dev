@@ -1,6 +1,6 @@
 {
   "name": "data-worker",
-  "version": "0.0.0",
+  "version": "5.5.1",
   "private": true,
   "scripts": {
     "deploy": "wrangler deploy",
@@ -8,8 +8,7 @@
     "start": "wrangler dev"
   },
   "devDependencies": {
-    "@cloudflare/puppeteer": "^1.0.6",
-    "wrangler": "^4.81.0"
+    "wrangler": "^4.81.1"
   },
   "overrides": {
     "undici": "7.24.1",
