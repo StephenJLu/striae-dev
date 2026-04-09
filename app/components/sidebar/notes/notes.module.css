@@ -688,6 +688,38 @@ textarea:focus {
   justify-content: flex-end;
 }
 
+.unsavedChangesModal {
+  max-width: 520px;
+}
+
+.unsavedChangesMessage {
+  margin: 0;
+  color: #495057;
+  line-height: 1.5;
+}
+
+.unsavedChangesActions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.secondaryButton {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1.5px solid #ced4da;
+  border-radius: 6px;
+  background: white;
+  color: #495057;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.secondaryButton:hover {
+  background-color: #f8f9fa;
+}
+
 .cancelButton {
   width: 30%;
   padding: 0.75rem;
@@ -703,6 +735,13 @@ textarea:focus {
 
 .cancelButton:hover {
   background-color: #bd2130;
+}
+
+.cancelButton:disabled,
+.saveButton:disabled,
+.secondaryButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .saveButton {

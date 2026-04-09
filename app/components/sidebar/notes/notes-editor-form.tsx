@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { User } from 'firebase/auth';
 import { ColorSelector } from '~/components/colors/colors';
 import { AddlNotesModal } from './addl-notes-modal';
@@ -18,13 +18,38 @@ interface NotesEditorFormProps {
   originalFileName?: string;
   isUploading?: boolean;
   showNotification?: (message: string, type: 'success' | 'error' | 'warning') => void;
+  onDirtyChange?: (isDirty: boolean) => void;
+  onRegisterSaveHandler?: (saveHandler: (() => Promise<boolean>) | null) => void;
 }
 
 type SupportLevel = 'ID' | 'Exclusion' | 'Inconclusive';
 type ClassType = 'Bullet' | 'Cartridge Case' | 'Shotshell' | 'Other';
 type IndexType = 'number' | 'color';
 
-export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefresh, originalFileName, isUploading = false, showNotification: externalShowNotification }: NotesEditorFormProps) => {
+interface NotesFormSnapshot {
+  leftCase: string;
+  rightCase: string;
+  leftItem: string;
+  rightItem: string;
+  caseFontColor: string;
+  classType: ClassType | '';
+  customClass: string;
+  classNote: string;
+  hasSubclass: boolean;
+  bulletData: BulletAnnotationData | undefined;
+  cartridgeCaseData: CartridgeCaseAnnotationData | undefined;
+  shotshellData: ShotshellAnnotationData | undefined;
+  indexType: IndexType;
+  indexNumber: string;
+  indexColor: string;
+  supportLevel: SupportLevel | '';
+  includeConfirmation: boolean;
+  additionalNotes: string;
+}
+
+const serializeNotesSnapshot = (snapshot: NotesFormSnapshot): string => JSON.stringify(snapshot);
+
+export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefresh, originalFileName, isUploading = false, showNotification: externalShowNotification, onDirtyChange, onRegisterSaveHandler }: NotesEditorFormProps) => {
   // Loading/Saving Notes States
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string>();
@@ -64,13 +89,15 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
   const [isClassOpen, setIsClassOpen] = useState(true);
   const [isIndexOpen, setIsIndexOpen] = useState(true);
   const [isSupportOpen, setIsSupportOpen] = useState(true);
+  const [savedSnapshot, setSavedSnapshot] = useState<string>('');
+  const [hasLoadedSnapshot, setHasLoadedSnapshot] = useState(false);
   const areInputsDisabled = isUploading || isConfirmedImage;
 
-  const notificationHandler = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
+  const notificationHandler = useCallback((message: string, type: 'success' | 'error' | 'warning' = 'success') => {
     if (externalShowNotification) {
       externalShowNotification(message, type);
     }
-  };
+  }, [externalShowNotification]);
 
   useEffect(() => {
     const loadExistingNotes = async () => {
@@ -79,6 +106,8 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
       setIsLoading(true);
       setLoadError(undefined);
       setIsConfirmedImage(false);
+      setHasLoadedSnapshot(false);
+      onDirtyChange?.(false);
       
       try {
         const existingNotes = await getNotes(user, currentCase, imageId);
@@ -106,19 +135,113 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
           setSupportLevel(existingNotes.supportLevel || '');
           setIncludeConfirmation(existingNotes.includeConfirmation);
           setAdditionalNotes(existingNotes.additionalNotes || '');
+
+          setSavedSnapshot(serializeNotesSnapshot({
+            leftCase: existingNotes.leftCase || '',
+            rightCase: existingNotes.rightCase || '',
+            leftItem: existingNotes.leftItem || '',
+            rightItem: existingNotes.rightItem || '',
+            caseFontColor: existingNotes.caseFontColor || '',
+            classType: existingNotes.classType || '',
+            customClass: existingNotes.customClass || '',
+            classNote: existingNotes.classNote || '',
+            hasSubclass: existingNotes.hasSubclass ?? false,
+            bulletData: existingNotes.bulletData,
+            cartridgeCaseData: existingNotes.cartridgeCaseData,
+            shotshellData: existingNotes.shotshellData,
+            indexType: existingNotes.indexType || 'color',
+            indexNumber: existingNotes.indexNumber || '',
+            indexColor: existingNotes.indexColor || '',
+            supportLevel: existingNotes.supportLevel || '',
+            includeConfirmation: existingNotes.includeConfirmation,
+            additionalNotes: existingNotes.additionalNotes || ''
+          }));
         } else {
           setIsConfirmedImage(false);
+
+          setSavedSnapshot(serializeNotesSnapshot({
+            leftCase: '',
+            rightCase: '',
+            leftItem: '',
+            rightItem: '',
+            caseFontColor: '',
+            classType: '',
+            customClass: '',
+            classNote: '',
+            hasSubclass: false,
+            bulletData: undefined,
+            cartridgeCaseData: undefined,
+            shotshellData: undefined,
+            indexType: 'color',
+            indexNumber: '',
+            indexColor: '',
+            supportLevel: '',
+            includeConfirmation: false,
+            additionalNotes: ''
+          }));
         }
       } catch (error) {
         setLoadError('Failed to load existing notes');
         console.error('Error loading notes:', error);
       } finally {
         setIsLoading(false);
+        setHasLoadedSnapshot(true);
       }
     };
 
     loadExistingNotes();
-  }, [imageId, currentCase, user]);
+  }, [imageId, currentCase, onDirtyChange, user]);
+
+  useEffect(() => {
+    if (!hasLoadedSnapshot) {
+      return;
+    }
+
+    const currentSnapshot = serializeNotesSnapshot({
+      leftCase,
+      rightCase,
+      leftItem,
+      rightItem,
+      caseFontColor,
+      classType,
+      customClass,
+      classNote,
+      hasSubclass,
+      bulletData,
+      cartridgeCaseData,
+      shotshellData,
+      indexType,
+      indexNumber,
+      indexColor,
+      supportLevel,
+      includeConfirmation,
+      additionalNotes,
+    });
+
+    onDirtyChange?.(currentSnapshot !== savedSnapshot);
+  }, [
+    additionalNotes,
+    bulletData,
+    cartridgeCaseData,
+    caseFontColor,
+    classNote,
+    classType,
+    customClass,
+    hasLoadedSnapshot,
+    hasSubclass,
+    includeConfirmation,
+    indexColor,
+    indexNumber,
+    indexType,
+    leftCase,
+    leftItem,
+    onDirtyChange,
+    rightCase,
+    rightItem,
+    savedSnapshot,
+    shotshellData,
+    supportLevel,
+  ]);
 
  useEffect(() => {
     if (useCurrentCaseLeft) {
@@ -129,11 +252,11 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
     }
   }, [useCurrentCaseLeft, useCurrentCaseRight, currentCase]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async (): Promise<boolean> => {
 
     if (!imageId) {
       console.error('No image selected');
-      return;
+      return false;
     }
 
     let existingData: AnnotationData | null = null;
@@ -145,7 +268,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
       if (existingData?.confirmationData) {
         setIsConfirmedImage(true);
         notificationHandler('This image is confirmed. Notes cannot be modified.', 'error');
-        return;
+        return false;
       }
       
       // Create updated annotation data, preserving box annotations and earliest timestamp
@@ -207,11 +330,35 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
       );
       
       notificationHandler('Notes saved successfully.', 'success');
+
+      setSavedSnapshot(serializeNotesSnapshot({
+        leftCase,
+        rightCase,
+        leftItem,
+        rightItem,
+        caseFontColor,
+        classType,
+        customClass,
+        classNote,
+        hasSubclass,
+        bulletData,
+        cartridgeCaseData,
+        shotshellData,
+        indexType,
+        indexNumber,
+        indexColor,
+        supportLevel,
+        includeConfirmation,
+        additionalNotes,
+      }));
+      onDirtyChange?.(false);
       
       // Refresh annotation data after saving notes
       if (onAnnotationRefresh) {
         onAnnotationRefresh();
       }
+
+      return true;
     } catch (error) {
       console.error('Failed to save notes:', error);
       const errorMessage = error instanceof Error ? error.message : '';
@@ -237,8 +384,44 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
       } catch (auditError) {
         console.error('Failed to log annotation edit audit:', auditError);
       }
+
+      return false;
     }
-  };
+  }, [
+    additionalNotes,
+    bulletData,
+    cartridgeCaseData,
+    caseFontColor,
+    classNote,
+    classType,
+    currentCase,
+    customClass,
+    hasSubclass,
+    imageId,
+    includeConfirmation,
+    indexColor,
+    indexNumber,
+    indexType,
+    leftCase,
+    leftItem,
+    notificationHandler,
+    onAnnotationRefresh,
+    onDirtyChange,
+    originalFileName,
+    rightCase,
+    rightItem,
+    shotshellData,
+    supportLevel,
+    user,
+  ]);
+
+  useEffect(() => {
+    onRegisterSaveHandler?.(handleSave);
+
+    return () => {
+      onRegisterSaveHandler?.(null);
+    };
+  }, [handleSave, onRegisterSaveHandler]);
 
   return (
     <div className={`${styles.notesEditorForm} ${styles.editorLayout}`}>
