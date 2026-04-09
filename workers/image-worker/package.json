@@ -9,9 +9,5 @@
   },
   "devDependencies": {
     "wrangler": "^4.81.1"
-  },
-  "overrides": {
-    "undici": "7.24.1",
-    "yauzl": "3.2.1"
   }
 }
