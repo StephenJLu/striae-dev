@@ -4,16 +4,7 @@
 # MEMBERS EMAIL LIST DEPLOYMENT SCRIPT
 # ============================================
 # Reads members.emails, updates REGISTRATION_EMAILS in .env,
-# then deploys that secret directly to Cloudflare Pages.
-#
-# Usage:
-#   bash ./scripts/deploy-members-emails.sh [--production-only|--preview-only|--env-only]
-#
-# Options:
-#   --production-only  Deploy to production Pages environment only
-#   --preview-only     Deploy to preview Pages environment only
-#   --env-only         Update .env only; do not deploy to Cloudflare
-#   -h, --help         Show this help message
+# then deploys that secret directly to Cloudflare Pages (production).
 
 set -e
 set -o pipefail
@@ -32,43 +23,6 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
 trap 'echo -e "\n${RED}❌ deploy-members-emails.sh failed near line ${LINENO}${NC}"' ERR
-
-# ── Argument parsing ─────────────────────────────────────────────────────────
-
-deploy_production=true
-deploy_preview=true
-env_only=false
-
-for arg in "$@"; do
-    case "$arg" in
-        -h|--help)
-            echo "Usage: bash ./scripts/deploy-members-emails.sh [--production-only|--preview-only|--env-only]"
-            echo ""
-            echo "Options:"
-            echo "  --production-only  Deploy to production Pages environment only"
-            echo "  --preview-only     Deploy to preview Pages environment only"
-            echo "  --env-only         Update .env only; do not deploy to Cloudflare"
-            echo "  -h, --help         Show this help message"
-            exit 0
-            ;;
-        --production-only)
-            deploy_production=true
-            deploy_preview=false
-            ;;
-        --preview-only)
-            deploy_production=false
-            deploy_preview=true
-            ;;
-        --env-only)
-            env_only=true
-            ;;
-        *)
-            echo -e "${RED}❌ Unknown option: $arg${NC}"
-            echo "Use --help to see supported options."
-            exit 1
-            ;;
-    esac
-done
 
 # ── Read emails file ──────────────────────────────────────────────────────────
 
@@ -115,11 +69,6 @@ else
     echo -e "${GREEN}✅ Appended REGISTRATION_EMAILS to .env${NC}"
 fi
 
-if [ "$env_only" = "true" ]; then
-    echo -e "\n${GREEN}🎉 .env updated. Skipping Cloudflare deployment (--env-only).${NC}"
-    exit 0
-fi
-
 # ── Deploy to Cloudflare Pages ────────────────────────────────────────────────
 
 if ! command -v wrangler > /dev/null 2>&1; then
@@ -135,27 +84,11 @@ if [ -z "$PAGES_PROJECT_NAME" ]; then
     exit 1
 fi
 
-set_secret() {
-    local pages_env=$1
-    echo -e "${YELLOW}  Setting REGISTRATION_EMAILS for $pages_env...${NC}"
-    if [ "$pages_env" = "production" ]; then
-        printf '%s' "$REGISTRATION_EMAILS" | wrangler pages secret put REGISTRATION_EMAILS \
-            --project-name "$PAGES_PROJECT_NAME"
-    else
-        printf '%s' "$REGISTRATION_EMAILS" | wrangler pages secret put REGISTRATION_EMAILS \
-            --project-name "$PAGES_PROJECT_NAME" --env "$pages_env"
-    fi
-}
+echo -e "${YELLOW}  Setting REGISTRATION_EMAILS for production...${NC}"
+printf '%s' "$REGISTRATION_EMAILS" | wrangler pages secret put REGISTRATION_EMAILS \
+    --project-name "$PAGES_PROJECT_NAME"
 
-if [ "$deploy_production" = "true" ]; then
-    set_secret "production"
-    echo -e "${GREEN}✅ REGISTRATION_EMAILS deployed to production${NC}"
-fi
-
-if [ "$deploy_preview" = "true" ]; then
-    set_secret "preview"
-    echo -e "${GREEN}✅ REGISTRATION_EMAILS deployed to preview${NC}"
-fi
+echo -e "${GREEN}✅ REGISTRATION_EMAILS deployed to production${NC}"
 
 # Deploy Pages so the new secret takes effect immediately
 echo -e "\n${YELLOW}🚀 Building and deploying Pages to activate new secret...${NC}"

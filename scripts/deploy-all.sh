@@ -127,8 +127,8 @@ echo ""
 # Step 5: Deploy Pages Secrets
 echo -e "${PURPLE}Step 5/6: Deploying Pages Secrets${NC}"
 echo "----------------------------------"
-echo -e "${YELLOW}🔐 Deploying Pages environment variables to production only...${NC}"
-if ! bash "$SCRIPT_DIR/deploy-pages-secrets.sh" --production-only; then
+echo -e "${YELLOW}🔐 Deploying Pages environment variables...${NC}"
+if ! bash "$SCRIPT_DIR/deploy-pages-secrets.sh"; then
     echo -e "${RED}❌ Pages secrets deployment failed!${NC}"
     exit 1
 fi

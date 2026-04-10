@@ -24,46 +24,6 @@ cd "$PROJECT_ROOT"
 
 trap 'echo -e "\n${RED}❌ deploy-pages-secrets.sh failed near line ${LINENO}${NC}"' ERR
 
-show_help=false
-deploy_production=true
-deploy_preview=true
-
-for arg in "$@"; do
-    case "$arg" in
-        -h|--help)
-            show_help=true
-            ;;
-        --production-only)
-            deploy_production=true
-            deploy_preview=false
-            ;;
-        --preview-only)
-            deploy_production=false
-            deploy_preview=true
-            ;;
-        *)
-            echo -e "${RED}❌ Unknown option: $arg${NC}"
-            echo "Use --help to see supported options."
-            exit 1
-            ;;
-    esac
-done
-
-if [ "$show_help" = "true" ]; then
-    echo "Usage: bash ./scripts/deploy-pages-secrets.sh [--production-only|--preview-only]"
-    echo ""
-    echo "Options:"
-    echo "  --production-only  Deploy secrets only to the production Pages environment"
-    echo "  --preview-only     Deploy secrets only to the preview Pages environment"
-    echo "  -h, --help         Show this help message"
-    exit 0
-fi
-
-if [ "$deploy_production" != "true" ] && [ "$deploy_preview" != "true" ]; then
-    echo -e "${RED}❌ No target environment selected${NC}"
-    exit 1
-fi
-
 require_command() {
     local cmd=$1
     if ! command -v "$cmd" > /dev/null 2>&1; then
@@ -145,42 +105,29 @@ get_optional_value() {
     printf '%s' "$value"
 }
 
-set_pages_secret() {
-    local secret_name=$1
-    local secret_value=$2
-    local pages_env=$3
-
-    echo -e "${YELLOW}  Setting $secret_name for $pages_env...${NC}"
-
-    if [ "$pages_env" = "production" ]; then
-        printf '%s' "$secret_value" | wrangler pages secret put "$secret_name" --project-name "$PAGES_PROJECT_NAME"
-        return 0
-    fi
-
-    printf '%s' "$secret_value" | wrangler pages secret put "$secret_name" --project-name "$PAGES_PROJECT_NAME" --env "$pages_env"
-}
-
-deploy_pages_environment_secrets() {
-    local pages_env=$1
+deploy_pages_secrets() {
     local secret
     local secret_value
 
-    echo -e "\n${BLUE}🔧 Deploying Pages secrets to $pages_env...${NC}"
+    echo -e "\n${BLUE}🔧 Deploying Pages secrets to production...${NC}"
 
     for secret in "${required_pages_secrets[@]}"; do
         secret_value=$(get_required_value "$secret")
-        set_pages_secret "$secret" "$secret_value" "$pages_env"
+        echo -e "${YELLOW}  Setting $secret...${NC}"
+        printf '%s' "$secret_value" | wrangler pages secret put "$secret" --project-name "$PAGES_PROJECT_NAME"
     done
 
     local optional_primershear_emails
     optional_primershear_emails=$(get_optional_value "PRIMERSHEAR_EMAILS")
-    set_pages_secret "PRIMERSHEAR_EMAILS" "$optional_primershear_emails" "$pages_env"
+    echo -e "${YELLOW}  Setting PRIMERSHEAR_EMAILS...${NC}"
+    printf '%s' "$optional_primershear_emails" | wrangler pages secret put "PRIMERSHEAR_EMAILS" --project-name "$PAGES_PROJECT_NAME"
 
     local optional_registration_emails
     optional_registration_emails=$(get_optional_value "REGISTRATION_EMAILS")
-    set_pages_secret "REGISTRATION_EMAILS" "$optional_registration_emails" "$pages_env"
+    echo -e "${YELLOW}  Setting REGISTRATION_EMAILS...${NC}"
+    printf '%s' "$optional_registration_emails" | wrangler pages secret put "REGISTRATION_EMAILS" --project-name "$PAGES_PROJECT_NAME"
 
-    echo -e "${GREEN}✅ Pages secrets deployed to $pages_env${NC}"
+    echo -e "${GREEN}✅ Pages secrets deployed to production${NC}"
 }
 
 require_command wrangler
@@ -222,12 +169,6 @@ for secret in "${required_pages_secrets[@]}"; do
 done
 echo -e "${GREEN}✅ Required Pages secret values found${NC}"
 
-if [ "$deploy_production" = "true" ]; then
-    deploy_pages_environment_secrets "production"
-fi
-
-if [ "$deploy_preview" = "true" ]; then
-    deploy_pages_environment_secrets "preview"
-fi
+deploy_pages_secrets
 
 echo -e "\n${GREEN}🎉 Pages secrets deployment completed!${NC}"
