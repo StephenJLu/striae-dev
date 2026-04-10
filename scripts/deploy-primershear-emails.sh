@@ -158,7 +158,15 @@ fi
 
 # Deploy Pages so the new secret takes effect immediately
 echo -e "\n${YELLOW}🚀 Building and deploying Pages to activate new secret...${NC}"
-if ! npm run deploy; then
+
+deploy_flags=""
+if [ "$deploy_production" = "true" ] && [ "$deploy_preview" = "false" ]; then
+    deploy_flags="--env production"
+elif [ "$deploy_production" = "false" ] && [ "$deploy_preview" = "true" ]; then
+    deploy_flags="--env preview"
+fi
+
+if ! npm run pages:deploy -- $deploy_flags; then
     echo -e "${RED}❌ Pages deployment failed${NC}"
     exit 1
 fi

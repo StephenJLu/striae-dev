@@ -177,10 +177,15 @@ export const onRequest = async ({ request, env }: UserProxyContext): Promise<Res
         if (!isEmailAllowed(identity.email ?? '', env.REGISTRATION_EMAILS)) {
           return textResponse('Registration is not permitted for this email address', 403);
         }
+      } else if (!existenceResponse.ok) {
+        // Existence check failed (non-404, non-2xx response).
+        // Fail closed: reject the registration to prevent allowlist bypass during errors.
+        return textResponse('Unable to verify registration eligibility', 502);
       }
-      // If user already exists (200) or upstream errored, proceed normally (fail open).
+      // If user already exists (200), proceed normally.
     } catch {
-      // Fail open on network error — do not block legitimate profile updates.
+      // Fail closed: on network error with allowlist active, reject the request.
+      return textResponse('Unable to verify registration eligibility', 502);
     }
   }
 
