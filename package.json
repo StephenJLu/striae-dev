@@ -1,6 +1,6 @@
 {
   "name": "@striae-org/striae",
-  "version": "5.5.1",
+  "version": "5.5.2",
   "private": false,
   "description": "Striae is a specialized, cloud-native platform designed to streamline forensic firearms identification by providing an intuitive environment for digital comparison image annotation, authenticated confirmations, and automated report generation.",
   "license": "Apache-2.0",
@@ -52,11 +52,12 @@
     "workers/pdf-worker/src/formats/format-striae.ts",
     ".env.example",
     "primershear.emails.example",
+    "members.emails.example",
     "firebase.json",
     "tsconfig.json",
     "vite.config.ts",
     "/worker-configuration.d.ts",
-    "wrangler.toml.example",
+    "wrangler.toml.example",    
     "LICENSE"
   ],
   "sideEffects": false,
@@ -93,6 +94,7 @@
     "deploy-pages:secrets": "bash ./scripts/deploy-pages-secrets.sh --production-only",
     "deploy-pages": "bash ./scripts/deploy-pages.sh",
     "deploy-primershear": "bash ./scripts/deploy-primershear-emails.sh --production-only",
+    "deploy-members": "bash ./scripts/deploy-members-emails.sh --production-only",
     "deploy-workers:audit": "cd workers/audit-worker && npm run deploy",
     "deploy-workers:data": "cd workers/data-worker && npm run deploy",
     "deploy-workers:image": "cd workers/image-worker && npm run deploy",
@@ -101,7 +103,7 @@
   },
   "dependencies": {
     "@react-router/cloudflare": "^7.14.0",
-    "firebase": "^12.11.0",
+    "firebase": "^12.12.0",
     "isbot": "^5.1.37",
     "jszip": "^3.10.1",
     "qrcode": "^1.5.4",
@@ -123,7 +125,7 @@
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
-    "firebase-admin": "^13.7.0",
+    "firebase-admin": "^13.8.0",
     "modern-normalize": "^3.0.1",
     "typescript": "^5.9.3",
     "vite": "^7.3.2",
@@ -131,9 +133,7 @@
     "wrangler": "^4.81.1"
   },
   "overrides": {
-    "@tootallnate/once": "3.0.1",
-    "tar": "7.5.11",
-    "undici": "7.24.1"
+    "@tootallnate/once": "3.0.1"
   },
   "engines": {
     "node": ">=20.19.0"

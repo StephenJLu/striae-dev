@@ -1,0 +1,11 @@
+# Registration gateway - authorized email addresses
+# One entry per line. Lines starting with # are ignored.
+# This file is untracked. Run: npm run deploy-members to push changes.
+#
+# Supported formats:
+#   Exact email:   analyst@organization.com
+#   Domain wildcard: @organization.com  (allows all emails from that domain)
+#
+# Examples:
+# analyst@organization.com
+# @striae.org

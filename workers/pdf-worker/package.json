@@ -1,6 +1,6 @@
 {
   "name": "pdf-worker",
-  "version": "5.5.1",
+  "version": "5.5.2",
   "private": true,
   "scripts": {
     "generate:assets": "node scripts/generate-assets.js",
@@ -10,9 +10,5 @@
   },
   "devDependencies": {
     "wrangler": "^4.81.1"
-  },
-  "overrides": {
-    "undici": "7.24.1",
-    "yauzl": "3.2.1"
   }
 }
