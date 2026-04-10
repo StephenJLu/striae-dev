@@ -178,6 +178,12 @@ deploy_pages_environment_secrets() {
         set_pages_secret "PRIMERSHEAR_EMAILS" "$optional_primershear_emails" "$pages_env"
     fi
 
+    local optional_registration_emails
+    optional_registration_emails=$(get_optional_value "REGISTRATION_EMAILS")
+    if [ -n "$optional_registration_emails" ]; then
+        set_pages_secret "REGISTRATION_EMAILS" "$optional_registration_emails" "$pages_env"
+    fi
+
     echo -e "${GREEN}✅ Pages secrets deployed to $pages_env${NC}"
 }
 

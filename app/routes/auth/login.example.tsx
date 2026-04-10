@@ -94,12 +94,24 @@ export const Login = () => {
     setIsClient(true);
   }, []);
 
-  // Email validation with regex
-  const validateRegistrationEmail = (email: string): { valid: boolean } => {
+  // Email validation with regex and registration gateway allowlist check
+  const validateRegistrationEmail = async (email: string): Promise<{ valid: boolean; message?: string }> => {
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    
+
     if (!emailRegex.test(email)) {
       return { valid: false };
+    }
+
+    try {
+      const response = await fetch(`/api/auth/can-register?email=${encodeURIComponent(email)}`);
+      if (response.status === 403) {
+        return {
+          valid: false,
+          message: 'Registration is limited to Striae membership. You may join at https://join.striae.org.'
+        };
+      }
+    } catch {
+      // Fail open on network error — server-side PUT guard provides defense-in-depth
     }
 
     return { valid: true };
@@ -282,9 +294,9 @@ export const Login = () => {
 
   try {
     if (!isLogin) {
-      const emailValidation = validateRegistrationEmail(email);
+      const emailValidation = await validateRegistrationEmail(email);
       if (!emailValidation.valid) {
-        setError('Please enter a valid email address');
+        setError(emailValidation.message ?? 'Please enter a valid email address');
         setIsLoading(false);
         return;
       }

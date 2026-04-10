@@ -1,4 +1,5 @@
 import { verifyFirebaseIdentityFromRequest } from '../_shared/firebase-auth';
+import { isEmailAllowed } from '../_shared/registration-allowlist';
 
 interface UserProxyContext {
   request: Request;
@@ -155,6 +156,34 @@ export const onRequest = async ({ request, env }: UserProxyContext): Promise<Res
   if (requestedUserId !== identity.uid) {
     return textResponse('Forbidden', 403);
   }
+
+  // Registration gateway: for PUT requests, check if this is a new user creation.
+  // If REGISTRATION_EMAILS is set and the user record does not yet exist, enforce the allowlist.
+  // This is defense-in-depth — the primary check runs client-side in the login flow.
+  if (request.method === 'PUT' && env.REGISTRATION_EMAILS && env.REGISTRATION_EMAILS.trim().length > 0) {
+    try {
+      const existenceCheckUrl = `${userWorkerBaseUrl}/${encodeURIComponent(requestedUserId)}`;
+      const existenceResponse = await fetch(existenceCheckUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'X-Custom-Auth-Key': env.USER_DB_AUTH
+        }
+      });
+
+      if (existenceResponse.status === 404) {
+        // User does not exist yet — this is a registration PUT.
+        // Enforce the email allowlist.
+        if (!isEmailAllowed(identity.email ?? '', env.REGISTRATION_EMAILS)) {
+          return textResponse('Registration is not permitted for this email address', 403);
+        }
+      }
+      // If user already exists (200) or upstream errored, proceed normally (fail open).
+    } catch {
+      // Fail open on network error — do not block legitimate profile updates.
+    }
+  }
+
   const upstreamUrl = `${userWorkerBaseUrl}${proxyPath}${requestUrl.search}`;
 
   const upstreamHeaders = new Headers();
