@@ -167,7 +167,7 @@ elif [ "$deploy_production" = "false" ] && [ "$deploy_preview" = "true" ]; then
     deploy_flags="--env preview"
 fi
 
-if ! npm run pages:deploy -- $deploy_flags; then
+if ! npm run deploy-pages -- $deploy_flags; then
     echo -e "${RED}❌ Pages deployment failed${NC}"
     exit 1
 fi
