@@ -52,10 +52,10 @@ export interface AuditExportSigningPayload {
   hash: string;
 }
 
-export const FORENSIC_MANIFEST_VERSION = '2.0';
-export const CONFIRMATION_SIGNATURE_VERSION = '2.0';
-export const AUDIT_EXPORT_SIGNATURE_VERSION = '1.0';
-export const FORENSIC_MANIFEST_SIGNATURE_ALGORITHM = 'RSASSA-PKCS1-v1_5-SHA-256';
+export const FORENSIC_MANIFEST_VERSION = '3.0';
+export const CONFIRMATION_SIGNATURE_VERSION = '3.0';
+export const AUDIT_EXPORT_SIGNATURE_VERSION = '2.0';
+export const FORENSIC_MANIFEST_SIGNATURE_ALGORITHM = 'RSASSA-PSS-SHA-256';
 
 const SHA256_HEX_REGEX = /^[a-f0-9]{64}$/i;
 

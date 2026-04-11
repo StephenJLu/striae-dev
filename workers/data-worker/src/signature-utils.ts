@@ -5,6 +5,8 @@ export interface WorkerSignatureEnvelope {
   value: string;
 }
 
+const RSA_PSS_SALT_LENGTH = 32;
+
 function base64UrlEncode(value: Uint8Array): string {
   let binary = '';
   for (const byte of value) {
@@ -57,7 +59,7 @@ export async function signPayload(
     'pkcs8',
     parsePkcs8PrivateKey(privateKey),
     {
-      name: 'RSASSA-PKCS1-v1_5',
+      name: 'RSA-PSS',
       hash: 'SHA-256'
     },
     false,
@@ -65,7 +67,10 @@ export async function signPayload(
   );
 
   const signature = await crypto.subtle.sign(
-    { name: 'RSASSA-PKCS1-v1_5' },
+    {
+      name: 'RSA-PSS',
+      saltLength: RSA_PSS_SALT_LENGTH
+    },
     signingKey,
     new TextEncoder().encode(payload)
   );

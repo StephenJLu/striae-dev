@@ -29,6 +29,8 @@ export interface PublicSigningKeyDetails {
   publicKeyPem: string | null;
 }
 
+const RSA_PSS_SALT_LENGTH = 32;
+
 type ManifestSigningConfig = {
   manifest_signing_public_keys?: Record<string, string>;
   manifest_signing_public_key?: string;
@@ -197,7 +199,7 @@ export async function verifySignaturePayload(
       'spki',
       publicKeyPemToArrayBuffer(publicKeyPem, invalidPublicKeyError),
       {
-        name: 'RSASSA-PKCS1-v1_5',
+        name: 'RSA-PSS',
         hash: 'SHA-256'
       },
       false,
@@ -209,7 +211,10 @@ export async function verifySignaturePayload(
     signatureBuffer.set(signatureBytes);
 
     const verified = await crypto.subtle.verify(
-      { name: 'RSASSA-PKCS1-v1_5' },
+      {
+        name: 'RSA-PSS',
+        saltLength: RSA_PSS_SALT_LENGTH
+      },
       key,
       signatureBuffer,
       new TextEncoder().encode(payload)

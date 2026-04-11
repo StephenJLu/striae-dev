@@ -6,8 +6,8 @@
 
 import { verifySignaturePayload } from './signature-utils';
 
-export const FORENSIC_MANIFEST_VERSION = '2.0';
-export const FORENSIC_MANIFEST_SIGNATURE_ALGORITHM = 'RSASSA-PKCS1-v1_5-SHA-256';
+export const FORENSIC_MANIFEST_VERSION = '3.0';
+export const FORENSIC_MANIFEST_SIGNATURE_ALGORITHM = 'RSASSA-PSS-SHA-256';
 
 export interface ForensicManifestData {
   dataHash: string;

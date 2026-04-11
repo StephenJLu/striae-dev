@@ -20,6 +20,12 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-04-11] - *Cryptography Update (Unreleased)*
+
+- **🔐 Forensic Signature Algorithm Cutover** - Switched forensic manifest, confirmation export, and bundled audit-export signing/verification from `RSASSA-PKCS1-v1_5-SHA-256` to `RSASSA-PSS-SHA-256` with RSA-PSS salt length `32`.
+- **🧾 Signature Contract Version Bump** - Bumped signing contracts to `manifestVersion: 3.0`, `confirmation signatureVersion: 3.0`, and `audit export signatureVersion: 2.0` to make the cryptographic change explicit.
+- **⚠️ Breaking Verification Behavior** - This is a hard cutover. Pre-cutover PKCS1-signed exports are expected to fail signature verification/import under the new contract.
+
 ## [2026-04-10] - *[Patch Release v5.5.2](https://github.com/striae-org/striae/releases/tag/v5.5.2)*
 
 - **🔐 Registration Gateway Development** - Implemented registration gateway development work to enhance user onboarding flows and auth integration patterns with related code review adjustments.
