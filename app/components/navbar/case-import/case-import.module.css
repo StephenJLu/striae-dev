@@ -433,7 +433,7 @@
 }
 
 .archivedImportNote {
-  margin-bottom: var(--spaceM);
+  margin: var(--spaceM) 0;
   padding: var(--spaceS) var(--spaceM);
   border-radius: var(--spaceXS);
   background: color-mix(in lab, var(--success) 10%, transparent);
@@ -444,7 +444,7 @@
 }
 
 .archivedRegularCaseRiskNote {
-  margin-bottom: var(--spaceM);
+  margin: var(--spaceM) 0;
   padding: var(--spaceS) var(--spaceM);
   border-radius: var(--spaceXS);
   background: color-mix(in lab, var(--warning) 12%, transparent);
