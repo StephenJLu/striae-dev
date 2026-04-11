@@ -5,7 +5,7 @@ import {
 } from './SHA256';
 import { verifySignaturePayload } from './signature-utils';
 
-export const AUDIT_EXPORT_SIGNATURE_VERSION = '1.0';
+export const AUDIT_EXPORT_SIGNATURE_VERSION = '2.0';
 
 const SHA256_HEX_REGEX = /^[a-f0-9]{64}$/i;
 
