@@ -31,7 +31,7 @@ v6.0.0 introduces a cryptographic contract cutover from RSA PKCS#1 v1.5 signatur
 
 ## Release Statistics
 
-- **Baseline**: `release-notes/RELEASE_NOTES_v5.5.2.md`
+- **Baseline**: `.github/release-notes/RELEASE_NOTES_v5.5.2.md`
 - **Commit Range**: `a6fe9207..3b35a467`
 - **Commits Included**: 15 (non-merge commits since 04/10/2026)
 - **Build Status**: Passed (`npm run build`)
