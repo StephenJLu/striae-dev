@@ -8,13 +8,14 @@ import {
   getCurrentPublicSigningKeyDetails,
   getVerificationPublicKey,
   getCurrentEncryptionPublicKeyDetails,
-  encryptExportDataWithAllImages
+  encryptExportDataWithAllImages,
 } from '~/utils/forensics';
 import { signForensicManifest } from '~/utils/data';
 import { formatDateForFilename } from './types-constants';
 import { addForensicDataWarning } from './metadata-helpers';
 import { exportCaseData } from './core-export';
 import { auditService } from '~/services/audit';
+import { buildArchivePackage } from '~/components/actions/case-manage/archive-package-builder';
 
 /**
  * Generate export filename with embedded ID to prevent collisions
@@ -23,15 +24,15 @@ import { auditService } from '~/services/audit';
  */
 function generateExportFilename(originalFilename: string, id: string): string {
   const lastDotIndex = originalFilename.lastIndexOf('.');
-  
+
   if (lastDotIndex === -1) {
     // No extension found
     return `${originalFilename}-${id}`;
   }
-  
+
   const basename = originalFilename.substring(0, lastDotIndex);
   const extension = originalFilename.substring(lastDotIndex);
-  
+
   return `${basename}-${id}${extension}`;
 }
 
@@ -73,25 +74,99 @@ export async function downloadCaseAsZip(
   let manifestSigned = false;
   let publicKeyFileName: string | undefined;
   const protectForensicData = true;
-  
+
   try {
     // Start audit workflow
     auditService.startWorkflow(caseNumber);
-    
+
     onProgress?.(10);
-    
+
     // Get case data
     const exportData = await exportCaseData(user, caseNumber, options);
     onProgress?.(30);
-    
+
+    const archivePackageMode = options.archivePackageMode;
+
+    if (archivePackageMode) {
+      const archivedAt = exportData.metadata.archivedAt || new Date().toISOString();
+      const archivedByDisplay =
+        exportData.metadata.archivedByDisplay ||
+        exportData.metadata.archivedBy ||
+        exportData.metadata.exportedByName ||
+        exportData.metadata.exportedBy ||
+        'Unknown';
+      const caseJsonContent = await generateJSONContent(
+        exportData,
+        options.includeUserInfo,
+        protectForensicData
+      );
+
+      const archivePackage = await buildArchivePackage({
+        user,
+        caseNumber,
+        caseJsonContent,
+        files: exportData.files,
+        auditConfig: {
+          startDate: exportData.metadata.caseCreatedDate,
+          endDate: archivedAt,
+        },
+        readmeConfig: {
+          archivedAt,
+          archivedByDisplay,
+          archiveReason: exportData.metadata.archiveReason,
+        },
+      });
+
+      manifestSignatureKeyId = archivePackage.manifestSignatureKeyId;
+      manifestSigned = true;
+      onProgress?.(95);
+
+      const url = URL.createObjectURL(archivePackage.zipBlob);
+      const exportFileName = `striae-case-${caseNumber}-archive-${formatDateForFilename(new Date())}-encrypted.zip`;
+
+      const linkElement = document.createElement('a');
+      linkElement.href = url;
+      linkElement.setAttribute('download', exportFileName);
+      linkElement.setAttribute('title', 'Encrypted Striae case package');
+      linkElement.click();
+
+      URL.revokeObjectURL(url);
+      onProgress?.(100);
+
+      const endTime = Date.now();
+      await auditService.logCaseExport(
+        user,
+        caseNumber,
+        exportFileName,
+        'success',
+        [],
+        {
+          processingTimeMs: endTime - startTime,
+          fileSizeBytes: archivePackage.zipBlob.size,
+          validationStepsCompleted: exportData.files?.length || 0,
+          validationStepsFailed: 0,
+        },
+        'zip',
+        protectForensicData,
+        {
+          present: true,
+          valid: true,
+          keyId: manifestSignatureKeyId,
+        }
+      );
+
+      auditService.endWorkflow();
+      return;
+    }
+
     // Create ZIP
     const JSZip = (await import('jszip')).default;
     const zip = new JSZip();
-    
+
     const jsonContent = await generateJSONContent(exportData, options.includeUserInfo, protectForensicData);
     zip.file(`${caseNumber}_data.json`, jsonContent);
     onProgress?.(50);
-    
+
     // Add images and collect them for manifest generation
     const imageFolder = zip.folder('images');
     const imageFiles: { [filename: string]: Blob } = {};
@@ -101,7 +176,6 @@ export async function downloadCaseAsZip(
         try {
           const imageBlob = await fetchImageAsBlob(user, file.fileData, caseNumber);
           if (imageBlob) {
-            // Generate export filename with embedded ID to prevent collisions
             const exportFilename = generateExportFilename(file.fileData.originalFilename, file.fileData.id);
             imageFolder.file(exportFilename, imageBlob);
             imageFiles[exportFilename] = imageBlob;
@@ -112,9 +186,7 @@ export async function downloadCaseAsZip(
         onProgress?.(50 + (i / exportData.files.length) * 30);
       }
     }
-    
-    // CRITICAL: Get the content that will be used for hash calculation.
-    // This must match the exported package content before encryption.
+
     const contentForHash = await generateJSONContent(exportData, options.includeUserInfo, false);
 
     const forensicManifest = await generateForensicManifestSecure(contentForHash, imageFiles);
@@ -128,7 +200,7 @@ export async function downloadCaseAsZip(
     const signedForensicManifest = {
       ...forensicManifest,
       manifestVersion: signingResult.manifestVersion,
-      signature: signingResult.signature
+      signature: signingResult.signature,
     };
 
     zip.file('FORENSIC_MANIFEST.json', JSON.stringify(signedForensicManifest, null, 2));
@@ -143,24 +215,30 @@ export async function downloadCaseAsZip(
     }
 
     try {
-      const imagesToEncrypt = Object.entries(imageFiles).map(([filename, blob]) => ({
-        filename,
-        blob
-      }));
+      const filesToEncrypt = [
+        ...Object.entries(imageFiles).map(([filename, blob]) => ({
+          filename,
+          blob,
+        })),
+      ];
 
       const encryptionResult = await encryptExportDataWithAllImages(
         contentForHash,
-        imagesToEncrypt,
+        filesToEncrypt,
         encKeyDetails.publicKeyPem,
         encKeyDetails.keyId
       );
 
       zip.file(`${caseNumber}_data.json`, encryptionResult.ciphertext);
 
-      if (imageFolder && encryptionResult.encryptedImages.length > 0) {
-        for (let i = 0; i < imagesToEncrypt.length; i++) {
-          const originalFilename = imagesToEncrypt[i].filename;
-          imageFolder.file(originalFilename, encryptionResult.encryptedImages[i]);
+      if (encryptionResult.encryptedImages.length > 0) {
+        for (let i = 0; i < filesToEncrypt.length; i++) {
+          const originalFilename = filesToEncrypt[i].filename;
+          const encryptedContent = encryptionResult.encryptedImages[i];
+
+          if (imageFolder) {
+            imageFolder.file(originalFilename, encryptedContent);
+          }
         }
       }
 
@@ -213,28 +291,27 @@ For questions about this export, contact your Striae system administrator.
     );
     zip.file('README.txt', readme);
     onProgress?.(85);
-    
-    const zipBlob = await zip.generateAsync({ 
+
+    const zipBlob = await zip.generateAsync({
       type: 'blob',
       compression: 'DEFLATE',
-      compressionOptions: { level: 6 }
+      compressionOptions: { level: 6 },
     });
     onProgress?.(95);
 
     const url = URL.createObjectURL(zipBlob);
     const exportFileName = `striae-case-${caseNumber}-encrypted-package-${formatDateForFilename(new Date())}.zip`;
-    
+
     const linkElement = document.createElement('a');
     linkElement.href = url;
     linkElement.setAttribute('download', exportFileName);
     linkElement.setAttribute('title', 'Encrypted Striae case package');
-    
+
     linkElement.click();
-    
+
     URL.revokeObjectURL(url);
     onProgress?.(100);
-    
-    // Log successful export audit event (standard case)
+
     const endTime = Date.now();
     await auditService.logCaseExport(
       user,
@@ -246,24 +323,21 @@ For questions about this export, contact your Striae system administrator.
         processingTimeMs: endTime - startTime,
         fileSizeBytes: zipBlob.size,
         validationStepsCompleted: exportData.files?.length || 0,
-        validationStepsFailed: 0
+        validationStepsFailed: 0,
       },
       'zip',
       protectForensicData,
       {
         present: true,
         valid: true,
-        keyId: manifestSignatureKeyId
+        keyId: manifestSignatureKeyId,
       }
     );
-    
-    // End audit workflow
+
     auditService.endWorkflow();
-    
   } catch (error) {
     console.error('ZIP export failed:', error);
-    
-    // Log failed export audit event
+
     const endTime = Date.now();
     await auditService.logCaseExport(
       user,
@@ -275,20 +349,19 @@ For questions about this export, contact your Striae system administrator.
         processingTimeMs: endTime - startTime,
         fileSizeBytes: 0,
         validationStepsCompleted: 0,
-        validationStepsFailed: 1
+        validationStepsFailed: 1,
       },
       'zip',
       protectForensicData,
       {
         present: manifestSigned,
         valid: manifestSigned,
-        keyId: manifestSignatureKeyId
+        keyId: manifestSignatureKeyId,
       }
     );
-    
-    // End audit workflow
+
     auditService.endWorkflow();
-    
+
     throw new Error('Failed to export encrypted case package');
   }
 }
@@ -305,8 +378,8 @@ async function fetchImageAsBlob(user: User, fileData: FileData, caseNumber: stri
       const signedResponse = await fetch(url, {
         method: 'GET',
         headers: {
-          'Accept': 'application/octet-stream,image/*'
-        }
+          Accept: 'application/octet-stream,image/*',
+        },
       });
 
       if (!signedResponse.ok) {
@@ -394,13 +467,12 @@ https://striae.app`;
  * Generate JSON content for case export with forensic protection options
  */
 async function generateJSONContent(
-  exportData: CaseExportData, 
-  includeUserInfo: boolean = true, 
+  exportData: CaseExportData,
+  includeUserInfo: boolean = true,
   protectForensicData: boolean = true
 ): Promise<string> {
   const jsonData = { ...exportData };
-  
-  // Remove sensitive user info if not included
+
   if (!includeUserInfo) {
     if (jsonData.metadata.exportedBy) {
       jsonData.metadata.exportedBy = '[User Info Excluded]';
@@ -418,28 +490,24 @@ async function generateJSONContent(
       jsonData.metadata.exportedByBadgeId = '[User Info Excluded]';
     }
   }
-  
+
   const jsonString = JSON.stringify(jsonData, null, 2);
-  
-  // Calculate hash for integrity verification
   const hash = await calculateSHA256Secure(jsonString);
-  
-  // Add hash to metadata
+
   const finalJsonData = {
     ...jsonData,
     metadata: {
       ...jsonData.metadata,
       hash: hash.toUpperCase(),
-      integrityNote: 'Verify by recalculating SHA256 of this entire JSON content'
-    }
+      integrityNote: 'Verify by recalculating SHA256 of this entire JSON content',
+    },
   };
-  
+
   const finalJsonString = JSON.stringify(finalJsonData, null, 2);
-  
-  // Add forensic protection warning if enabled
+
   if (protectForensicData) {
     return addForensicDataWarning(finalJsonString);
   }
-  
+
   return finalJsonString;
 }

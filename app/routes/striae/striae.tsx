@@ -19,7 +19,7 @@ import { FilesModal } from '~/components/sidebar/files/files-modal';
 import { NotesEditorModal } from '~/components/sidebar/notes/notes-editor-modal';
 import { UserAuditViewer } from '~/components/audit/user-audit-viewer';
 import { fetchUserApi } from '~/utils/api';
-import { type AnnotationData, type FileData } from '~/types';
+import { type AnnotationData, type FileData, type ExportOptions } from '~/types';
 import { validateCaseNumber, renameCase, deleteCase, checkExistingCase, createNewCase, archiveCase, getCaseArchiveDetails } from '~/components/actions/case-manage';
 import { checkReadOnlyCaseExists, deleteReadOnlyCase } from '~/components/actions/case-review';
 import { canCreateCase, getCaseConfirmationSummary } from '~/utils/data';
@@ -77,15 +77,21 @@ export const Striae = ({ user }: StriaePage) => {
 
   // PDF generation states
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+
+  // Toast notification states
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<ToastType>('success');
   const [toastDuration, setToastDuration] = useState(4000);
+
+  // Modal and sidebar states
   const [isAuditTrailOpen, setIsAuditTrailOpen] = useState(false);
   const [isRenameCaseModalOpen, setIsRenameCaseModalOpen] = useState(false);
   const [isOpenCaseModalOpen, setIsOpenCaseModalOpen] = useState(false);
   const [isListCasesModalOpen, setIsListCasesModalOpen] = useState(false);
   const [isFilesModalOpen, setIsFilesModalOpen] = useState(false);
+
+  // Case management action states
   const [isRenamingCase, setIsRenamingCase] = useState(false);
   const [isDeletingCase, setIsDeletingCase] = useState(false);
   const [isArchivingCase, setIsArchivingCase] = useState(false);
@@ -93,6 +99,8 @@ export const Striae = ({ user }: StriaePage) => {
   const [isOpeningCase, setIsOpeningCase] = useState(false);
   const [openCaseHelperText, setOpenCaseHelperText] = useState('');
   const [isArchiveCaseModalOpen, setIsArchiveCaseModalOpen] = useState(false);
+
+  // Export states
   const [isExportCaseModalOpen, setIsExportCaseModalOpen] = useState(false);
   const [isExportingCase, setIsExportingCase] = useState(false);
   const [isExportConfirmationsModalOpen, setIsExportConfirmationsModalOpen] = useState(false);
@@ -287,7 +295,8 @@ export const Striae = ({ user }: StriaePage) => {
   const handleExport = async (
     exportCaseNumber: string,
     designatedReviewerEmail?: string,
-    onProgress?: (progress: number, label: string) => void
+    onProgress?: (progress: number, label: string) => void,
+    exportOptions?: ExportOptions
   ) => {
     if (!exportCaseNumber) {
       showNotification('Select a case before exporting.', 'error');
@@ -311,7 +320,7 @@ export const Striae = ({ user }: StriaePage) => {
           setShowToast(true);
           onProgress?.(roundedProgress, label);
         },
-        { designatedReviewerEmail }
+        { ...exportOptions, designatedReviewerEmail }
       );
 
       showNotification(`Case ${exportCaseNumber} exported successfully.`, 'success');
@@ -362,6 +371,28 @@ export const Striae = ({ user }: StriaePage) => {
     } finally {
       setIsExportingConfirmations(false);
     }
+  };
+
+  const handleOpenCaseExport = () => {
+    if (!currentCase) {
+      return;
+    }
+
+    if (isReadOnlyCase) {
+      if (isReviewOnlyCase) {
+        void handleOpenExportConfirmationsModal();
+        return;
+      }
+
+      if (archiveDetails.archived) {
+        void handleExport(currentCase, undefined, undefined, {
+          archivePackageMode: true,
+        });
+        return;
+      }
+    }
+
+    setIsExportCaseModalOpen(true);
   };
 
   const handleRenameCaseSubmit = async (newCaseName: string) => {
@@ -809,13 +840,7 @@ export const Striae = ({ user }: StriaePage) => {
           void handleOpenCaseModal();
         }}
         onOpenListAllCases={() => setIsListCasesModalOpen(true)}
-        onOpenCaseExport={() => {
-          if (isReadOnlyCase) {
-            void handleOpenExportConfirmationsModal();
-          } else {
-            setIsExportCaseModalOpen(true);
-          }
-        }}
+        onOpenCaseExport={handleOpenCaseExport}
         onOpenAuditTrail={() => setIsAuditTrailOpen(true)}
         onOpenRenameCase={() => setIsRenameCaseModalOpen(true)}
         onDeleteCase={() => {
@@ -838,7 +863,7 @@ export const Striae = ({ user }: StriaePage) => {
           onOpenCase={() => {
             void handleOpenCaseModal();
           }}
-          onOpenCaseExport={() => void handleOpenExportConfirmationsModal()}
+          onOpenCaseExport={handleOpenCaseExport}
           imageId={imageId}
           currentCase={currentCase}
           imageLoaded={imageLoaded}

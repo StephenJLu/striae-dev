@@ -5,4 +5,5 @@ export interface ExportOptions {
   includeUserInfo?: boolean;
   protectForensicData?: boolean;
   designatedReviewerEmail?: string;
+  archivePackageMode?: boolean;
 }

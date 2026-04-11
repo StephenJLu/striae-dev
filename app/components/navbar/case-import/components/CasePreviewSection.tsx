@@ -82,7 +82,7 @@ export const CasePreviewSection = ({
             </div>
           )}
         </div>
-      {casePreview.archived && (
+      {casePreview.archived && !isArchivedRegularCaseImportBlocked && (
         <div className={styles.archivedImportNote}>
           {ARCHIVED_SELF_IMPORT_NOTE}
         </div>
