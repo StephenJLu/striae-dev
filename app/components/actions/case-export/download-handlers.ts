@@ -85,7 +85,9 @@ export async function downloadCaseAsZip(
     const exportData = await exportCaseData(user, caseNumber, options);
     onProgress?.(30);
 
-    if (options.includeBundledAuditTrail || options.useArchiveFileName) {
+    const archivePackageMode = options.archivePackageMode;
+
+    if (archivePackageMode) {
       const archivedAt = exportData.metadata.archivedAt || new Date().toISOString();
       const archivedByDisplay =
         exportData.metadata.archivedByDisplay ||
@@ -93,7 +95,11 @@ export async function downloadCaseAsZip(
         exportData.metadata.exportedByName ||
         exportData.metadata.exportedBy ||
         'Unknown';
-      const caseJsonContent = JSON.stringify(exportData, null, 2);
+      const caseJsonContent = await generateJSONContent(
+        exportData,
+        options.includeUserInfo,
+        protectForensicData
+      );
 
       const archivePackage = await buildArchivePackage({
         user,
@@ -229,11 +235,6 @@ export async function downloadCaseAsZip(
         for (let i = 0; i < filesToEncrypt.length; i++) {
           const originalFilename = filesToEncrypt[i].filename;
           const encryptedContent = encryptionResult.encryptedImages[i];
-
-          if (originalFilename.startsWith('audit/')) {
-            zip.file(originalFilename, encryptedContent);
-            continue;
-          }
 
           if (imageFolder) {
             imageFolder.file(originalFilename, encryptedContent);

@@ -77,15 +77,21 @@ export const Striae = ({ user }: StriaePage) => {
 
   // PDF generation states
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+
+  // Toast notification states
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<ToastType>('success');
   const [toastDuration, setToastDuration] = useState(4000);
+
+  // Modal and sidebar states
   const [isAuditTrailOpen, setIsAuditTrailOpen] = useState(false);
   const [isRenameCaseModalOpen, setIsRenameCaseModalOpen] = useState(false);
   const [isOpenCaseModalOpen, setIsOpenCaseModalOpen] = useState(false);
   const [isListCasesModalOpen, setIsListCasesModalOpen] = useState(false);
   const [isFilesModalOpen, setIsFilesModalOpen] = useState(false);
+
+  // Case management action states
   const [isRenamingCase, setIsRenamingCase] = useState(false);
   const [isDeletingCase, setIsDeletingCase] = useState(false);
   const [isArchivingCase, setIsArchivingCase] = useState(false);
@@ -93,6 +99,8 @@ export const Striae = ({ user }: StriaePage) => {
   const [isOpeningCase, setIsOpeningCase] = useState(false);
   const [openCaseHelperText, setOpenCaseHelperText] = useState('');
   const [isArchiveCaseModalOpen, setIsArchiveCaseModalOpen] = useState(false);
+
+  // Export states
   const [isExportCaseModalOpen, setIsExportCaseModalOpen] = useState(false);
   const [isExportingCase, setIsExportingCase] = useState(false);
   const [isExportConfirmationsModalOpen, setIsExportConfirmationsModalOpen] = useState(false);
@@ -312,7 +320,7 @@ export const Striae = ({ user }: StriaePage) => {
           setShowToast(true);
           onProgress?.(roundedProgress, label);
         },
-        { designatedReviewerEmail, ...exportOptions }
+        { ...exportOptions, designatedReviewerEmail }
       );
 
       showNotification(`Case ${exportCaseNumber} exported successfully.`, 'success');
@@ -378,8 +386,7 @@ export const Striae = ({ user }: StriaePage) => {
 
       if (archiveDetails.archived) {
         void handleExport(currentCase, undefined, undefined, {
-          includeBundledAuditTrail: true,
-          useArchiveFileName: true,
+          archivePackageMode: true,
         });
         return;
       }
