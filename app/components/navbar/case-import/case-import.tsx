@@ -239,7 +239,6 @@ export const CaseImport = ({
     if (!user || !importState.selectedFile || !importState.importType) return;
 
     if (importState.importType === 'case' && isArchivedRegularCaseImportBlocked) {
-      setError(ARCHIVED_REGULAR_CASE_BLOCK_MESSAGE);
       return;
     }
     
@@ -260,7 +259,6 @@ export const CaseImport = ({
     casePreview,
     updateImportState,
     executeImport,
-    setError,
   ]);
 
   const handleCancelImport = useCallback(() => {
@@ -333,7 +331,6 @@ export const CaseImport = ({
   // Handle confirmation import
   const handleConfirmImport = useCallback(() => {
     if (isArchivedRegularCaseImportBlocked) {
-      setError(ARCHIVED_REGULAR_CASE_BLOCK_MESSAGE);
       return;
     }
 
@@ -343,7 +340,6 @@ export const CaseImport = ({
     isArchivedRegularCaseImportBlocked,
     executeImport,
     updateImportState,
-    setError,
   ]);
 
   if (!isOpen) return null;
@@ -413,10 +409,6 @@ export const CaseImport = ({
 
             {/* Import progress */}
             <ProgressSection importProgress={importProgress} />
-
-            {isArchivedRegularCaseImportBlocked && (
-              <div className={styles.error}>{ARCHIVED_REGULAR_CASE_BLOCK_MESSAGE}</div>
-            )}
 
             {/* Success message */}
             {messages.success && (
