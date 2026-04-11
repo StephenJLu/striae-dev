@@ -121,6 +121,11 @@ export const Navbar = ({
   const isImageNotesActive = canOpenImageNotes;
   const canDeleteCurrentFile = hasLoadedImage && !isReadOnly;
   const isArchivedRegularReadOnly = Boolean(isReadOnly && archiveDetails?.archived && !isReviewOnlyCase);
+  const caseExportLabel = isArchivedRegularReadOnly
+    ? 'Export Archive'
+    : isReadOnly
+      ? 'Export Confirmations'
+      : 'Export Case Package';
 
   return (
     <>
@@ -179,11 +184,9 @@ export const Navbar = ({
                   type="button"
                   role="menuitem"
                   className={`${styles.caseMenuItem} ${styles.caseMenuItemExport}`}
-                  disabled={!hasLoadedCase || disableLongRunningCaseActions || isArchivedRegularReadOnly}
+                  disabled={!hasLoadedCase || disableLongRunningCaseActions}
                   title={
-                    isArchivedRegularReadOnly
-                      ? 'Export is unavailable for archived cases loaded from your regular case list'
-                      : !hasLoadedCase
+                    !hasLoadedCase
                       ? 'Load a case to export case data'
                       : disableLongRunningCaseActions
                         ? 'Export is unavailable while files are uploading'
@@ -194,7 +197,7 @@ export const Navbar = ({
                     setIsCaseMenuOpen(false);
                   }}
                 >
-                  {isReadOnly ? 'Export Confirmations' : 'Export Case Package'}
+                  {caseExportLabel}
                 </button>
                 <button
                   type="button"

@@ -258,7 +258,8 @@ const handleImageSelect = (file: FileData) => {
     ? 'Select an image first'
     : undefined;
 
-  const showCaseExportButton = Boolean(currentCase && isReadOnly && !isArchivedCase);
+  const showCaseExportButton = Boolean(currentCase && isReadOnly);
+  const caseExportButtonLabel = isArchivedCase ? 'Export Archive' : 'Export Confirmations';
 
   const exportCaseTitle = isUploading
     ? 'Cannot export while uploading'
@@ -391,7 +392,7 @@ return (
           disabled={isUploading || !currentCase}
           title={exportCaseTitle}
         >
-          Export Confirmations
+          {caseExportButtonLabel}
         </button>
       ) : (
         <button

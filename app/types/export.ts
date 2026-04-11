@@ -5,4 +5,6 @@ export interface ExportOptions {
   includeUserInfo?: boolean;
   protectForensicData?: boolean;
   designatedReviewerEmail?: string;
+  includeBundledAuditTrail?: boolean;
+  useArchiveFileName?: boolean;
 }

@@ -225,6 +225,14 @@ export const CasesModal = ({
     selectedCase && selectedCase.caseNumber !== currentCase && !selectedCase.isReadOnly
   );
 
+  const deleteSelectedCaseTitle = !selectedCase
+    ? 'Select a case to delete.'
+    : selectedCase.caseNumber === currentCase
+      ? 'Open a different case before deleting this one.'
+      : selectedCase.isReadOnly
+        ? 'Read-only review cases cannot be deleted. Use Clear RO Case under Case Management first.'
+        : undefined;
+
   useEffect(() => {
     setCurrentPage(0);
   }, [preferences.sortBy, preferences.confirmationFilter, preferences.showArchivedOnly]);
@@ -484,12 +492,15 @@ export const CasesModal = ({
   const handleDeleteSelectedCase = async () => {
     if (!selectedCase || !canDeleteSelectedCase) {
       const isCurrentCaseSelection = selectedCase?.caseNumber === currentCase;
+      const isReadOnlyReviewSelection = selectedCase?.isReadOnly === true;
 
       setActionNotice({
         type: 'warning',
         message: isCurrentCaseSelection
           ? 'Open a different case before deleting this one.'
-          : 'Selected case cannot be deleted.',
+          : isReadOnlyReviewSelection
+            ? 'Read-only review cases cannot be deleted. Use Clear RO Case under Case Management first.'
+            : 'Selected case cannot be deleted.',
       });
       return;
     }
@@ -785,6 +796,7 @@ export const CasesModal = ({
               className={`${styles.secondaryActionButton} ${styles.deleteActionButton}`}
               onClick={handleDeleteSelectedCase}
               disabled={!canDeleteSelectedCase || isRunningAction}
+              title={deleteSelectedCaseTitle}
             >
               Delete Selected
             </button>

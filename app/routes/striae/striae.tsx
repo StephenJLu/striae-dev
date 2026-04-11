@@ -19,7 +19,7 @@ import { FilesModal } from '~/components/sidebar/files/files-modal';
 import { NotesEditorModal } from '~/components/sidebar/notes/notes-editor-modal';
 import { UserAuditViewer } from '~/components/audit/user-audit-viewer';
 import { fetchUserApi } from '~/utils/api';
-import { type AnnotationData, type FileData } from '~/types';
+import { type AnnotationData, type FileData, type ExportOptions } from '~/types';
 import { validateCaseNumber, renameCase, deleteCase, checkExistingCase, createNewCase, archiveCase, getCaseArchiveDetails } from '~/components/actions/case-manage';
 import { checkReadOnlyCaseExists, deleteReadOnlyCase } from '~/components/actions/case-review';
 import { canCreateCase, getCaseConfirmationSummary } from '~/utils/data';
@@ -287,7 +287,8 @@ export const Striae = ({ user }: StriaePage) => {
   const handleExport = async (
     exportCaseNumber: string,
     designatedReviewerEmail?: string,
-    onProgress?: (progress: number, label: string) => void
+    onProgress?: (progress: number, label: string) => void,
+    exportOptions?: ExportOptions
   ) => {
     if (!exportCaseNumber) {
       showNotification('Select a case before exporting.', 'error');
@@ -311,7 +312,7 @@ export const Striae = ({ user }: StriaePage) => {
           setShowToast(true);
           onProgress?.(roundedProgress, label);
         },
-        { designatedReviewerEmail }
+        { designatedReviewerEmail, ...exportOptions }
       );
 
       showNotification(`Case ${exportCaseNumber} exported successfully.`, 'success');
@@ -362,6 +363,29 @@ export const Striae = ({ user }: StriaePage) => {
     } finally {
       setIsExportingConfirmations(false);
     }
+  };
+
+  const handleOpenCaseExport = () => {
+    if (!currentCase) {
+      return;
+    }
+
+    if (isReadOnlyCase) {
+      if (isReviewOnlyCase) {
+        void handleOpenExportConfirmationsModal();
+        return;
+      }
+
+      if (archiveDetails.archived) {
+        void handleExport(currentCase, undefined, undefined, {
+          includeBundledAuditTrail: true,
+          useArchiveFileName: true,
+        });
+        return;
+      }
+    }
+
+    setIsExportCaseModalOpen(true);
   };
 
   const handleRenameCaseSubmit = async (newCaseName: string) => {
@@ -809,13 +833,7 @@ export const Striae = ({ user }: StriaePage) => {
           void handleOpenCaseModal();
         }}
         onOpenListAllCases={() => setIsListCasesModalOpen(true)}
-        onOpenCaseExport={() => {
-          if (isReadOnlyCase) {
-            void handleOpenExportConfirmationsModal();
-          } else {
-            setIsExportCaseModalOpen(true);
-          }
-        }}
+        onOpenCaseExport={handleOpenCaseExport}
         onOpenAuditTrail={() => setIsAuditTrailOpen(true)}
         onOpenRenameCase={() => setIsRenameCaseModalOpen(true)}
         onDeleteCase={() => {
@@ -838,7 +856,7 @@ export const Striae = ({ user }: StriaePage) => {
           onOpenCase={() => {
             void handleOpenCaseModal();
           }}
-          onOpenCaseExport={() => void handleOpenExportConfirmationsModal()}
+          onOpenCaseExport={handleOpenCaseExport}
           imageId={imageId}
           currentCase={currentCase}
           imageLoaded={imageLoaded}
