@@ -3,7 +3,7 @@
 # ============================================
 # MEMBERS EMAIL LIST DEPLOYMENT SCRIPT
 # ============================================
-# Reads members.emails, updates REGISTRATION_EMAILS in .env,
+# Reads app/config/members.emails, updates REGISTRATION_EMAILS in .env,
 # then deploys that secret directly to Cloudflare Pages (production).
 
 set -e
@@ -26,12 +26,12 @@ trap 'echo -e "\n${RED}❌ deploy-members-emails.sh failed near line ${LINENO}${
 
 # ── Read emails file ──────────────────────────────────────────────────────────
 
-EMAILS_FILE="$PROJECT_ROOT/members.emails"
+EMAILS_FILE="$PROJECT_ROOT/app/config/members.emails"
 
 if [ ! -f "$EMAILS_FILE" ]; then
     echo -e "${RED}❌ members.emails not found at: $EMAILS_FILE${NC}"
     echo -e "${YELLOW}   Create it with one email address or @domain.com wildcard per line.${NC}"
-    echo -e "${YELLOW}   See members.emails.example for the format.${NC}"
+    echo -e "${YELLOW}   See app/config-example/members.emails for the format.${NC}"
     exit 1
 fi
 
@@ -45,7 +45,7 @@ if [ -z "$REGISTRATION_EMAILS" ]; then
 fi
 
 ENTRY_COUNT=$(echo "$REGISTRATION_EMAILS" | tr ',' '\n' | grep -c '[^[:space:]]' || true)
-echo -e "${GREEN}✅ Loaded $ENTRY_COUNT entry(ies) from members.emails${NC}"
+echo -e "${GREEN}✅ Loaded $ENTRY_COUNT entry(ies) from app/config/members.emails${NC}"
 
 # ── Update .env ───────────────────────────────────────────────────────────────
 
