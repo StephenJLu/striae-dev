@@ -214,7 +214,7 @@ sync_env_var_from_email_list_file() {
         return 0
     fi
 
-    loaded_values=$(grep -v '^[[:space:]]*#' "$file_path" | grep -v '^[[:space:]]*$' | paste -sd ',' - || true)
+    loaded_values=$(grep -v '^[[:space:]]*#' "$file_path" | grep -v '^[[:space:]]*$' | sed -e 's/\r$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | paste -sd ',' - || true)
 
     write_env_var "$env_var_name" "$loaded_values"
     export "$env_var_name=$loaded_values"
