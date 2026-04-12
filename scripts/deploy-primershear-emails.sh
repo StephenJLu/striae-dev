@@ -3,7 +3,7 @@
 # ============================================
 # PRIMERSHEAR EMAIL LIST DEPLOYMENT SCRIPT
 # ============================================
-# Reads primershear.emails, updates PRIMERSHEAR_EMAILS in .env,
+# Reads app/config/primershear.emails, updates PRIMERSHEAR_EMAILS in .env,
 # then deploys that secret directly to Cloudflare Pages (production).
 
 set -e
@@ -26,7 +26,7 @@ trap 'echo -e "\n${RED}❌ deploy-primershear-emails.sh failed near line ${LINEN
 
 # ── Read emails file ──────────────────────────────────────────────────────────
 
-EMAILS_FILE="$PROJECT_ROOT/primershear.emails"
+EMAILS_FILE="$PROJECT_ROOT/app/config/primershear.emails"
 
 if [ ! -f "$EMAILS_FILE" ]; then
     echo -e "${RED}❌ primershear.emails not found at: $EMAILS_FILE${NC}"
@@ -44,7 +44,7 @@ if [ -z "$PRIMERSHEAR_EMAILS" ]; then
 fi
 
 EMAIL_COUNT=$(echo "$PRIMERSHEAR_EMAILS" | tr ',' '\n' | grep -c '[^[:space:]]' || true)
-echo -e "${GREEN}✅ Loaded $EMAIL_COUNT email address(es) from primershear.emails${NC}"
+echo -e "${GREEN}✅ Loaded $EMAIL_COUNT email address(es) from app/config/primershear.emails${NC}"
 
 # ── Update .env ───────────────────────────────────────────────────────────────
 

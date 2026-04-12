@@ -109,6 +109,13 @@ export const SidebarContainer: React.FC<SidebarContainerProps> = (props) => {
                   rel="noopener noreferrer" 
                   className={styles.footerModalLink}>
                   Security Policy
+                </Link>
+                <Link
+                  to="https://community.striae.org"
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className={styles.footerModalLink}>
+                  Striae Community
                 </Link>                
               </div>
 
