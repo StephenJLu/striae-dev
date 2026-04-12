@@ -8,6 +8,8 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 💬 Contact & Support
 
+**[Striae Community](https://community.striae.org)**
+
 **[Striae Support](https://www.striae.org/support)**
 
 **[Email Support](mailto:info@striae.org)**
@@ -19,6 +21,12 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 ---
 
 ## 📋 Changelog
+
+## [2026-04-12] - *[Patch Release v6.0.1](https://github.com/striae-org/striae/releases/tag/v6.0.1)*
+
+- **🗂️ Archive Import UX Follow-Ups** - Continued archive import alert/messaging refinements from the v6.0.0 release window for clearer archive-operation feedback.
+- **🌐 Public Surface and Config Follow-Ups** - Added Striae community links to About/Support surfaces and refactored registration + Primer Shear email configuration handling.
+- **⚙️ Compatibility and Release Maintenance** - Included compatibility-date refreshes, v6.0.1 version housekeeping, and release-window code review follow-up commits.
 
 ## [2026-04-11] - *[Major Release v6.0.0](https://github.com/striae-org/striae/releases/tag/v6.0.0)*
 

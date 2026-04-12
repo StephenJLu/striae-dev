@@ -8,6 +8,7 @@ This npm package publishes the Striae application source for teams that run/deve
 
 - Application: [https://striae.app](https://striae.app)
 - Source repository: [https://github.com/striae-org/striae](https://github.com/striae-org/striae)
+- Installation guide: [https://github.com/striae-org/striae/wiki/Installation-Guide](https://github.com/striae-org/striae/wiki/Installation-Guide)
 - Releases: [https://github.com/striae-org/striae/releases](https://github.com/striae-org/striae/releases)
 - Security policy: [https://github.com/striae-org/striae/security/policy](https://github.com/striae-org/striae/security/policy)
 
@@ -55,9 +56,10 @@ Excluded (by design):
 
 ## License
 
-See `LICENSE` and `NOTICE`.
+See `LICENSE`.
 
 ## Support
 
+- Striae Community: [https://community.striae.org](https://community.striae.org)
 - Support page: [https://www.striae.org/support](https://www.striae.org/support)
 - Contact: [info@striae.org](mailto:info@striae.org)
