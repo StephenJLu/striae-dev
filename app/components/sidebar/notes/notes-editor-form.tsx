@@ -568,7 +568,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         </div>
         <hr />
         <div className={styles.fontColorRow}>
-          <label htmlFor="colorSelect">Font</label>
+          <label htmlFor="colorSelect">Case & Item Font Color</label>
           <ColorSelector
             selectedColor={caseFontColor}
             onColorSelect={setCaseFontColor}
@@ -627,16 +627,6 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                     disabled={areInputsDisabled}
                   />
                 </div>
-                <label className={`${styles.checkboxLabel} mb-4`}>
-                  <input
-                    type="checkbox"
-                    checked={hasSubclass}
-                    onChange={(e) => setHasSubclass(e.target.checked)}
-                    className={styles.checkbox}
-                    disabled={areInputsDisabled}
-                  />
-                  <span>Potential subclass?</span>
-                </label>
             </div>
 
               <div className={styles.itemDetailsPanel}>
@@ -648,6 +638,16 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                 >
                   Class Characteristics & GRC
                 </button>
+                <label className={`${styles.checkboxLabel} mb-4`}>
+                  <input
+                    type="checkbox"
+                    checked={hasSubclass}
+                    onChange={(e) => setHasSubclass(e.target.checked)}
+                    className={styles.checkbox}
+                    disabled={areInputsDisabled}
+                  />
+                  <span>Potential subclass?</span>
+                </label>
               </div>
             </div>
           </>
