@@ -34,6 +34,7 @@ export interface AnnotationData {
   supportLevel?: 'ID' | 'Exclusion' | 'Inconclusive';
 
   // Class annotations
+  itemType?: string;
   classType?: string;
   customClass?: string;
   classNote?: string;

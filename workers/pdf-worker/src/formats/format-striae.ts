@@ -418,7 +418,7 @@ export const renderReport: ReportRenderer = (data: PDFGenerationData): string =>
         ${annotationData && annotationsSet?.has('class') ? `
         <div class="class-annotation">
           <div class="class-text-annotation">
-            ${safeText(annotationData.customClass || annotationData.classType)}${annotationData.classNote ? ` (${safeText(annotationData.classNote)})` : ''}
+            ${safeText(annotationData.customClass || annotationData.itemType || annotationData.classType)}${annotationData.classNote ? ` (${safeText(annotationData.classNote)})` : ''}
           </div>
         </div>
         ` : '<div class="class-annotation"></div>'}
