@@ -303,10 +303,10 @@ export const Canvas = ({
           <div className={styles.imageContainer}>
             <div className={styles.imageWrapper}>
             {/* Class Characteristics - Above Image */}
-            {activeAnnotations?.has('class') && annotationData && (annotationData.customClass || annotationData.classType) && (
+            {activeAnnotations?.has('class') && annotationData && (annotationData.customClass || annotationData.itemType) && (
               <div className={styles.classCharacteristics}>
                 <div className={styles.classText}>
-                  {annotationData.customClass || annotationData.classType}
+                  {annotationData.customClass || annotationData.itemType}
                   {annotationData.classNote && ` (${annotationData.classNote})`}
                 </div>
               </div>

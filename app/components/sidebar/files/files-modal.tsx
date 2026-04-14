@@ -9,7 +9,7 @@ import {
 import {
   type FilesModalSortBy,
   type FilesModalConfirmationFilter,
-  type FilesModalClassTypeFilter,
+  type FilesModalItemTypeFilter,
   getFilesForModal,
 } from '~/utils/data/file-filters';
 import { deleteFile } from '~/components/actions/image-manage';
@@ -61,12 +61,12 @@ function formatDate(dateString: string): string {
   return new Date(parsed).toLocaleDateString();
 }
 
-function getClassTypeLabel(classType?: FileConfirmationSummary['classType']): string {
-  if (!classType) {
+function getItemTypeLabel(itemType?: FileConfirmationSummary['itemType']): string {
+  if (!itemType) {
     return 'Unset';
   }
 
-  return classType;
+  return itemType;
 }
 
 function getConfirmationLabel(summary: FileConfirmationSummary): string {
@@ -110,7 +110,7 @@ export const FilesModal = ({
     preferences,
     setSortBy,
     setConfirmationFilter,
-    setClassTypeFilter,
+    setItemTypeFilter,
     resetPreferences,
   } = useFileListPreferences();
   const {
@@ -125,7 +125,7 @@ export const FilesModal = ({
   const hasCustomPreferences =
     preferences.sortBy !== DEFAULT_FILES_MODAL_PREFERENCES.sortBy ||
     preferences.confirmationFilter !== DEFAULT_FILES_MODAL_PREFERENCES.confirmationFilter ||
-    preferences.classTypeFilter !== DEFAULT_FILES_MODAL_PREFERENCES.classTypeFilter;
+    preferences.itemTypeFilter !== DEFAULT_FILES_MODAL_PREFERENCES.itemTypeFilter;
 
   const existingFileIdSet = useMemo(
     () => new Set(files.map((file) => file.id)),
@@ -339,7 +339,7 @@ export const FilesModal = ({
                     <option value="recent">Date Uploaded</option>
                     <option value="filename">File Name</option>
                     <option value="confirmation">Confirmation Status</option>
-                    <option value="classType">Class Type</option>
+                    <option value="itemType">Item Type</option>
                   </select>
                 </div>
 
@@ -361,12 +361,12 @@ export const FilesModal = ({
                 </div>
 
                 <div className={styles.controlGroup}>
-                  <label htmlFor="files-class-filter">Class Type</label>
+                  <label htmlFor="files-item-filter">Item Type</label>
                   <select
-                    id="files-class-filter"
-                    value={preferences.classTypeFilter}
+                    id="files-item-filter"
+                    value={preferences.itemTypeFilter}
                     onChange={(event) => {
-                      setClassTypeFilter(event.target.value as FilesModalClassTypeFilter);
+                      setItemTypeFilter(event.target.value as FilesModalItemTypeFilter);
                       setCurrentPage(0);
                     }}
                   >
@@ -434,7 +434,7 @@ export const FilesModal = ({
                     const isOpenSelected = effectiveOpenSelectedFileId === file.id;
                     const isDeleteSelected = effectiveDeleteSelectedFileIds.has(file.id);
                     const confirmationLabel = getConfirmationLabel(summary);
-                    const classTypeLabel = getClassTypeLabel(summary.classType);
+                    const itemTypeLabel = getItemTypeLabel(summary.itemType);
 
                     let confirmationClass = '';
                     if (summary.includeConfirmation) {
@@ -472,7 +472,7 @@ export const FilesModal = ({
                             </div>
                             <div className={styles.fileMetaRow}>
                               <span className={styles.fileDate}>Uploaded: {formatDate(file.uploadedAt)}</span>
-                              <span className={styles.classTypeBadge}>Class: {classTypeLabel}</span>
+                              <span className={styles.classTypeBadge}>Item: {itemTypeLabel}</span>
                             </div>
                           </div>
 

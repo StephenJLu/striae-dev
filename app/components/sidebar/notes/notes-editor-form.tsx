@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import type { User } from 'firebase/auth';
 import { ColorSelector } from '~/components/colors/colors';
 import { AddlNotesModal } from './addl-notes-modal';
-import { ClassDetailsModal } from './class-details/class-details-modal';
-import { buildClassDetailsSummary } from './class-details/class-details-shared';
+import { ItemDetailsModal } from './item-details/item-details-modal';
+import { buildItemDetailsSummary } from './item-details/item-details-shared';
 import { getNotes, saveNotes } from '~/components/actions/notes-manage';
-import { type AnnotationData, type BulletAnnotationData, type CartridgeCaseAnnotationData, type ShotshellAnnotationData } from '~/types/annotations';
+import { type AnnotationData, type BulletAnnotationData, type CartridgeCaseAnnotationData, type ShotshellAnnotationData, type ItemType } from '~/types/annotations';
 import { resolveEarliestAnnotationTimestamp } from '~/utils/ui';
 import { auditService } from '~/services/audit';
 import styles from './notes.module.css';
@@ -23,7 +23,6 @@ interface NotesEditorFormProps {
 }
 
 type SupportLevel = 'ID' | 'Exclusion' | 'Inconclusive';
-type ClassType = 'Bullet' | 'Cartridge Case' | 'Shotshell' | 'Other';
 type IndexType = 'number' | 'color';
 
 interface NotesFormSnapshot {
@@ -32,7 +31,7 @@ interface NotesFormSnapshot {
   leftItem: string;
   rightItem: string;
   caseFontColor: string;
-  classType: ClassType | '';
+  itemType: ItemType | '';
   customClass: string;
   classNote: string;
   hasSubclass: boolean;
@@ -97,7 +96,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
   const [caseFontColor, setCaseFontColor] = useState('');
 
   // Class characteristics state
-  const [classType, setClassType] = useState<ClassType | ''>('');
+  const [itemType, setItemType] = useState<ItemType | ''>('');
   const [customClass, setCustomClass] = useState('');
   const [classNote, setClassNote] = useState('');
   const [hasSubclass, setHasSubclass] = useState(false);
@@ -145,7 +144,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         leftItem,
         rightItem,
         caseFontColor,
-        classType,
+        itemType,
         customClass,
         classNote,
         hasSubclass,
@@ -172,7 +171,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
     cartridgeCaseData,
     caseFontColor,
     classNote,
-    classType,
+    itemType,
     customClass,
     hasLoadedSnapshot,
     hasSubclass,
@@ -213,7 +212,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
           setLeftItem(existingNotes.leftItem);
           setRightItem(existingNotes.rightItem);
           setCaseFontColor(existingNotes.caseFontColor || '');
-          setClassType(existingNotes.classType || '');
+          setItemType(existingNotes.itemType || '');
           setCustomClass(existingNotes.customClass || '');
           setClassNote(existingNotes.classNote || '');
           setHasSubclass(existingNotes.hasSubclass ?? false);
@@ -233,7 +232,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
             leftItem: existingNotes.leftItem || '',
             rightItem: existingNotes.rightItem || '',
             caseFontColor: existingNotes.caseFontColor || '',
-            classType: existingNotes.classType || '',
+            itemType: existingNotes.itemType || '',
             customClass: existingNotes.customClass || '',
             classNote: existingNotes.classNote || '',
             hasSubclass: existingNotes.hasSubclass ?? false,
@@ -256,7 +255,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
             leftItem: '',
             rightItem: '',
             caseFontColor: '',
-            classType: '',
+            itemType: '',
             customClass: '',
             classNote: '',
             hasSubclass: false,
@@ -330,7 +329,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         caseFontColor: caseFontColor || undefined,
         
         // Class Characteristics
-        classType: classType as ClassType || undefined,
+        itemType: itemType as ItemType || undefined,
         customClass: customClass,
         classNote: classNote || undefined,
         hasSubclass: hasSubclass,
@@ -385,7 +384,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         leftItem,
         rightItem,
         caseFontColor,
-        classType,
+        itemType,
         customClass,
         classNote,
         hasSubclass,
@@ -442,7 +441,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
     cartridgeCaseData,
     caseFontColor,
     classNote,
-    classType,
+    itemType,
     currentCase,
     customClass,
     hasSubclass,
@@ -596,10 +595,10 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
               <div className={styles.classCharacteristicsMain}>
                 <div className={styles.classCharacteristics}>
                   <select
-                    id="classType"
-                    aria-label="Class Type"
-                    value={classType}
-                    onChange={(e) => setClassType(e.target.value as ClassType)}
+                    id="itemType"
+                    aria-label="Item Type"
+                    value={itemType}
+                    onChange={(e) => setItemType(e.target.value as ItemType)}
                     className={styles.select}
                     disabled={areInputsDisabled}
                   >
@@ -610,7 +609,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                     <option value="Other">Other</option>
                   </select>
 
-                  {classType === 'Other' && (
+                  {itemType === 'Other' && (
                     <input
                       type="text"
                       value={customClass}
@@ -784,10 +783,10 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         onSave={setAdditionalNotes}
         showNotification={notificationHandler}
       />
-      <ClassDetailsModal
+      <ItemDetailsModal
         isOpen={isClassDetailsOpen}
         onClose={() => setIsClassDetailsOpen(false)}
-        classType={classType}
+        itemType={itemType}
         bulletData={bulletData}
         cartridgeCaseData={cartridgeCaseData}
         shotshellData={shotshellData}
@@ -795,7 +794,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
           if (b !== undefined) setBulletData(b);
           if (c !== undefined) setCartridgeCaseData(c);
           if (s !== undefined) setShotshellData(s);
-          const summary = buildClassDetailsSummary(b, c, s, classType);
+          const summary = buildItemDetailsSummary(b, c, s, itemType);
           if (summary) {
             setAdditionalNotes((prev) => prev ? `${prev}\n${summary}` : summary);
           }

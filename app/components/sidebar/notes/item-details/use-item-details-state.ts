@@ -18,9 +18,9 @@ import {
   calculateBulletDiameter,
   formatCalculatedDiameter,
   isCustomValue,
-} from './class-details-shared';
+} from './item-details-shared';
 
-interface UseClassDetailsStateParams {
+interface UseItemDetailsStateParams {
   bulletData?: BulletAnnotationData;
   cartridgeCaseData?: CartridgeCaseAnnotationData;
   shotshellData?: ShotshellAnnotationData;
@@ -139,11 +139,11 @@ export interface ShotshellDetailsState {
   setHasChamberMarks: (value: boolean) => void;
 }
 
-export const useClassDetailsState = ({
+export const useItemDetailsState = ({
   bulletData,
   cartridgeCaseData,
   shotshellData,
-}: UseClassDetailsStateParams) => {
+}: UseItemDetailsStateParams) => {
   const [bCaliber, setBCaliber] = useState(() => bulletData?.caliber || '');
   const [bCaliberIsCustom, setBCaliberIsCustom] = useState(() => isCustomValue(bulletData?.caliber, ALL_CALIBERS));
   const [bMass, setBMass] = useState(() => bulletData?.mass || '');

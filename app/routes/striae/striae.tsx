@@ -682,7 +682,7 @@ export const Striae = ({ user }: StriaePage) => {
             leftItem: notes.leftItem || '',
             rightItem: notes.rightItem || '',
             caseFontColor: notes.caseFontColor || '#FFDE21',
-            classType: notes.classType || 'Other',
+            itemType: notes.itemType || 'Other',
             customClass: notes.customClass,
             classNote: notes.classNote, // Optional - pass as-is
             indexType: notes.indexType || 'number',

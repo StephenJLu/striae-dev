@@ -1,11 +1,11 @@
 import type { User } from 'firebase/auth';
-import { type AnnotationData } from '~/types';
+import { type AnnotationData, type ItemType } from '~/types';
 
 export interface FileConfirmationSummary {
   includeConfirmation: boolean;
   isConfirmed: boolean;
   updatedAt: string;
-  classType?: 'Bullet' | 'Cartridge Case' | 'Shotshell' | 'Other';
+  itemType?: ItemType;
 }
 
 export interface CaseConfirmationSummary {
@@ -195,8 +195,9 @@ function normalizeFileConfirmationSummary(value: unknown): FileConfirmationSumma
     };
   }
 
-  const classType = value.classType;
-  const normalizedClassType = typeof classType === 'string' && ['Bullet', 'Cartridge Case', 'Shotshell', 'Other'].includes(classType) ? (classType as 'Bullet' | 'Cartridge Case' | 'Shotshell' | 'Other') : undefined;
+  // Support both new 'itemType' and legacy 'classType' properties
+  const itemType = value.itemType ?? value.classType;
+  const normalizedItemType = typeof itemType === 'string' && ['Bullet', 'Cartridge Case', 'Shotshell', 'Other'].includes(itemType) ? (itemType as ItemType) : undefined;
 
   const summary: FileConfirmationSummary = {
     includeConfirmation: value.includeConfirmation === true,
@@ -204,8 +205,8 @@ function normalizeFileConfirmationSummary(value: unknown): FileConfirmationSumma
     updatedAt: typeof value.updatedAt === 'string' && value.updatedAt.length > 0 ? value.updatedAt : getIsoNow()
   };
 
-  if (normalizedClassType) {
-    summary.classType = normalizedClassType;
+  if (normalizedItemType) {
+    summary.itemType = normalizedItemType;
   }
 
   return summary;
@@ -244,8 +245,8 @@ export function toFileConfirmationSummary(annotationData: AnnotationData | null)
     updatedAt: getIsoNow()
   };
 
-  if (annotationData?.classType) {
-    summary.classType = annotationData.classType;
+  if (annotationData?.itemType) {
+    summary.itemType = annotationData.itemType;
   }
 
   return summary;

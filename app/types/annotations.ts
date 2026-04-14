@@ -1,5 +1,7 @@
 // Annotation-related types and interfaces
 
+export type ItemType = 'Bullet' | 'Cartridge Case' | 'Shotshell' | 'Other';
+
 export interface BoxAnnotation {
   id: string;
   x: number;
@@ -72,7 +74,7 @@ export interface AnnotationData {
   leftItem: string;
   rightItem: string;
   caseFontColor?: string;
-  classType?: 'Bullet' | 'Cartridge Case' | 'Shotshell' | 'Other';
+  itemType?: ItemType;
   customClass?: string;
   classNote?: string;
   indexType?: 'number' | 'color';

@@ -73,7 +73,7 @@ export async function exportCaseData(
           annotations.leftItem ||
           annotations.rightItem ||
           annotations.supportLevel ||
-          annotations.classType ||
+          annotations.itemType ||
           (annotations.boxAnnotations && annotations.boxAnnotations.length > 0)
         ));
 
