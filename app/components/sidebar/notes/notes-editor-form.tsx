@@ -586,7 +586,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
           onClick={() => setIsClassOpen((prev) => !prev)}
           aria-expanded={isClassOpen}
         >
-          <span className={styles.sectionTitle}>Class Characteristics</span>
+          <span className={styles.sectionTitle}>Class Characteristics & GRC</span>
           <span className={styles.sectionToggleIcon}>{isClassOpen ? '−' : '+'}</span>
         </button>
         {isClassOpen && (
@@ -602,7 +602,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                     className={styles.select}
                     disabled={areInputsDisabled}
                   >
-                    <option value="">Select class type...</option>
+                    <option value="">Select item type...</option>
                     <option value="Bullet">Bullet</option>
                     <option value="Cartridge Case">Cartridge Case</option>
                     <option value="Shotshell">Shotshell</option>
@@ -622,7 +622,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                   <textarea
                     value={classNote}
                     onChange={(e) => setClassNote(e.target.value)}
-                    placeholder="Enter class characteristic details..."
+                    placeholder="Enter item details..."
                     className={styles.textarea}
                     disabled={areInputsDisabled}
                   />
@@ -639,14 +639,14 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                 </label>
             </div>
 
-              <div className={styles.classDetailsPanel}>
+              <div className={styles.itemDetailsPanel}>
                 <button
                   type="button"
                   onClick={() => setIsClassDetailsOpen(true)}
-                  className={styles.classDetailsButton}
+                  className={styles.itemDetailsButton}
                   disabled={areInputsDisabled}
                 >
-                  Enter Class Characteristic Details
+                  Class Characteristics & GRC
                 </button>
               </div>
             </div>
