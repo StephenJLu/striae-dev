@@ -174,6 +174,9 @@ export const FilesModal = ({
     (effectiveCurrentPage + 1) * FILES_PER_PAGE
   );
 
+  const shouldForceItemTypeSummaryRefresh =
+    preferences.sortBy === 'itemType' || preferences.itemTypeFilter !== 'all';
+
   useEffect(() => {
     let isCancelled = false;
 
@@ -185,7 +188,9 @@ export const FilesModal = ({
         return;
       }
 
-      const caseSummary = await ensureCaseConfirmationSummary(user, currentCase, files).catch((err) => {
+      const caseSummary = await ensureCaseConfirmationSummary(user, currentCase, files, {
+        forceRefresh: shouldForceItemTypeSummaryRefresh,
+      }).catch((err) => {
         console.error(`Error fetching confirmation summary for case ${currentCase}:`, err);
         return null;
       });
@@ -202,7 +207,14 @@ export const FilesModal = ({
     return () => {
       isCancelled = true;
     };
-  }, [isOpen, currentCase, files, user, confirmationSaveVersion]);
+  }, [
+    isOpen,
+    currentCase,
+    files,
+    user,
+    confirmationSaveVersion,
+    shouldForceItemTypeSummaryRefresh,
+  ]);
 
   const toggleDeleteSelection = (fileId: string) => {
     setDeleteSelectedFileIds((previous) => {

@@ -178,6 +178,19 @@ export const ensureCaseConfirmationSummary = async (
         };
       }
 
+      const hasItemTypeData = Boolean(
+        existingFileSummary.leftItemType ||
+        existingFileSummary.rightItemType ||
+        existingFileSummary.itemType
+      );
+
+      if (!hasItemTypeData) {
+        return {
+          fileId: file.id,
+          reason: 'missing' as const
+        };
+      }
+
       if (caseIsStale) {
         return {
           fileId: file.id,
