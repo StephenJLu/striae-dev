@@ -32,7 +32,6 @@ interface NotesFormSnapshot {
   leftItem: string;
   rightItem: string;
   caseFontColor: string;
-  selectedItem: 'left' | 'right';
   // Left item class characteristics
   leftItemType: ItemType | '';
   leftCustomClass: string;
@@ -227,7 +226,6 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         leftItem,
         rightItem,
         caseFontColor,
-        selectedItem,
         leftItemType,
         leftCustomClass,
         leftClassNote,
@@ -285,7 +283,6 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
     rightShotshellData,
     caseFontColor,
     savedSnapshot,
-    selectedItem,
     leftAdditionalNotes,
     rightAdditionalNotes,
     supportLevel,
@@ -358,7 +355,6 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
             leftItem: existingNotes.leftItem || '',
             rightItem: existingNotes.rightItem || '',
             caseFontColor: existingNotes.caseFontColor || '',
-            selectedItem: 'left',
             leftItemType: migratedLeftItemType,
             leftCustomClass: migratedLeftCustomClass,
             leftClassNote: migratedLeftClassNote,
@@ -391,7 +387,6 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
             leftItem: '',
             rightItem: '',
             caseFontColor: '',
-            selectedItem: 'left',
             leftItemType: '',
             leftCustomClass: '',
             leftClassNote: '',
@@ -549,7 +544,6 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         leftItem,
         rightItem,
         caseFontColor,
-        selectedItem,
         leftItemType,
         leftCustomClass,
         leftClassNote,
@@ -642,7 +636,6 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
     rightItem,
     rightShotshellData,
     leftShotshellData,
-    selectedItem,
     leftAdditionalNotes,
     rightAdditionalNotes,
     supportLevel,
@@ -980,8 +973,14 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         notes={additionalNotes}
-        onSave={setAdditionalNotes}
-        isReadOnly={isReadOnly}
+        onSave={(notes) => {
+          if (areInputsDisabled) {
+            return;
+          }
+
+          setAdditionalNotes(notes);
+        }}
+        isReadOnly={areInputsDisabled}
         showNotification={notificationHandler}
       />
       <ItemDetailsModal
@@ -992,6 +991,10 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         cartridgeCaseData={getSelectedItemData().cartridgeCaseData}
         shotshellData={getSelectedItemData().shotshellData}
         onSave={(b, c, s) => {
+          if (areInputsDisabled) {
+            return;
+          }
+
           setSelectedItemData({
             bulletData: b,
             cartridgeCaseData: c,
@@ -1007,7 +1010,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
           }
         }}
         showNotification={notificationHandler}
-        isReadOnly={isReadOnly}
+        isReadOnly={areInputsDisabled}
       />
       </>
         )}

@@ -117,7 +117,8 @@ export const Navbar = ({
   const disableLongRunningCaseActions = isUploading;
   const isCaseManagementActive = true;
   const isFileManagementActive = isFileMenuOpen || hasLoadedImage;
-  const canOpenImageNotes = hasLoadedImage && !isCurrentImageConfirmed;
+  const canOpenImageNotes = hasLoadedImage;
+  const isImageNotesReadOnly = isReadOnly || isCurrentImageConfirmed || isUploading;
   const isImageNotesActive = canOpenImageNotes;
   const canDeleteCurrentFile = hasLoadedImage && !isReadOnly;
   const isArchivedCase = Boolean(isReadOnly && archiveDetails?.archived);
@@ -367,10 +368,8 @@ export const Navbar = ({
             title={
               !hasLoadedImage
                 ? 'Load an image to enable image notes'
-                : isCurrentImageConfirmed
-                  ? 'Confirmed images are read-only and viewable via toolbar only'
-                  : isReadOnly
-                    ? 'Image notes are disabled for read-only cases'
+                : isImageNotesReadOnly
+                  ? 'Image notes are view-only in this state'
                     : undefined
             }
             onClick={() => {
