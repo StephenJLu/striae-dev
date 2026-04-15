@@ -54,6 +54,26 @@
   padding-top: 1.25rem;
 }
 
+.itemSelectorRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.itemSelectorRow label {
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.itemSelectorRow select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: 0.25rem;
+  background-color: white;
+  font-size: 0.875rem;
+}
+
 @media (max-width: 980px) {
   .editorLayout .caseNumbers,
   .compactSectionGrid {

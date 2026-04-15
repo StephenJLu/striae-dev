@@ -74,17 +74,34 @@ export interface AnnotationData {
   leftItem: string;
   rightItem: string;
   caseFontColor?: string;
+  // Left item class characteristics
+  leftItemType?: ItemType;
+  leftCustomClass?: string;
+  leftClassNote?: string;
+  leftBulletData?: BulletAnnotationData;
+  leftCartridgeCaseData?: CartridgeCaseAnnotationData;
+  leftShotshellData?: ShotshellAnnotationData;
+  leftHasSubclass?: boolean;
+  // Right item class characteristics
+  rightItemType?: ItemType;
+  rightCustomClass?: string;
+  rightClassNote?: string;
+  rightBulletData?: BulletAnnotationData;
+  rightCartridgeCaseData?: CartridgeCaseAnnotationData;
+  rightShotshellData?: ShotshellAnnotationData;
+  rightHasSubclass?: boolean;
+  // Deprecated (kept for backward compatibility): use leftItemType, rightItemType, etc.
   itemType?: ItemType;
   customClass?: string;
   classNote?: string;
-  indexType?: 'number' | 'color';
-  indexNumber?: string;
-  indexColor?: string;
-  supportLevel?: 'ID' | 'Exclusion' | 'Inconclusive';
   bulletData?: BulletAnnotationData;
   cartridgeCaseData?: CartridgeCaseAnnotationData;
   shotshellData?: ShotshellAnnotationData;
   hasSubclass?: boolean;
+  indexType?: 'number' | 'color';
+  indexNumber?: string;
+  indexColor?: string;
+  supportLevel?: 'ID' | 'Exclusion' | 'Inconclusive';
   includeConfirmation: boolean;
   confirmationData?: ConfirmationData;
   additionalNotes?: string;
