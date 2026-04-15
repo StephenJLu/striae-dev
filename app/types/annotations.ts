@@ -1,6 +1,7 @@
 // Annotation-related types and interfaces
 
-export type ItemType = 'Bullet' | 'Cartridge Case' | 'Shotshell' | 'Other';
+export type { ItemType, SupportLevel, IndexType } from '../../shared/types/annotation-literals';
+import type { ItemType, SupportLevel, IndexType } from '../../shared/types/annotation-literals';
 
 export interface BoxAnnotation {
   id: string;
@@ -100,10 +101,10 @@ export interface AnnotationData {
   cartridgeCaseData?: CartridgeCaseAnnotationData;
   shotshellData?: ShotshellAnnotationData;
   hasSubclass?: boolean;
-  indexType?: 'number' | 'color';
+  indexType?: IndexType;
   indexNumber?: string;
   indexColor?: string;
-  supportLevel?: 'ID' | 'Exclusion' | 'Inconclusive';
+  supportLevel?: SupportLevel;
   includeConfirmation: boolean;
   confirmationData?: ConfirmationData;
   leftAdditionalNotes?: string;
