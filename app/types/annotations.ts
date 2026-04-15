@@ -104,6 +104,8 @@ export interface AnnotationData {
   supportLevel?: 'ID' | 'Exclusion' | 'Inconclusive';
   includeConfirmation: boolean;
   confirmationData?: ConfirmationData;
+  leftAdditionalNotes?: string;
+  rightAdditionalNotes?: string;
   additionalNotes?: string;
   boxAnnotations?: BoxAnnotation[];
   updatedAt: string;

@@ -53,6 +53,8 @@ interface NotesFormSnapshot {
   indexColor: string;
   supportLevel: SupportLevel | '';
   includeConfirmation: boolean;
+  leftAdditionalNotes: string;
+  rightAdditionalNotes: string;
   additionalNotes: string;
 }
 
@@ -142,6 +144,8 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
 
   // Additional Notes Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [leftAdditionalNotes, setLeftAdditionalNotes] = useState('');
+  const [rightAdditionalNotes, setRightAdditionalNotes] = useState('');
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [isCaseInfoOpen, setIsCaseInfoOpen] = useState(true);
   const [isClassOpen, setIsClassOpen] = useState(true);
@@ -242,6 +246,8 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         indexColor,
         supportLevel,
         includeConfirmation,
+        leftAdditionalNotes,
+        rightAdditionalNotes,
         additionalNotes,
       });
 
@@ -279,6 +285,8 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
     caseFontColor,
     savedSnapshot,
     selectedItem,
+    leftAdditionalNotes,
+    rightAdditionalNotes,
     supportLevel,
   ]);
 
@@ -338,6 +346,8 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
           setIndexColor(existingNotes.indexColor || '');
           setSupportLevel(existingNotes.supportLevel || '');
           setIncludeConfirmation(existingNotes.includeConfirmation);
+          setLeftAdditionalNotes(existingNotes.leftAdditionalNotes || '');
+          setRightAdditionalNotes(existingNotes.rightAdditionalNotes || '');
           setAdditionalNotes(existingNotes.additionalNotes || '');
           setSelectedItem('left'); // Always default to left item
 
@@ -367,6 +377,8 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
             indexColor: existingNotes.indexColor || '',
             supportLevel: existingNotes.supportLevel || '',
             includeConfirmation: existingNotes.includeConfirmation,
+            leftAdditionalNotes: existingNotes.leftAdditionalNotes || '',
+            rightAdditionalNotes: existingNotes.rightAdditionalNotes || '',
             additionalNotes: existingNotes.additionalNotes || ''
           }));
         } else {
@@ -398,6 +410,8 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
             indexColor: '',
             supportLevel: '',
             includeConfirmation: false,
+            leftAdditionalNotes: '',
+            rightAdditionalNotes: '',
             additionalNotes: ''
           }));
         }
@@ -490,7 +504,9 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         includeConfirmation: includeConfirmation,
         
         // Additional Notes
-        additionalNotes: additionalNotes || undefined, // Keep as optional
+        leftAdditionalNotes: leftAdditionalNotes || undefined,
+        rightAdditionalNotes: rightAdditionalNotes || undefined,
+        additionalNotes: additionalNotes || undefined, // General notes (including box-annotation notes)
         
         // Preserve existing box annotations
         boxAnnotations: existingData?.boxAnnotations || [],
@@ -547,6 +563,8 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         indexColor,
         supportLevel,
         includeConfirmation,
+        leftAdditionalNotes,
+        rightAdditionalNotes,
         additionalNotes,
       }));
       setIsDirty(false);
@@ -618,6 +636,8 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
     rightShotshellData,
     leftShotshellData,
     selectedItem,
+    leftAdditionalNotes,
+    rightAdditionalNotes,
     supportLevel,
     user,
   ]);
@@ -974,7 +994,11 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
           });
           const summary = buildItemDetailsSummary(b, c, s, getSelectedItemData().itemType);
           if (summary) {
-            setAdditionalNotes((prev) => prev ? `${prev}\n${summary}` : summary);
+            if (selectedItem === 'left') {
+              setLeftAdditionalNotes((prev) => (prev ? `${prev}\n${summary}` : summary));
+            } else {
+              setRightAdditionalNotes((prev) => (prev ? `${prev}\n${summary}` : summary));
+            }
           }
         }}
         showNotification={notificationHandler}

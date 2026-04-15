@@ -45,6 +45,8 @@ export interface AnnotationData {
   confirmationData?: ConfirmationData;
 
   // Notes
+  leftAdditionalNotes?: string;
+  rightAdditionalNotes?: string;
   additionalNotes?: string;
 }
 
