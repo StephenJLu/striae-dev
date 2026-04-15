@@ -1,7 +1,7 @@
 // Annotation-related types and interfaces
 
-export type { ItemType, SupportLevel, IndexType } from '../../shared/types/annotation-literals';
 import type { ItemType, SupportLevel, IndexType } from '../../shared/types/annotation-literals';
+export type { ItemType, SupportLevel, IndexType };
 
 export interface BoxAnnotation {
   id: string;
