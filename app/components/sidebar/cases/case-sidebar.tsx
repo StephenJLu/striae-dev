@@ -11,7 +11,9 @@ import {
 import { 
   canUploadFile, 
   ensureCaseConfirmationSummary,
-  getCaseConfirmationSummary
+  getCaseConfirmationSummary,
+  getNotesViewPermission,
+  getNotesButtonTooltip
 } from '~/utils/data';
 import { type FileData } from '~/types';
 
@@ -28,7 +30,6 @@ interface CaseSidebarProps {
   isReadOnly?: boolean;
   isReviewOnlyCase?: boolean;
   isArchivedCase?: boolean;
-  isConfirmed?: boolean;
   confirmationSaveVersion?: number;
   selectedFileId?: string;
   isUploading?: boolean;
@@ -50,7 +51,6 @@ export const CaseSidebar = ({
   isReadOnly = false,
   isReviewOnlyCase = false,
   isArchivedCase = false,
-  isConfirmed = false,
   confirmationSaveVersion = 0,
   selectedFileId,
   isUploading = false,
@@ -238,27 +238,24 @@ const handleImageSelect = (file: FileData) => {
     selectedFileId && !selectedFileConfirmationState
   );
 
-  const isSelectedFileConfirmed =
-    isConfirmed || !!selectedFileConfirmationState?.isConfirmed;
+  const isSelectedFileConfirmed = !!selectedFileConfirmationState?.isConfirmed;
 
-  const isImageNotesDisabled =
-    !imageLoaded ||
-    isReadOnly ||
-    isSelectedFileConfirmed ||
-    isUploading ||
-    isCheckingSelectedFileConfirmation;
+  // Use centralized permission helper
+  const notesPermission = getNotesViewPermission({
+    imageLoaded,
+    isUploading,
+    isCheckingConfirmation: isCheckingSelectedFileConfirmation,
+    isReadOnlyCase: isReadOnly,
+    isArchivedCase: isArchivedCase,
+    isConfirmedImage: isSelectedFileConfirmed
+  });
 
-  const imageNotesTitle = isUploading
-    ? 'Cannot edit notes while uploading'
-    : isCheckingSelectedFileConfirmation
-    ? 'Checking confirmation status...'
-    : isSelectedFileConfirmed
-    ? 'Cannot edit notes for confirmed images'
-    : isReadOnly
-    ? 'Cannot edit notes for read-only cases'
-    : !imageLoaded
-    ? 'Select an image first'
-    : undefined;
+  const isImageNotesDisabled = !notesPermission.canOpen;
+  const imageNotesTitle = getNotesButtonTooltip(notesPermission, {
+    isReadOnlyCase: isReadOnly,
+    isArchivedCase: isArchivedCase,
+    isConfirmedImage: isSelectedFileConfirmed
+  });
 
   const showCaseExportButton = Boolean(currentCase && isReadOnly);
   const caseExportButtonLabel = isArchivedCase ? 'Export Archive' : 'Export Confirmations';

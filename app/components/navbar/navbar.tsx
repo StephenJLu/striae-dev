@@ -4,7 +4,7 @@ import { SignOut } from '../actions/signout';
 import { ManageProfile } from '../user/manage-profile';
 import { CaseImport } from './case-import/case-import';
 import { AuthContext } from '~/contexts/auth.context';
-import { getUserData } from '~/utils/data';
+import { getUserData, getNotesViewPermission, getNotesButtonTooltip } from '~/utils/data';
 import { type ImportResult, type ConfirmationImportResult } from '~/types';
 
 interface NavbarProps {
@@ -118,10 +118,26 @@ export const Navbar = ({
   const isCaseManagementActive = true;
   const isFileManagementActive = isFileMenuOpen || hasLoadedImage;
   const canOpenImageNotes = hasLoadedImage;
-  const isImageNotesReadOnly = isReadOnly || isCurrentImageConfirmed || isUploading;
   const isImageNotesActive = canOpenImageNotes;
   const canDeleteCurrentFile = hasLoadedImage && !isReadOnly;
   const isArchivedCase = Boolean(isReadOnly && archiveDetails?.archived);
+  
+  // Use centralized permission helper for notes
+  const notesPermission = getNotesViewPermission({
+    imageLoaded: hasLoadedImage,
+    isUploading: isUploading || false,
+    isCheckingConfirmation: false, // Navbar doesn't track this granularly
+    isReadOnlyCase: isReadOnly || false,
+    isArchivedCase: isArchivedCase,
+    isConfirmedImage: isCurrentImageConfirmed || false
+  });
+  
+  const imageNotesTitle = getNotesButtonTooltip(notesPermission, {
+    isReadOnlyCase: isReadOnly,
+    isArchivedCase: isArchivedCase,
+    isConfirmedImage: isCurrentImageConfirmed
+  });
+
   const caseExportLabel = isArchivedCase
     ? 'Export Archive'
     : isReadOnly
@@ -365,13 +381,7 @@ export const Navbar = ({
             className={`${styles.navSectionButton} ${isImageNotesActive ? styles.navSectionButtonActive : ''}`}
             disabled={!canOpenImageNotes}
             aria-pressed={isImageNotesActive}
-            title={
-              !hasLoadedImage
-                ? 'Load an image to enable image notes'
-                : isImageNotesReadOnly
-                  ? 'Image notes are view-only in this state'
-                    : undefined
-            }
+            title={imageNotesTitle}
             onClick={() => {
               onOpenImageNotes?.();
             }}

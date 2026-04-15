@@ -746,10 +746,10 @@ export const Striae = ({ user }: StriaePage) => {
   const isCurrentImageConfirmed = hasLoadedImage && !!annotationData?.confirmationData;
 
   useEffect(() => {
-    if (showNotes && (!hasLoadedImage || isCurrentImageConfirmed)) {
+    if (showNotes && !hasLoadedImage) {
       setShowNotes(false);
     }
-  }, [showNotes, hasLoadedImage, isCurrentImageConfirmed]);
+  }, [showNotes, hasLoadedImage]);
 
   // Automatic save handler for annotation updates
   const handleAnnotationUpdate = async (data: AnnotationData) => {
@@ -868,7 +868,6 @@ export const Striae = ({ user }: StriaePage) => {
           isReadOnly={isReadOnlyCase}
           isReviewOnlyCase={isReviewOnlyCase}
           isArchivedCase={archiveDetails.archived}
-          isConfirmed={!!annotationData?.confirmationData}
           confirmationSaveVersion={confirmationSaveVersion}
           isUploading={isUploading}
           onUploadStatusChange={setIsUploading}

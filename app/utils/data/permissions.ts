@@ -27,6 +27,16 @@ export interface CaseMetadata {
 }
 
 /**
+ * Result for notes viewing permissions
+ * Determines if notes can be viewed and in what mode (edit or view-only)
+ */
+export interface NotesViewPermission {
+  canOpen: boolean;        // Can the notes panel be opened
+  isReadOnly: boolean;     // Are notes in read-only mode (can view but not edit)
+  reason?: string;         // Reason if notes cannot be opened
+}
+
+/**
  * Get user data from KV store
  */
 export const getUserData = async (user: User): Promise<UserData | null> => {
@@ -565,4 +575,117 @@ export const removeUserCase = async (user: User, caseNumber: string): Promise<vo
     console.error('Error removing case from user:', error);
     throw error;
   }
+};
+
+// ============================================================================
+// NOTES VIEW PERMISSIONS
+// ============================================================================
+
+/**
+ * Determine if notes can be opened and viewed, and whether they should be in read-only mode
+ * 
+ * Notes can be viewed in the following scenarios:
+ * - Normal active case with unconfirmed image: Can edit and save
+ * - Active case with confirmed image: Can view only (read-only)
+ * - Read-only case (review/confirmation case): Can view only (read-only)
+ * - Archived case: Can view only (read-only)
+ * 
+ * Notes cannot be opened when:
+ * - Files are uploading
+ * - Confirmation status is still being checked
+ * - No image is loaded
+ * 
+ * @param config Configuration object with state flags
+ * @returns NotesViewPermission object indicating if notes can be opened and if they're read-only
+ */
+export const getNotesViewPermission = (config: {
+  imageLoaded: boolean;
+  isUploading: boolean;
+  isCheckingConfirmation: boolean;
+  isReadOnlyCase?: boolean;
+  isArchivedCase?: boolean;
+  isConfirmedImage?: boolean;
+}): NotesViewPermission => {
+  const {
+    imageLoaded,
+    isUploading,
+    isCheckingConfirmation,
+    isReadOnlyCase = false,
+    isArchivedCase = false,
+    isConfirmedImage = false
+  } = config;
+
+  // Cannot open if uploading files
+  if (isUploading) {
+    return {
+      canOpen: false,
+      isReadOnly: false,
+      reason: 'Cannot open notes while uploading'
+    };
+  }
+
+  // Cannot open if checking confirmation status
+  if (isCheckingConfirmation) {
+    return {
+      canOpen: false,
+      isReadOnly: false,
+      reason: 'Checking confirmation status...'
+    };
+  }
+
+  // Cannot open if no image is loaded
+  if (!imageLoaded) {
+    return {
+      canOpen: false,
+      isReadOnly: false,
+      reason: 'Select an image first'
+    };
+  }
+
+  // Can open, determine if read-only
+  const isReadOnly = isConfirmedImage || isReadOnlyCase || isArchivedCase;
+
+  return {
+    canOpen: true,
+    isReadOnly
+  };
+};
+
+/**
+ * Get a user-friendly tooltip message for the Image Notes button
+ * 
+ * This centralizes all the tooltip logic that appears in the navbar and sidebar
+ * 
+ * @param permission NotesViewPermission object from getNotesViewPermission
+ * @param additionalContext Optional context for more specific messages
+ * @returns Tooltip string, or undefined if button has no specific tooltip
+ */
+export const getNotesButtonTooltip = (
+  permission: NotesViewPermission,
+  additionalContext?: {
+    isReadOnlyCase?: boolean;
+    isArchivedCase?: boolean;
+    isConfirmedImage?: boolean;
+  }
+): string | undefined => {
+  // If cannot open, return the reason
+  if (!permission.canOpen) {
+    return permission.reason;
+  }
+
+  // Can open - provide context-specific read-only messages
+  if (permission.isReadOnly && additionalContext) {
+    if (additionalContext.isConfirmedImage) {
+      return 'Image notes: viewing only (image is confirmed)';
+    }
+    if (additionalContext.isReadOnlyCase) {
+      return 'Image notes: viewing only (case is read-only)';
+    }
+    if (additionalContext.isArchivedCase) {
+      return 'Image notes: viewing only (case is archived)';
+    }
+  }
+
+  // No tooltip needed for normal edit mode
+  return undefined;
 };
