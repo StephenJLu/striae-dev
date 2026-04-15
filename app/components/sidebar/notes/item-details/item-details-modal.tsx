@@ -3,18 +3,16 @@ import type {
   BulletAnnotationData,
   CartridgeCaseAnnotationData,
   ShotshellAnnotationData,
+  ItemType,
 } from '~/types/annotations';
-import {
-  type ClassType,
-} from './class-details-shared';
-import { BulletSection, CartridgeCaseSection, ShotshellSection } from './class-details-sections';
-import { useClassDetailsState } from './use-class-details-state';
+import { BulletSection, CartridgeCaseSection, ShotshellSection } from './item-details-sections';
+import { useItemDetailsState } from './use-item-details-state';
 import styles from '../notes.module.css';
 
-interface ClassDetailsModalProps {
+interface ItemDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  classType: ClassType | '';
+  itemType: ItemType | '';
   bulletData?: BulletAnnotationData;
   cartridgeCaseData?: CartridgeCaseAnnotationData;
   shotshellData?: ShotshellAnnotationData;
@@ -27,17 +25,17 @@ interface ClassDetailsModalProps {
   isReadOnly?: boolean;
 }
 
-const ClassDetailsModalContent = ({
+const ItemDetailsModalContent = ({
   isOpen,
   onClose,
-  classType,
+  itemType,
   bulletData,
   cartridgeCaseData,
   shotshellData,
   onSave,
   showNotification,
   isReadOnly = false,
-}: ClassDetailsModalProps) => {
+}: ItemDetailsModalProps) => {
   const {
     bullet,
     cartridgeCase,
@@ -45,7 +43,7 @@ const ClassDetailsModalContent = ({
     isSaving,
     setIsSaving,
     buildSaveData,
-  } = useClassDetailsState({
+  } = useItemDetailsState({
     bulletData,
     cartridgeCaseData,
     shotshellData,
@@ -55,10 +53,10 @@ const ClassDetailsModalContent = ({
 
   if (!isOpen) return null;
 
-  const showBullet = classType === 'Bullet' || classType === 'Other' || classType === '';
-  const showCartridge = classType === 'Cartridge Case' || classType === 'Other' || classType === '';
-  const showShotshell = classType === 'Shotshell' || classType === 'Other' || classType === '';
-  const showHeaders = classType === 'Other' || classType === '';
+  const showBullet = itemType === 'Bullet' || itemType === 'Other' || itemType === '';
+  const showCartridge = itemType === 'Cartridge Case' || itemType === 'Other' || itemType === '';
+  const showShotshell = itemType === 'Shotshell' || itemType === 'Other' || itemType === '';
+  const showHeaders = itemType === 'Other' || itemType === '';
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -90,10 +88,10 @@ const ClassDetailsModalContent = ({
       aria-label="Close class details dialog"
       {...overlayProps}
     >
-      <div className={`${styles.modal} ${styles.classDetailsModal}`}>
+      <div className={`${styles.modal} ${styles.itemDetailsModal}`}>
         <button {...getCloseButtonProps({ ariaLabel: 'Close class details dialog' })}>×</button>
         <h5 className={styles.modalTitle}>Class Characteristic Details</h5>
-        <div className={styles.classDetailsContent}>
+        <div className={styles.itemDetailsContent}>
           {showBullet && (
             <BulletSection
               showHeader={showHeaders}
@@ -118,10 +116,10 @@ const ClassDetailsModalContent = ({
             />
           )}
         </div>
-        <div className={`${styles.modalButtons} ${styles.classDetailsModalButtons}`}>
+        <div className={`${styles.modalButtons} ${styles.itemDetailsModalButtons}`}>
           <button
             onClick={handleSave}
-            className={`${styles.saveButton} ${styles.classDetailsModalAction}`}
+            className={`${styles.saveButton} ${styles.itemDetailsModalAction}`}
             disabled={isSaving || isReadOnly}
             aria-busy={isSaving}
           >
@@ -129,7 +127,7 @@ const ClassDetailsModalContent = ({
           </button>
           <button
             onClick={requestClose}
-            className={`${styles.cancelButton} ${styles.classDetailsModalAction}`}
+            className={`${styles.cancelButton} ${styles.itemDetailsModalAction}`}
             disabled={isSaving}
           >
             Cancel
@@ -140,8 +138,8 @@ const ClassDetailsModalContent = ({
   );
 };
 
-export const ClassDetailsModal = (props: ClassDetailsModalProps) => {
+export const ItemDetailsModal = (props: ItemDetailsModalProps) => {
   if (!props.isOpen) return null;
 
-  return <ClassDetailsModalContent {...props} />;
+  return <ItemDetailsModalContent {...props} />;
 };

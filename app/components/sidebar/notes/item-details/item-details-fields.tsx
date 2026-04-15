@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import styles from '../notes.module.css';
-import { CUSTOM, handleSelectWithCustom } from './class-details-shared';
+import { CUSTOM, handleSelectWithCustom } from './item-details-shared';
 
 interface BaseFieldProps {
   label: string;
@@ -37,7 +37,7 @@ interface CheckboxFieldProps {
 }
 
 const fieldClassName = (fullWidth = false): string =>
-  fullWidth ? `${styles.classDetailsField} ${styles.classDetailsFieldFull}` : styles.classDetailsField;
+  fullWidth ? `${styles.itemDetailsField} ${styles.itemDetailsFieldFull}` : styles.itemDetailsField;
 
 export const TextField = ({
   label,
@@ -50,14 +50,14 @@ export const TextField = ({
   min,
 }: TextFieldProps) => (
   <div className={fieldClassName(fullWidth)}>
-    <span className={styles.classDetailsLabel}>{label}</span>
+    <span className={styles.itemDetailsLabel}>{label}</span>
     <input
       type={type}
       min={min}
       aria-label={label}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className={styles.classDetailsInput}
+      className={styles.itemDetailsInput}
       disabled={disabled}
       placeholder={placeholder}
     />
@@ -74,12 +74,12 @@ export const SelectField = ({
   fullWidth = false,
 }: SelectFieldProps) => (
   <div className={fieldClassName(fullWidth)}>
-    <span className={styles.classDetailsLabel}>{label}</span>
+    <span className={styles.itemDetailsLabel}>{label}</span>
     <select
       aria-label={label}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className={styles.classDetailsInput}
+      className={styles.itemDetailsInput}
       disabled={disabled}
     >
       <option value="">{placeholder}</option>
@@ -101,12 +101,12 @@ export const SelectWithCustomField = ({
   fullWidth = false,
 }: SelectWithCustomFieldProps) => (
   <div className={fieldClassName(fullWidth)}>
-    <span className={styles.classDetailsLabel}>{label}</span>
+    <span className={styles.itemDetailsLabel}>{label}</span>
     <select
       aria-label={label}
       value={isCustom ? CUSTOM : value}
       onChange={(event) => handleSelectWithCustom(event.target.value, onChange, onCustomChange)}
-      className={styles.classDetailsInput}
+      className={styles.itemDetailsInput}
       disabled={disabled}
     >
       <option value="">{placeholder}</option>
@@ -119,7 +119,7 @@ export const SelectWithCustomField = ({
         aria-label={label}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className={styles.classDetailsInput}
+        className={styles.itemDetailsInput}
         disabled={disabled}
         placeholder={customPlaceholder}
       />
@@ -133,7 +133,7 @@ export const CheckboxField = ({
   onChange,
   disabled,
 }: CheckboxFieldProps) => (
-  <label className={styles.classDetailsCheckboxLabel}>
+  <label className={styles.itemDetailsCheckboxLabel}>
     <input
       type="checkbox"
       aria-label={label}

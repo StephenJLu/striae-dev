@@ -3,7 +3,7 @@ import { Button } from '../button/button';
 import { ToolbarColorSelector } from './toolbar-color-selector';
 import styles from './toolbar.module.css';
 
-type ToolId = 'number' | 'class' | 'index' | 'id' | 'notes' | 'print' | 'visibility' | 'box';
+type ToolId = 'number' | 'item' | 'index' | 'id' | 'notes' | 'print' | 'visibility' | 'box';
 
 interface ToolbarProps {
   onToolSelect?: (toolId: ToolId, active: boolean) => void;
@@ -125,10 +125,10 @@ export const Toolbar = ({
         ariaLabel="Case & Item Numbers"
       />
       <Button
-        iconId="class"
-        isActive={activeTools.has('class')}
-        onClick={() => handleToolClick('class')}
-        ariaLabel="Class Characteristics"
+        iconId="item"
+        isActive={activeTools.has('item')}
+        onClick={() => handleToolClick('item')}
+        ariaLabel="Item Type"
       />
       <Button
         iconId="index"

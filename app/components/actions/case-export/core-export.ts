@@ -63,17 +63,26 @@ export async function exportCaseData(
       try {
         annotations = await getNotes(user, caseNumber, file.id) || undefined;
         
-        // Check if file has any annotation data beyond just defaults
+        // Check if file has any annotation data beyond just defaults.
+        // Includes left/right split fields and legacy single-value fields as fallbacks.
         hasAnnotations = !!(annotations && (
           annotations.additionalNotes ||
+          annotations.leftAdditionalNotes ||
+          annotations.rightAdditionalNotes ||
           annotations.classNote ||
+          annotations.leftClassNote ||
+          annotations.rightClassNote ||
           annotations.customClass ||
+          annotations.leftCustomClass ||
+          annotations.rightCustomClass ||
           annotations.leftCase ||
           annotations.rightCase ||
           annotations.leftItem ||
           annotations.rightItem ||
+          annotations.leftItemType ||
+          annotations.rightItemType ||
           annotations.supportLevel ||
-          annotations.classType ||
+          annotations.itemType ||
           (annotations.boxAnnotations && annotations.boxAnnotations.length > 0)
         ));
 

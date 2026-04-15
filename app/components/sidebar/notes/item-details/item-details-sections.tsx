@@ -16,9 +16,9 @@ import {
   SHOTSHELL_GAUGES,
   SHOTSHELL_STEEL_WATERFOWL_OPTIONS,
   formatCalculatedDiameter,
-} from './class-details-shared';
-import { CheckboxField, SelectField, SelectWithCustomField, TextField } from './class-details-fields';
-import type { BulletDetailsState, CartridgeCaseDetailsState, ShotshellDetailsState } from './use-class-details-state';
+} from './item-details-shared';
+import { CheckboxField, SelectField, SelectWithCustomField, TextField } from './item-details-fields';
+import type { BulletDetailsState, CartridgeCaseDetailsState, ShotshellDetailsState } from './use-item-details-state';
 
 interface BulletSectionProps {
   showHeader: boolean;
@@ -294,14 +294,14 @@ export const BulletSection = ({
       ];
 
   return (
-    <div className={styles.classDetailsSection}>
-      {showHeader && <h6 className={styles.classDetailsSectionHeader}>Bullet</h6>}
-      <div className={styles.classDetailsFieldGrid}>
+    <div className={styles.itemDetailsSection}>
+      {showHeader && <h6 className={styles.itemDetailsSectionHeader}>Bullet</h6>}
+      <div className={styles.itemDetailsFieldGrid}>
         {bulletFields.map((field) => renderConfiguredField(field, isReadOnly))}
       </div>
       {bullet.lgCount > 0 && (
         <div className={styles.lgWidthsSection}>
-          <h6 className={styles.classDetailsSectionHeader}>L / G Widths</h6>
+          <h6 className={styles.itemDetailsSectionHeader}>L / G Widths</h6>
           <div className={styles.lgWidthsLayout}>
             <div className={styles.lgWidthsColumn}>
               {Array.from({ length: bullet.lgCount }, (_, index) => (
@@ -331,7 +331,7 @@ export const BulletSection = ({
           {bullet.calculatedDiameter !== null && (
             <div className={styles.calculatedDiameterWrapper}>
               <div className={styles.calculatedDiameterDisplay}>
-                <span className={styles.classDetailsLabel}>Calculated Diameter</span>
+                <span className={styles.itemDetailsLabel}>Calculated Diameter</span>
                 <span className={styles.calculatedDiameterValue}>{formatCalculatedDiameter(bullet.calculatedDiameter)}</span>
               </div>
               <button
@@ -448,12 +448,12 @@ export const CartridgeCaseSection = ({
       ];
 
   return (
-    <div className={styles.classDetailsSection}>
-      {showHeader && <h6 className={styles.classDetailsSectionHeader}>Cartridge Case</h6>}
-      <div className={styles.classDetailsFieldGrid}>
+    <div className={styles.itemDetailsSection}>
+      {showHeader && <h6 className={styles.itemDetailsSectionHeader}>Cartridge Case</h6>}
+      <div className={styles.itemDetailsFieldGrid}>
         {cartridgeFields.map((field) => renderConfiguredField(field, isReadOnly))}
       </div>
-      <div className={styles.classDetailsCheckboxGroup}>
+      <div className={styles.itemDetailsCheckboxGroup}>
         {renderCheckboxes([
           { key: 'fpDrag', label: 'FP Drag', checked: cartridgeCase.hasFpDrag, onChange: cartridgeCase.setHasFpDrag },
           { key: 'extractor', label: 'Extractor Marks', checked: cartridgeCase.hasExtractorMarks, onChange: cartridgeCase.setHasExtractorMarks },
@@ -544,12 +544,12 @@ export const ShotshellSection = ({
       ];
 
   return (
-    <div className={styles.classDetailsSection}>
-      {showHeader && <h6 className={styles.classDetailsSectionHeader}>Shotshell</h6>}
-      <div className={styles.classDetailsFieldGrid}>
+    <div className={styles.itemDetailsSection}>
+      {showHeader && <h6 className={styles.itemDetailsSectionHeader}>Shotshell</h6>}
+      <div className={styles.itemDetailsFieldGrid}>
         {shotshellFields.map((field) => renderConfiguredField(field, isReadOnly))}
       </div>
-      <div className={styles.classDetailsCheckboxGroup}>
+      <div className={styles.itemDetailsCheckboxGroup}>
         {renderCheckboxes([
           { key: 'extractor', label: 'Extractor Marks', checked: shotshell.hasExtractorMarks, onChange: shotshell.setHasExtractorMarks },
           { key: 'ejector', label: 'Ejector Marks', checked: shotshell.hasEjectorMarks, onChange: shotshell.setHasEjectorMarks },

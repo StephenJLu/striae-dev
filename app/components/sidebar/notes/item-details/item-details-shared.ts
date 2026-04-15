@@ -1,6 +1,7 @@
-import type { BulletAnnotationData, CartridgeCaseAnnotationData, ShotshellAnnotationData } from '~/types/annotations';
+import type { BulletAnnotationData, CartridgeCaseAnnotationData, ShotshellAnnotationData, ItemType } from '~/types/annotations';
 
-export type ClassType = 'Bullet' | 'Cartridge Case' | 'Shotshell' | 'Other';
+// Re-export ItemType from annotations for backwards compatibility
+export type ClassType = ItemType;
 
 export const CUSTOM = '__custom__';
 
@@ -133,7 +134,7 @@ const avgWidth = (widths: string[] | undefined): number | null => {
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 };
 
-export const buildClassDetailsSummary = (
+export const buildItemDetailsSummary = (
   bulletData: BulletAnnotationData | undefined,
   cartridgeCaseData: CartridgeCaseAnnotationData | undefined,
   shotshellData: ShotshellAnnotationData | undefined,

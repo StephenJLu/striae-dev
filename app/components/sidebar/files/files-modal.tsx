@@ -9,7 +9,7 @@ import {
 import {
   type FilesModalSortBy,
   type FilesModalConfirmationFilter,
-  type FilesModalClassTypeFilter,
+  type FilesModalItemTypeFilter,
   getFilesForModal,
 } from '~/utils/data/file-filters';
 import { deleteFile } from '~/components/actions/image-manage';
@@ -61,12 +61,24 @@ function formatDate(dateString: string): string {
   return new Date(parsed).toLocaleDateString();
 }
 
-function getClassTypeLabel(classType?: FileConfirmationSummary['classType']): string {
-  if (!classType) {
+function getItemTypeLabel(summary: FileConfirmationSummary): string {
+  const itemTypes = [
+    summary.leftItemType,
+    summary.rightItemType,
+    summary.itemType,
+  ].filter((value): value is NonNullable<FileConfirmationSummary['itemType']> => Boolean(value));
+
+  const uniqueItemTypes = Array.from(new Set(itemTypes));
+
+  if (uniqueItemTypes.length === 0) {
     return 'Unset';
   }
 
-  return classType;
+  if (uniqueItemTypes.length === 1) {
+    return uniqueItemTypes[0];
+  }
+
+  return `${uniqueItemTypes[0]} / ${uniqueItemTypes[1]}`;
 }
 
 function getConfirmationLabel(summary: FileConfirmationSummary): string {
@@ -110,7 +122,7 @@ export const FilesModal = ({
     preferences,
     setSortBy,
     setConfirmationFilter,
-    setClassTypeFilter,
+    setItemTypeFilter,
     resetPreferences,
   } = useFileListPreferences();
   const {
@@ -125,7 +137,7 @@ export const FilesModal = ({
   const hasCustomPreferences =
     preferences.sortBy !== DEFAULT_FILES_MODAL_PREFERENCES.sortBy ||
     preferences.confirmationFilter !== DEFAULT_FILES_MODAL_PREFERENCES.confirmationFilter ||
-    preferences.classTypeFilter !== DEFAULT_FILES_MODAL_PREFERENCES.classTypeFilter;
+    preferences.itemTypeFilter !== DEFAULT_FILES_MODAL_PREFERENCES.itemTypeFilter;
 
   const existingFileIdSet = useMemo(
     () => new Set(files.map((file) => file.id)),
@@ -162,6 +174,9 @@ export const FilesModal = ({
     (effectiveCurrentPage + 1) * FILES_PER_PAGE
   );
 
+  const shouldForceItemTypeSummaryRefresh =
+    preferences.sortBy === 'itemType' || preferences.itemTypeFilter !== 'all';
+
   useEffect(() => {
     let isCancelled = false;
 
@@ -173,7 +188,9 @@ export const FilesModal = ({
         return;
       }
 
-      const caseSummary = await ensureCaseConfirmationSummary(user, currentCase, files).catch((err) => {
+      const caseSummary = await ensureCaseConfirmationSummary(user, currentCase, files, {
+        forceRefresh: shouldForceItemTypeSummaryRefresh,
+      }).catch((err) => {
         console.error(`Error fetching confirmation summary for case ${currentCase}:`, err);
         return null;
       });
@@ -190,7 +207,14 @@ export const FilesModal = ({
     return () => {
       isCancelled = true;
     };
-  }, [isOpen, currentCase, files, user, confirmationSaveVersion]);
+  }, [
+    isOpen,
+    currentCase,
+    files,
+    user,
+    confirmationSaveVersion,
+    shouldForceItemTypeSummaryRefresh,
+  ]);
 
   const toggleDeleteSelection = (fileId: string) => {
     setDeleteSelectedFileIds((previous) => {
@@ -339,7 +363,7 @@ export const FilesModal = ({
                     <option value="recent">Date Uploaded</option>
                     <option value="filename">File Name</option>
                     <option value="confirmation">Confirmation Status</option>
-                    <option value="classType">Class Type</option>
+                    <option value="itemType">Item Type</option>
                   </select>
                 </div>
 
@@ -361,12 +385,12 @@ export const FilesModal = ({
                 </div>
 
                 <div className={styles.controlGroup}>
-                  <label htmlFor="files-class-filter">Class Type</label>
+                  <label htmlFor="files-item-filter">Item Type</label>
                   <select
-                    id="files-class-filter"
-                    value={preferences.classTypeFilter}
+                    id="files-item-filter"
+                    value={preferences.itemTypeFilter}
                     onChange={(event) => {
-                      setClassTypeFilter(event.target.value as FilesModalClassTypeFilter);
+                      setItemTypeFilter(event.target.value as FilesModalItemTypeFilter);
                       setCurrentPage(0);
                     }}
                   >
@@ -434,7 +458,7 @@ export const FilesModal = ({
                     const isOpenSelected = effectiveOpenSelectedFileId === file.id;
                     const isDeleteSelected = effectiveDeleteSelectedFileIds.has(file.id);
                     const confirmationLabel = getConfirmationLabel(summary);
-                    const classTypeLabel = getClassTypeLabel(summary.classType);
+                    const itemTypeLabel = getItemTypeLabel(summary);
 
                     let confirmationClass = '';
                     if (summary.includeConfirmation) {
@@ -472,7 +496,7 @@ export const FilesModal = ({
                             </div>
                             <div className={styles.fileMetaRow}>
                               <span className={styles.fileDate}>Uploaded: {formatDate(file.uploadedAt)}</span>
-                              <span className={styles.classTypeBadge}>Class: {classTypeLabel}</span>
+                              <span className={styles.classTypeBadge}>Item: {itemTypeLabel}</span>
                             </div>
                           </div>
 

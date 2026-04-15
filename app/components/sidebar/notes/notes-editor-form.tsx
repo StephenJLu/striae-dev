@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import type { User } from 'firebase/auth';
 import { ColorSelector } from '~/components/colors/colors';
 import { AddlNotesModal } from './addl-notes-modal';
-import { ClassDetailsModal } from './class-details/class-details-modal';
-import { buildClassDetailsSummary } from './class-details/class-details-shared';
+import { ItemDetailsModal } from './item-details/item-details-modal';
+import { buildItemDetailsSummary } from './item-details/item-details-shared';
 import { getNotes, saveNotes } from '~/components/actions/notes-manage';
-import { type AnnotationData, type BulletAnnotationData, type CartridgeCaseAnnotationData, type ShotshellAnnotationData } from '~/types/annotations';
+import { type AnnotationData, type BulletAnnotationData, type CartridgeCaseAnnotationData, type ShotshellAnnotationData, type ItemType } from '~/types/annotations';
 import { resolveEarliestAnnotationTimestamp } from '~/utils/ui';
 import { auditService } from '~/services/audit';
 import styles from './notes.module.css';
@@ -23,7 +23,6 @@ interface NotesEditorFormProps {
 }
 
 type SupportLevel = 'ID' | 'Exclusion' | 'Inconclusive';
-type ClassType = 'Bullet' | 'Cartridge Case' | 'Shotshell' | 'Other';
 type IndexType = 'number' | 'color';
 
 interface NotesFormSnapshot {
@@ -32,18 +31,30 @@ interface NotesFormSnapshot {
   leftItem: string;
   rightItem: string;
   caseFontColor: string;
-  classType: ClassType | '';
-  customClass: string;
-  classNote: string;
-  hasSubclass: boolean;
-  bulletData: BulletAnnotationData | undefined;
-  cartridgeCaseData: CartridgeCaseAnnotationData | undefined;
-  shotshellData: ShotshellAnnotationData | undefined;
+  selectedItem: 'left' | 'right';
+  // Left item class characteristics
+  leftItemType: ItemType | '';
+  leftCustomClass: string;
+  leftClassNote: string;
+  leftHasSubclass: boolean;
+  leftBulletData: BulletAnnotationData | undefined;
+  leftCartridgeCaseData: CartridgeCaseAnnotationData | undefined;
+  leftShotshellData: ShotshellAnnotationData | undefined;
+  // Right item class characteristics
+  rightItemType: ItemType | '';
+  rightCustomClass: string;
+  rightClassNote: string;
+  rightHasSubclass: boolean;
+  rightBulletData: BulletAnnotationData | undefined;
+  rightCartridgeCaseData: CartridgeCaseAnnotationData | undefined;
+  rightShotshellData: ShotshellAnnotationData | undefined;
   indexType: IndexType;
   indexNumber: string;
   indexColor: string;
   supportLevel: SupportLevel | '';
   includeConfirmation: boolean;
+  leftAdditionalNotes: string;
+  rightAdditionalNotes: string;
   additionalNotes: string;
 }
 
@@ -73,9 +84,12 @@ const normalizeNestedAnnotationData = <T extends object>(data: T | undefined): T
 
 const normalizeNotesSnapshot = (snapshot: NotesFormSnapshot): NotesFormSnapshot => ({
   ...snapshot,
-  bulletData: normalizeNestedAnnotationData(snapshot.bulletData),
-  cartridgeCaseData: normalizeNestedAnnotationData(snapshot.cartridgeCaseData),
-  shotshellData: normalizeNestedAnnotationData(snapshot.shotshellData),
+  leftBulletData: normalizeNestedAnnotationData(snapshot.leftBulletData),
+  leftCartridgeCaseData: normalizeNestedAnnotationData(snapshot.leftCartridgeCaseData),
+  leftShotshellData: normalizeNestedAnnotationData(snapshot.leftShotshellData),
+  rightBulletData: normalizeNestedAnnotationData(snapshot.rightBulletData),
+  rightCartridgeCaseData: normalizeNestedAnnotationData(snapshot.rightCartridgeCaseData),
+  rightShotshellData: normalizeNestedAnnotationData(snapshot.rightShotshellData),
 });
 
 const serializeNotesSnapshot = (snapshot: NotesFormSnapshot): string => JSON.stringify(normalizeNotesSnapshot(snapshot));
@@ -96,14 +110,27 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
   const [useCurrentCaseRight, setUseCurrentCaseRight] = useState(false);
   const [caseFontColor, setCaseFontColor] = useState('');
 
-  // Class characteristics state
-  const [classType, setClassType] = useState<ClassType | ''>('');
-  const [customClass, setCustomClass] = useState('');
-  const [classNote, setClassNote] = useState('');
-  const [hasSubclass, setHasSubclass] = useState(false);
-  const [bulletData, setBulletData] = useState<BulletAnnotationData | undefined>(undefined);
-  const [cartridgeCaseData, setCartridgeCaseData] = useState<CartridgeCaseAnnotationData | undefined>(undefined);
-  const [shotshellData, setShotshellData] = useState<ShotshellAnnotationData | undefined>(undefined);
+  // Class characteristics state - selected item indicator
+  const [selectedItem, setSelectedItem] = useState<'left' | 'right'>('left');
+
+  // Left item class characteristics state
+  const [leftItemType, setLeftItemType] = useState<ItemType | ''>('');
+  const [leftCustomClass, setLeftCustomClass] = useState('');
+  const [leftClassNote, setLeftClassNote] = useState('');
+  const [leftHasSubclass, setLeftHasSubclass] = useState(false);
+  const [leftBulletData, setLeftBulletData] = useState<BulletAnnotationData | undefined>(undefined);
+  const [leftCartridgeCaseData, setLeftCartridgeCaseData] = useState<CartridgeCaseAnnotationData | undefined>(undefined);
+  const [leftShotshellData, setLeftShotshellData] = useState<ShotshellAnnotationData | undefined>(undefined);
+
+  // Right item class characteristics state
+  const [rightItemType, setRightItemType] = useState<ItemType | ''>('');
+  const [rightCustomClass, setRightCustomClass] = useState('');
+  const [rightClassNote, setRightClassNote] = useState('');
+  const [rightHasSubclass, setRightHasSubclass] = useState(false);
+  const [rightBulletData, setRightBulletData] = useState<BulletAnnotationData | undefined>(undefined);
+  const [rightCartridgeCaseData, setRightCartridgeCaseData] = useState<CartridgeCaseAnnotationData | undefined>(undefined);
+  const [rightShotshellData, setRightShotshellData] = useState<ShotshellAnnotationData | undefined>(undefined);
+
   const [isClassDetailsOpen, setIsClassDetailsOpen] = useState(false);
 
   // Index state
@@ -117,6 +144,8 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
 
   // Additional Notes Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [leftAdditionalNotes, setLeftAdditionalNotes] = useState('');
+  const [rightAdditionalNotes, setRightAdditionalNotes] = useState('');
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [isCaseInfoOpen, setIsCaseInfoOpen] = useState(true);
   const [isClassOpen, setIsClassOpen] = useState(true);
@@ -133,6 +162,58 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
     }
   }, [externalShowNotification]);
 
+  // Helper functions for selected item data access
+  const getSelectedItemData = useCallback(() => {
+    if (selectedItem === 'left') {
+      return {
+        itemType: leftItemType,
+        customClass: leftCustomClass,
+        classNote: leftClassNote,
+        hasSubclass: leftHasSubclass,
+        bulletData: leftBulletData,
+        cartridgeCaseData: leftCartridgeCaseData,
+        shotshellData: leftShotshellData,
+      };
+    }
+    return {
+      itemType: rightItemType,
+      customClass: rightCustomClass,
+      classNote: rightClassNote,
+      hasSubclass: rightHasSubclass,
+      bulletData: rightBulletData,
+      cartridgeCaseData: rightCartridgeCaseData,
+      shotshellData: rightShotshellData,
+    };
+  }, [selectedItem, leftItemType, leftCustomClass, leftClassNote, leftHasSubclass, leftBulletData, leftCartridgeCaseData, leftShotshellData, rightItemType, rightCustomClass, rightClassNote, rightHasSubclass, rightBulletData, rightCartridgeCaseData, rightShotshellData]);
+
+  const setSelectedItemData = useCallback((newData: {
+    itemType?: ItemType | '';
+    customClass?: string;
+    classNote?: string;
+    hasSubclass?: boolean;
+    bulletData?: BulletAnnotationData;
+    cartridgeCaseData?: CartridgeCaseAnnotationData;
+    shotshellData?: ShotshellAnnotationData;
+  }) => {
+    if (selectedItem === 'left') {
+      if (newData.itemType !== undefined) setLeftItemType(newData.itemType);
+      if (newData.customClass !== undefined) setLeftCustomClass(newData.customClass);
+      if (newData.classNote !== undefined) setLeftClassNote(newData.classNote);
+      if (newData.hasSubclass !== undefined) setLeftHasSubclass(newData.hasSubclass);
+      if (newData.bulletData !== undefined) setLeftBulletData(newData.bulletData);
+      if (newData.cartridgeCaseData !== undefined) setLeftCartridgeCaseData(newData.cartridgeCaseData);
+      if (newData.shotshellData !== undefined) setLeftShotshellData(newData.shotshellData);
+    } else {
+      if (newData.itemType !== undefined) setRightItemType(newData.itemType);
+      if (newData.customClass !== undefined) setRightCustomClass(newData.customClass);
+      if (newData.classNote !== undefined) setRightClassNote(newData.classNote);
+      if (newData.hasSubclass !== undefined) setRightHasSubclass(newData.hasSubclass);
+      if (newData.bulletData !== undefined) setRightBulletData(newData.bulletData);
+      if (newData.cartridgeCaseData !== undefined) setRightCartridgeCaseData(newData.cartridgeCaseData);
+      if (newData.shotshellData !== undefined) setRightShotshellData(newData.shotshellData);
+    }
+  }, [selectedItem]);
+
   useEffect(() => {
     if (!hasLoadedSnapshot) {
       return;
@@ -145,18 +226,28 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         leftItem,
         rightItem,
         caseFontColor,
-        classType,
-        customClass,
-        classNote,
-        hasSubclass,
-        bulletData,
-        cartridgeCaseData,
-        shotshellData,
+        selectedItem,
+        leftItemType,
+        leftCustomClass,
+        leftClassNote,
+        leftHasSubclass,
+        leftBulletData,
+        leftCartridgeCaseData,
+        leftShotshellData,
+        rightItemType,
+        rightCustomClass,
+        rightClassNote,
+        rightHasSubclass,
+        rightBulletData,
+        rightCartridgeCaseData,
+        rightShotshellData,
         indexType,
         indexNumber,
         indexColor,
         supportLevel,
         includeConfirmation,
+        leftAdditionalNotes,
+        rightAdditionalNotes,
         additionalNotes,
       });
 
@@ -168,24 +259,34 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
     };
   }, [
     additionalNotes,
-    bulletData,
-    cartridgeCaseData,
-    caseFontColor,
-    classNote,
-    classType,
-    customClass,
     hasLoadedSnapshot,
-    hasSubclass,
     includeConfirmation,
     indexColor,
     indexNumber,
     indexType,
+    leftBulletData,
+    leftCartridgeCaseData,
     leftCase,
+    leftClassNote,
+    leftCustomClass,
+    leftHasSubclass,
+    leftItemType,
     leftItem,
+    leftShotshellData,
+    rightBulletData,
+    rightCartridgeCaseData,
     rightCase,
+    rightClassNote,
+    rightCustomClass,
+    rightHasSubclass,
+    rightItemType,
     rightItem,
+    rightShotshellData,
+    caseFontColor,
     savedSnapshot,
-    shotshellData,
+    selectedItem,
+    leftAdditionalNotes,
+    rightAdditionalNotes,
     supportLevel,
   ]);
 
@@ -213,19 +314,42 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
           setLeftItem(existingNotes.leftItem);
           setRightItem(existingNotes.rightItem);
           setCaseFontColor(existingNotes.caseFontColor || '');
-          setClassType(existingNotes.classType || '');
-          setCustomClass(existingNotes.customClass || '');
-          setClassNote(existingNotes.classNote || '');
-          setHasSubclass(existingNotes.hasSubclass ?? false);
-          setBulletData(existingNotes.bulletData);
-          setCartridgeCaseData(existingNotes.cartridgeCaseData);
-          setShotshellData(existingNotes.shotshellData);
+          
+          // Migration: if old single-set fields exist, map to left item; otherwise use new left/right fields
+          const migratedLeftItemType = existingNotes.leftItemType || existingNotes.itemType || (existingNotes.classType as ItemType | undefined) || '';
+          const migratedLeftCustomClass = existingNotes.leftCustomClass || existingNotes.customClass || '';
+          const migratedLeftClassNote = existingNotes.leftClassNote || existingNotes.classNote || '';
+          const migratedLeftHasSubclass = existingNotes.leftHasSubclass ?? existingNotes.hasSubclass ?? false;
+          const migratedLeftBulletData = existingNotes.leftBulletData || existingNotes.bulletData;
+          const migratedLeftCartridgeCaseData = existingNotes.leftCartridgeCaseData || existingNotes.cartridgeCaseData;
+          const migratedLeftShotshellData = existingNotes.leftShotshellData || existingNotes.shotshellData;
+          
+          setLeftItemType(migratedLeftItemType);
+          setLeftCustomClass(migratedLeftCustomClass);
+          setLeftClassNote(migratedLeftClassNote);
+          setLeftHasSubclass(migratedLeftHasSubclass);
+          setLeftBulletData(migratedLeftBulletData);
+          setLeftCartridgeCaseData(migratedLeftCartridgeCaseData);
+          setLeftShotshellData(migratedLeftShotshellData);
+          
+          // Set right item fields (new structure)
+          setRightItemType(existingNotes.rightItemType || existingNotes.itemType || (existingNotes.classType as ItemType | undefined) || '');
+          setRightCustomClass(existingNotes.rightCustomClass || '');
+          setRightClassNote(existingNotes.rightClassNote || '');
+          setRightHasSubclass(existingNotes.rightHasSubclass ?? false);
+          setRightBulletData(existingNotes.rightBulletData);
+          setRightCartridgeCaseData(existingNotes.rightCartridgeCaseData);
+          setRightShotshellData(existingNotes.rightShotshellData);
+          
           setIndexType(existingNotes.indexType || 'color');
           setIndexNumber(existingNotes.indexNumber || '');
           setIndexColor(existingNotes.indexColor || '');
           setSupportLevel(existingNotes.supportLevel || '');
           setIncludeConfirmation(existingNotes.includeConfirmation);
+          setLeftAdditionalNotes(existingNotes.leftAdditionalNotes || '');
+          setRightAdditionalNotes(existingNotes.rightAdditionalNotes || '');
           setAdditionalNotes(existingNotes.additionalNotes || '');
+          setSelectedItem('left'); // Always default to left item
 
           setSavedSnapshot(serializeNotesSnapshot({
             leftCase: existingNotes.leftCase || '',
@@ -233,18 +357,28 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
             leftItem: existingNotes.leftItem || '',
             rightItem: existingNotes.rightItem || '',
             caseFontColor: existingNotes.caseFontColor || '',
-            classType: existingNotes.classType || '',
-            customClass: existingNotes.customClass || '',
-            classNote: existingNotes.classNote || '',
-            hasSubclass: existingNotes.hasSubclass ?? false,
-            bulletData: existingNotes.bulletData,
-            cartridgeCaseData: existingNotes.cartridgeCaseData,
-            shotshellData: existingNotes.shotshellData,
+            selectedItem: 'left',
+            leftItemType: migratedLeftItemType,
+            leftCustomClass: migratedLeftCustomClass,
+            leftClassNote: migratedLeftClassNote,
+            leftHasSubclass: migratedLeftHasSubclass,
+            leftBulletData: migratedLeftBulletData,
+            leftCartridgeCaseData: migratedLeftCartridgeCaseData,
+            leftShotshellData: migratedLeftShotshellData,
+            rightItemType: existingNotes.rightItemType || '',
+            rightCustomClass: existingNotes.rightCustomClass || '',
+            rightClassNote: existingNotes.rightClassNote || '',
+            rightHasSubclass: existingNotes.rightHasSubclass ?? false,
+            rightBulletData: existingNotes.rightBulletData,
+            rightCartridgeCaseData: existingNotes.rightCartridgeCaseData,
+            rightShotshellData: existingNotes.rightShotshellData,
             indexType: existingNotes.indexType || 'color',
             indexNumber: existingNotes.indexNumber || '',
             indexColor: existingNotes.indexColor || '',
             supportLevel: existingNotes.supportLevel || '',
             includeConfirmation: existingNotes.includeConfirmation,
+            leftAdditionalNotes: existingNotes.leftAdditionalNotes || '',
+            rightAdditionalNotes: existingNotes.rightAdditionalNotes || '',
             additionalNotes: existingNotes.additionalNotes || ''
           }));
         } else {
@@ -256,18 +390,28 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
             leftItem: '',
             rightItem: '',
             caseFontColor: '',
-            classType: '',
-            customClass: '',
-            classNote: '',
-            hasSubclass: false,
-            bulletData: undefined,
-            cartridgeCaseData: undefined,
-            shotshellData: undefined,
+            selectedItem: 'left',
+            leftItemType: '',
+            leftCustomClass: '',
+            leftClassNote: '',
+            leftHasSubclass: false,
+            leftBulletData: undefined,
+            leftCartridgeCaseData: undefined,
+            leftShotshellData: undefined,
+            rightItemType: '',
+            rightCustomClass: '',
+            rightClassNote: '',
+            rightHasSubclass: false,
+            rightBulletData: undefined,
+            rightCartridgeCaseData: undefined,
+            rightShotshellData: undefined,
             indexType: 'color',
             indexNumber: '',
             indexColor: '',
             supportLevel: '',
             includeConfirmation: false,
+            leftAdditionalNotes: '',
+            rightAdditionalNotes: '',
             additionalNotes: ''
           }));
         }
@@ -315,9 +459,12 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         return false;
       }
 
-      const normalizedBulletData = normalizeNestedAnnotationData(bulletData);
-      const normalizedCartridgeCaseData = normalizeNestedAnnotationData(cartridgeCaseData);
-      const normalizedShotshellData = normalizeNestedAnnotationData(shotshellData);
+      const normalizedLeftBulletData = normalizeNestedAnnotationData(leftBulletData);
+      const normalizedLeftCartridgeCaseData = normalizeNestedAnnotationData(leftCartridgeCaseData);
+      const normalizedLeftShotshellData = normalizeNestedAnnotationData(leftShotshellData);
+      const normalizedRightBulletData = normalizeNestedAnnotationData(rightBulletData);
+      const normalizedRightCartridgeCaseData = normalizeNestedAnnotationData(rightCartridgeCaseData);
+      const normalizedRightShotshellData = normalizeNestedAnnotationData(rightShotshellData);
       
       // Create updated annotation data, preserving box annotations and earliest timestamp
       const now = new Date().toISOString();
@@ -329,14 +476,23 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         rightItem: rightItem || '',
         caseFontColor: caseFontColor || undefined,
         
-        // Class Characteristics
-        classType: classType as ClassType || undefined,
-        customClass: customClass,
-        classNote: classNote || undefined,
-        hasSubclass: hasSubclass,
-        bulletData: normalizedBulletData,
-        cartridgeCaseData: normalizedCartridgeCaseData,
-        shotshellData: normalizedShotshellData,
+        // Left item class characteristics
+        leftItemType: leftItemType as ItemType || undefined,
+        leftCustomClass: leftCustomClass,
+        leftClassNote: leftClassNote || undefined,
+        leftHasSubclass: leftHasSubclass,
+        leftBulletData: normalizedLeftBulletData,
+        leftCartridgeCaseData: normalizedLeftCartridgeCaseData,
+        leftShotshellData: normalizedLeftShotshellData,
+        
+        // Right item class characteristics
+        rightItemType: rightItemType as ItemType || undefined,
+        rightCustomClass: rightCustomClass,
+        rightClassNote: rightClassNote || undefined,
+        rightHasSubclass: rightHasSubclass,
+        rightBulletData: normalizedRightBulletData,
+        rightCartridgeCaseData: normalizedRightCartridgeCaseData,
+        rightShotshellData: normalizedRightShotshellData,
         
         // Index Information
         indexType: indexType,
@@ -348,7 +504,9 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         includeConfirmation: includeConfirmation,
         
         // Additional Notes
-        additionalNotes: additionalNotes || undefined, // Keep as optional
+        leftAdditionalNotes: leftAdditionalNotes || undefined,
+        rightAdditionalNotes: rightAdditionalNotes || undefined,
+        additionalNotes: additionalNotes || undefined, // General notes (including box-annotation notes)
         
         // Preserve existing box annotations
         boxAnnotations: existingData?.boxAnnotations || [],
@@ -385,18 +543,28 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         leftItem,
         rightItem,
         caseFontColor,
-        classType,
-        customClass,
-        classNote,
-        hasSubclass,
-        bulletData,
-        cartridgeCaseData,
-        shotshellData,
+        selectedItem,
+        leftItemType,
+        leftCustomClass,
+        leftClassNote,
+        leftHasSubclass,
+        leftBulletData,
+        leftCartridgeCaseData,
+        leftShotshellData,
+        rightItemType,
+        rightCustomClass,
+        rightClassNote,
+        rightHasSubclass,
+        rightBulletData,
+        rightCartridgeCaseData,
+        rightShotshellData,
         indexType,
         indexNumber,
         indexColor,
         supportLevel,
         includeConfirmation,
+        leftAdditionalNotes,
+        rightAdditionalNotes,
         additionalNotes,
       }));
       setIsDirty(false);
@@ -438,14 +606,14 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
     }
   }, [
     additionalNotes,
-    bulletData,
-    cartridgeCaseData,
+    leftBulletData,
+    leftCartridgeCaseData,
     caseFontColor,
-    classNote,
-    classType,
+    leftClassNote,
+    leftItemType,
     currentCase,
-    customClass,
-    hasSubclass,
+    leftCustomClass,
+    leftHasSubclass,
     imageId,
     includeConfirmation,
     indexColor,
@@ -457,9 +625,19 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
     onAnnotationRefresh,
     onDirtyChange,
     originalFileName,
+    rightBulletData,
+    rightCartridgeCaseData,
     rightCase,
+    rightClassNote,
+    rightCustomClass,
+    rightHasSubclass,
+    rightItemType,
     rightItem,
-    shotshellData,
+    rightShotshellData,
+    leftShotshellData,
+    selectedItem,
+    leftAdditionalNotes,
+    rightAdditionalNotes,
     supportLevel,
     user,
   ]);
@@ -569,7 +747,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         </div>
         <hr />
         <div className={styles.fontColorRow}>
-          <label htmlFor="colorSelect">Font</label>
+          <label htmlFor="colorSelect">Case & Item Font Color</label>
           <ColorSelector
             selectedColor={caseFontColor}
             onColorSelect={setCaseFontColor}
@@ -587,68 +765,85 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
           onClick={() => setIsClassOpen((prev) => !prev)}
           aria-expanded={isClassOpen}
         >
-          <span className={styles.sectionTitle}>Class Characteristics</span>
+          <span className={styles.sectionTitle}>Class Characteristics & GRC</span>
           <span className={styles.sectionToggleIcon}>{isClassOpen ? '−' : '+'}</span>
         </button>
         {isClassOpen && (
           <>
+            <hr />
+            <div className={styles.itemSelectorRow}>
+              <label htmlFor="itemSelector">Select Item</label>
+              <select
+                id="itemSelector"
+                aria-label="Select item to edit"
+                value={selectedItem}
+                onChange={(e) => setSelectedItem(e.target.value as 'left' | 'right')}
+                className={styles.select}
+                disabled={areInputsDisabled}
+              >
+                <option value="left">{`Case: ${leftCase || '—'} Item: ${leftItem || '—'}`}</option>
+                <option value="right" disabled={!rightItem && !rightCase}>
+                  {`Case: ${rightCase || '—'} Item: ${rightItem || '—'}`}
+                </option>
+              </select>
+            </div>
             <div className={styles.classCharacteristicsColumns}>
               <div className={styles.classCharacteristicsMain}>
                 <div className={styles.classCharacteristics}>
                   <select
-                    id="classType"
-                    aria-label="Class Type"
-                    value={classType}
-                    onChange={(e) => setClassType(e.target.value as ClassType)}
+                    id="itemType"
+                    aria-label="Item Type"
+                    value={getSelectedItemData().itemType}
+                    onChange={(e) => setSelectedItemData({ itemType: e.target.value as ItemType })}
                     className={styles.select}
                     disabled={areInputsDisabled}
                   >
-                    <option value="">Select class type...</option>
+                    <option value="">Select item type...</option>
                     <option value="Bullet">Bullet</option>
                     <option value="Cartridge Case">Cartridge Case</option>
                     <option value="Shotshell">Shotshell</option>
                     <option value="Other">Other</option>
                   </select>
 
-                  {classType === 'Other' && (
+                  {getSelectedItemData().itemType === 'Other' && (
                     <input
                       type="text"
-                      value={customClass}
-                      onChange={(e) => setCustomClass(e.target.value)}
+                      value={getSelectedItemData().customClass}
+                      onChange={(e) => setSelectedItemData({ customClass: e.target.value })}
                       placeholder="Specify object type"
                       disabled={areInputsDisabled}
                     />
                   )}
 
                   <textarea
-                    value={classNote}
-                    onChange={(e) => setClassNote(e.target.value)}
-                    placeholder="Enter class characteristic details..."
+                    value={getSelectedItemData().classNote}
+                    onChange={(e) => setSelectedItemData({ classNote: e.target.value })}
+                    placeholder="Enter item details..."
                     className={styles.textarea}
                     disabled={areInputsDisabled}
                   />
                 </div>
+            </div>
+
+              <div className={styles.itemDetailsPanel}>
+                <button
+                  type="button"
+                  onClick={() => setIsClassDetailsOpen(true)}
+                  className={styles.itemDetailsButton}
+                  disabled={areInputsDisabled}
+                >
+                  Class Characteristics & GRC
+                </button>
                 <label className={`${styles.checkboxLabel} mb-4`}>
                   <input
                     type="checkbox"
-                    checked={hasSubclass}
-                    onChange={(e) => setHasSubclass(e.target.checked)}
+                    checked={getSelectedItemData().hasSubclass}
+                    onChange={(e) => setSelectedItemData({ hasSubclass: e.target.checked })}
                     className={styles.checkbox}
                     disabled={areInputsDisabled}
                   />
                   <span>Potential subclass?</span>
                 </label>
-            </div>
-
-              <div className={styles.classDetailsPanel}>
-                <button
-                  type="button"
-                  onClick={() => setIsClassDetailsOpen(true)}
-                  className={styles.classDetailsButton}
-                  disabled={areInputsDisabled}
-                >
-                  Enter Class Characteristic Details
-                </button>
               </div>
             </div>
           </>
@@ -784,20 +979,26 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         onSave={setAdditionalNotes}
         showNotification={notificationHandler}
       />
-      <ClassDetailsModal
+      <ItemDetailsModal
         isOpen={isClassDetailsOpen}
         onClose={() => setIsClassDetailsOpen(false)}
-        classType={classType}
-        bulletData={bulletData}
-        cartridgeCaseData={cartridgeCaseData}
-        shotshellData={shotshellData}
+        itemType={getSelectedItemData().itemType}
+        bulletData={getSelectedItemData().bulletData}
+        cartridgeCaseData={getSelectedItemData().cartridgeCaseData}
+        shotshellData={getSelectedItemData().shotshellData}
         onSave={(b, c, s) => {
-          if (b !== undefined) setBulletData(b);
-          if (c !== undefined) setCartridgeCaseData(c);
-          if (s !== undefined) setShotshellData(s);
-          const summary = buildClassDetailsSummary(b, c, s, classType);
+          setSelectedItemData({
+            bulletData: b,
+            cartridgeCaseData: c,
+            shotshellData: s,
+          });
+          const summary = buildItemDetailsSummary(b, c, s, getSelectedItemData().itemType);
           if (summary) {
-            setAdditionalNotes((prev) => prev ? `${prev}\n${summary}` : summary);
+            if (selectedItem === 'left') {
+              setLeftAdditionalNotes((prev) => (prev ? `${prev}\n${summary}` : summary));
+            } else {
+              setRightAdditionalNotes((prev) => (prev ? `${prev}\n${summary}` : summary));
+            }
           }
         }}
         showNotification={notificationHandler}

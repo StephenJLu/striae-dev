@@ -677,24 +677,16 @@ export const Striae = ({ user }: StriaePage) => {
         const notes = await getNotes(user, currentCase, imageId);
         if (notes) {
           setAnnotationData({
+            ...notes,
             leftCase: notes.leftCase || '',
             rightCase: notes.rightCase || '',
             leftItem: notes.leftItem || '',
             rightItem: notes.rightItem || '',
             caseFontColor: notes.caseFontColor || '#FFDE21',
-            classType: notes.classType || 'Other',
-            customClass: notes.customClass,
-            classNote: notes.classNote, // Optional - pass as-is
             indexType: notes.indexType || 'number',
-            indexNumber: notes.indexNumber,
-            indexColor: notes.indexColor,
             supportLevel: notes.supportLevel || 'Inconclusive',
-            hasSubclass: notes.hasSubclass,
-            includeConfirmation: notes.includeConfirmation ?? false, // Required
-            confirmationData: notes.confirmationData, // Add imported confirmation data
-            additionalNotes: notes.additionalNotes, // Optional - pass as-is
+            includeConfirmation: notes.includeConfirmation ?? false,
             boxAnnotations: notes.boxAnnotations || [],
-            earliestAnnotationTimestamp: notes.earliestAnnotationTimestamp,
             updatedAt: notes.updatedAt || new Date().toISOString()
           });
         } else {

@@ -1,7 +1,7 @@
 import type { FileData } from '~/types';
 import type { FileConfirmationSummary } from '~/utils/data';
 
-export type FilesModalSortBy = 'recent' | 'filename' | 'confirmation' | 'classType';
+export type FilesModalSortBy = 'recent' | 'filename' | 'confirmation' | 'itemType';
 
 export type FilesModalConfirmationFilter =
   | 'all'
@@ -9,17 +9,22 @@ export type FilesModalConfirmationFilter =
   | 'confirmed'
   | 'none-requested';
 
-export type FilesModalClassTypeFilter =
+export type FilesModalItemTypeFilter =
   | 'all'
   | 'Bullet'
   | 'Cartridge Case'
   | 'Shotshell'
   | 'Other';
 
+// Backwards compatibility alias
+export type FilesModalClassTypeFilter = FilesModalItemTypeFilter;
+
 export interface FilesModalPreferences {
   sortBy: FilesModalSortBy;
   confirmationFilter: FilesModalConfirmationFilter;
-  classTypeFilter: FilesModalClassTypeFilter;
+  itemTypeFilter: FilesModalItemTypeFilter;
+  // Backwards compatibility: legacy classTypeFilter will be migrated to itemTypeFilter
+  classTypeFilter?: FilesModalItemTypeFilter;
 }
 
 export type FileConfirmationById = Record<string, FileConfirmationSummary>;
@@ -34,6 +39,21 @@ function getFileConfirmationState(fileId: string, statusById: FileConfirmationBy
   return statusById[fileId] || DEFAULT_CONFIRMATION_SUMMARY;
 }
 
+function getSummaryItemTypes(summary: FileConfirmationSummary): Array<NonNullable<FileConfirmationSummary['itemType']>> {
+  const types = [
+    summary.leftItemType,
+    summary.rightItemType,
+    summary.itemType,
+  ].filter((value): value is NonNullable<FileConfirmationSummary['itemType']> => Boolean(value));
+
+  return Array.from(new Set(types));
+}
+
+function getPrimaryItemType(summary: FileConfirmationSummary): FileConfirmationSummary['itemType'] {
+  const [first] = getSummaryItemTypes(summary);
+  return first;
+}
+
 function getConfirmationRank(summary: FileConfirmationSummary): number {
   if (summary.includeConfirmation && !summary.isConfirmed) {
     return 0;
@@ -46,20 +66,20 @@ function getConfirmationRank(summary: FileConfirmationSummary): number {
   return 2;
 }
 
-function getClassTypeRank(classType: FileConfirmationSummary['classType']): number {
-  if (classType === 'Bullet') {
+function getItemTypeRank(itemType: FileConfirmationSummary['itemType']): number {
+  if (itemType === 'Bullet') {
     return 0;
   }
 
-  if (classType === 'Cartridge Case') {
+  if (itemType === 'Cartridge Case') {
     return 1;
   }
 
-  if (classType === 'Shotshell') {
+  if (itemType === 'Shotshell') {
     return 2;
   }
 
-  if (classType === 'Other') {
+  if (itemType === 'Other') {
     return 3;
   }
 
@@ -90,20 +110,22 @@ function matchesConfirmationFilter(
   return !summary.includeConfirmation;
 }
 
-function matchesClassTypeFilter(
+function matchesItemTypeFilter(
   summary: FileConfirmationSummary,
-  classTypeFilter: FilesModalClassTypeFilter
+  itemTypeFilter: FilesModalItemTypeFilter
 ): boolean {
-  if (classTypeFilter === 'all') {
+  if (itemTypeFilter === 'all') {
     return true;
   }
 
-  if (classTypeFilter === 'Other') {
-    // Treat legacy/unset class types as Other for filtering.
-    return summary.classType === 'Other' || !summary.classType;
+  const itemTypes = getSummaryItemTypes(summary);
+
+  if (itemTypeFilter === 'Other') {
+    // Treat legacy/unset item types as Other for filtering.
+    return itemTypes.length === 0 || itemTypes.includes('Other');
   }
 
-  return summary.classType === classTypeFilter;
+  return itemTypes.includes(itemTypeFilter);
 }
 
 function matchesSearch(file: FileData, query: string): boolean {
@@ -127,7 +149,7 @@ export function filterFilesForModal(
     return (
       matchesSearch(file, searchQuery) &&
       matchesConfirmationFilter(summary, preferences.confirmationFilter) &&
-      matchesClassTypeFilter(summary, preferences.classTypeFilter)
+      matchesItemTypeFilter(summary, preferences.itemTypeFilter)
     );
   });
 }
@@ -177,7 +199,7 @@ export function sortFilesForModal(
   return next.sort((left, right) => {
     const leftSummary = getFileConfirmationState(left.id, statusById);
     const rightSummary = getFileConfirmationState(right.id, statusById);
-    const difference = getClassTypeRank(leftSummary.classType) - getClassTypeRank(rightSummary.classType);
+    const difference = getItemTypeRank(getPrimaryItemType(leftSummary)) - getItemTypeRank(getPrimaryItemType(rightSummary));
 
     if (difference !== 0) {
       return difference;

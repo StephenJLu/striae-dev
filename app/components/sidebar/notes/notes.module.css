@@ -54,6 +54,26 @@
   padding-top: 1.25rem;
 }
 
+.itemSelectorRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.itemSelectorRow label {
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.itemSelectorRow select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: 0.25rem;
+  background-color: white;
+  font-size: 0.875rem;
+}
+
 @media (max-width: 980px) {
   .editorLayout .caseNumbers,
   .compactSectionGrid {
@@ -249,14 +269,14 @@ textarea:focus {
 
 /* Class Details Panel — replaces placeholder in right column */
 
-.classDetailsPanel {
+.itemDetailsPanel {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   min-height: 150px;
 }
 
-.classDetailsButton {
+.itemDetailsButton {
   width: 100%;
   padding: 0.65rem 1rem;
   background: transparent;
@@ -270,18 +290,18 @@ textarea:focus {
   text-align: center;
 }
 
-.classDetailsButton:hover:not(:disabled) {
+.itemDetailsButton:hover:not(:disabled) {
   background-color: color-mix(in lab, var(--primary) 10%, transparent);
 }
 
-.classDetailsButton:disabled {
+.itemDetailsButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 /* Class Details Modal */
 
-.classDetailsModal {
+.itemDetailsModal {
   max-width: 680px;
   max-height: 80vh;
   display: flex;
@@ -289,7 +309,7 @@ textarea:focus {
   gap: 1rem;
 }
 
-.classDetailsContent {
+.itemDetailsContent {
   overflow-y: auto;
   flex: 1;
   min-height: 0;
@@ -301,13 +321,13 @@ textarea:focus {
   scrollbar-width: thin;
 }
 
-.classDetailsSection {
+.itemDetailsSection {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-.classDetailsSectionHeader {
+.itemDetailsSectionHeader {
   margin: 0;
   font-size: 0.95rem;
   font-weight: 700;
@@ -316,29 +336,29 @@ textarea:focus {
   border-bottom: 1.5px solid #dee2e6;
 }
 
-.classDetailsFieldGrid {
+.itemDetailsFieldGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.85rem 1.25rem;
 }
 
-.classDetailsField {
+.itemDetailsField {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
 }
 
-.classDetailsFieldFull {
+.itemDetailsFieldFull {
   grid-column: 1 / -1;
 }
 
-.classDetailsLabel {
+.itemDetailsLabel {
   font-size: 0.8rem;
   font-weight: 600;
   color: #495057;
 }
 
-.classDetailsInput {
+.itemDetailsInput {
   padding: 0.5rem 0.65rem;
   border: 1.5px solid #ced4da;
   border-radius: 6px;
@@ -348,23 +368,23 @@ textarea:focus {
   box-sizing: border-box;
 }
 
-.classDetailsInput:focus {
+.itemDetailsInput:focus {
   border-color: var(--primary);
   outline: none;
 }
 
-.classDetailsInput:disabled {
+.itemDetailsInput:disabled {
   background-color: #f8f9fa;
   cursor: not-allowed;
 }
 
-.classDetailsCheckboxGroup {
+.itemDetailsCheckboxGroup {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem 1.25rem;
 }
 
-.classDetailsCheckboxLabel {
+.itemDetailsCheckboxLabel {
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -373,11 +393,11 @@ textarea:focus {
   cursor: pointer;
 }
 
-.classDetailsCheckboxLabel input[type="checkbox"] {
+.itemDetailsCheckboxLabel input[type="checkbox"] {
   cursor: pointer;
 }
 
-.classDetailsCheckboxLabel input[type="checkbox"]:disabled {
+.itemDetailsCheckboxLabel input[type="checkbox"]:disabled {
   cursor: not-allowed;
 }
 
@@ -697,7 +717,7 @@ textarea:focus {
   justify-content: center;
 }
 
-.classDetailsModalButtons .classDetailsModalAction {
+.itemDetailsModalButtons .itemDetailsModalAction {
   min-height: 42px;
   margin: 0;
   display: inline-flex;

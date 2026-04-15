@@ -7,6 +7,14 @@ export const renderReport: ReportRenderer = (data: PDFGenerationData): string =>
   const annotationsSet = new Set(activeAnnotations);
   const hasImage = Boolean(imageUrl && imageUrl !== '/clear.jpg');
   const safeText = (value: unknown): string => escapeHtml(String(value ?? ''));
+  const leftAdditionalNotes = annotationData?.leftAdditionalNotes?.trim() || '';
+  const rightAdditionalNotes = annotationData?.rightAdditionalNotes?.trim() || '';
+  const generalAdditionalNotes = annotationData?.additionalNotes?.trim() || '';
+  const hasSideAdditionalNotes = Boolean(leftAdditionalNotes || rightAdditionalNotes);
+  const hasGeneralAdditionalNotes = Boolean(generalAdditionalNotes);
+  const hasAdditionalNotes = hasSideAdditionalNotes || hasGeneralAdditionalNotes;
+  const hasConfirmationOrNotes = Boolean(annotationData && ((annotationData.includeConfirmation === true) || hasAdditionalNotes));
+  const notesShouldStartNewPage = hasImage || annotationData?.includeConfirmation === true;
 
   // Programmatically determine if a color is dark and needs a light background
   const needsLightBackground = (color: string | undefined): boolean => {
@@ -323,6 +331,15 @@ export const renderReport: ReportRenderer = (data: PDFGenerationData): string =>
         font-family: 'Inter', Arial, sans-serif;
         color: #333;
       }
+      .additional-notes-grid {
+        display: flex;
+        align-items: stretch;
+        gap: 12px;
+      }
+      .additional-notes-section--half {
+        flex: 1 1 50%;
+        width: 50%;
+      }
       .additional-notes-title {
         margin: 0 0 10px;
         font-size: 12px;
@@ -415,15 +432,31 @@ export const renderReport: ReportRenderer = (data: PDFGenerationData): string =>
         </div>
         ` : '<div class="support-level-annotation"></div>'}
         
-        ${annotationData && annotationsSet?.has('class') ? `
+        ${annotationData && annotationsSet?.has('item') ? `
         <div class="class-annotation">
           <div class="class-text-annotation">
-            ${safeText(annotationData.customClass || annotationData.classType)}${annotationData.classNote ? ` (${safeText(annotationData.classNote)})` : ''}
+            ${(() => {
+              const leftValue = annotationData.leftCustomClass || annotationData.leftItemType;
+              const rightValue = annotationData.rightCustomClass || annotationData.rightItemType;
+              const legacyValue = annotationData.customClass || annotationData.itemType || annotationData.classType;
+              const displayValue =
+                leftValue && rightValue && leftValue !== rightValue
+                  ? `${leftValue} / ${rightValue}`
+                  : leftValue || rightValue || legacyValue;
+              const leftClassNote = annotationData.leftClassNote?.trim();
+              const rightClassNote = annotationData.rightClassNote?.trim();
+              const legacyClassNote = annotationData.classNote?.trim();
+              const displayClassNote =
+                leftClassNote && rightClassNote && leftClassNote !== rightClassNote
+                  ? `${leftClassNote} / ${rightClassNote}`
+                  : leftClassNote || rightClassNote || legacyClassNote;
+              return safeText(displayValue || '') + (displayClassNote ? ` (${safeText(displayClassNote)})` : '');
+            })()}
           </div>
         </div>
         ` : '<div class="class-annotation"></div>'}
         
-        ${annotationData && annotationsSet?.has('class') && annotationData.hasSubclass ? `
+        ${annotationData && annotationsSet?.has('item') && (annotationData.leftHasSubclass || annotationData.rightHasSubclass || annotationData.hasSubclass) ? `
         <div class="subclass-annotation">
           <div class="subclass-text">
             POTENTIAL SUBCLASS
@@ -434,7 +467,7 @@ export const renderReport: ReportRenderer = (data: PDFGenerationData): string =>
     </div>
     ` : ''}
     
-    ${annotationData && ((annotationData.includeConfirmation === true) || annotationData.additionalNotes) ? `
+    ${hasConfirmationOrNotes ? `
     <div class="confirmation-section">
       ${annotationData && (annotationData.includeConfirmation === true) ? `
         <div class="confirmation-summary">
@@ -465,10 +498,34 @@ export const renderReport: ReportRenderer = (data: PDFGenerationData): string =>
         </div>
       ` : ''}
 
-      ${annotationData && annotationsSet?.has('notes') && annotationData.additionalNotes && annotationData.additionalNotes.trim() ? `
-      <section class="additional-notes-section ${hasImage || annotationData.includeConfirmation === true ? 'notes-page' : ''}">
-        <h2 class="additional-notes-title">Additional Notes</h2>
-        <p class="additional-notes-body">${escapeHtml(annotationData.additionalNotes.trim())}</p>
+      ${annotationData && annotationsSet?.has('notes') && hasAdditionalNotes ? `
+      <section class="${notesShouldStartNewPage ? 'notes-page' : ''}">
+        ${hasSideAdditionalNotes ? `
+          ${leftAdditionalNotes && rightAdditionalNotes ? `
+            <div class="additional-notes-grid">
+              <div class="additional-notes-section additional-notes-section--half">
+                <h2 class="additional-notes-title">Additional Notes (L)</h2>
+                <p class="additional-notes-body">${escapeHtml(leftAdditionalNotes)}</p>
+              </div>
+              <div class="additional-notes-section additional-notes-section--half">
+                <h2 class="additional-notes-title">Additional Notes (R)</h2>
+                <p class="additional-notes-body">${escapeHtml(rightAdditionalNotes)}</p>
+              </div>
+            </div>
+          ` : `
+            <div class="additional-notes-section">
+              <h2 class="additional-notes-title">Additional Notes (${leftAdditionalNotes ? 'L' : 'R'})</h2>
+              <p class="additional-notes-body">${escapeHtml(leftAdditionalNotes || rightAdditionalNotes)}</p>
+            </div>
+          `}
+        ` : ''}
+
+        ${hasGeneralAdditionalNotes ? `
+          <div class="additional-notes-section" style="margin-top: ${hasSideAdditionalNotes ? '12px' : '0'};">
+            <h2 class="additional-notes-title">Additional Notes (General)</h2>
+            <p class="additional-notes-body">${escapeHtml(generalAdditionalNotes)}</p>
+          </div>
+        ` : ''}
       </section>
       ` : ''}
     </div>
