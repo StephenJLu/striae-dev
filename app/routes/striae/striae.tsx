@@ -866,6 +866,7 @@ export const Striae = ({ user }: StriaePage) => {
           setShowNotes={setShowNotes}
           onAnnotationRefresh={refreshAnnotationData}
           isReadOnly={isReadOnlyCase}
+          isReviewOnlyCase={isReviewOnlyCase}
           isArchivedCase={archiveDetails.archived}
           isConfirmed={!!annotationData?.confirmationData}
           confirmationSaveVersion={confirmationSaveVersion}
@@ -946,6 +947,7 @@ export const Striae = ({ user }: StriaePage) => {
         onAnnotationRefresh={refreshAnnotationData}
         originalFileName={files.find(file => file.id === imageId)?.originalFilename}
         isUploading={isUploading}
+        isReadOnly={isReadOnlyCase}
         showNotification={showNotification}
       />
       <UserAuditViewer

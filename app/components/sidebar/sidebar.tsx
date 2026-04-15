@@ -20,6 +20,7 @@ interface SidebarProps {
   setShowNotes: (show: boolean) => void;
   onAnnotationRefresh?: () => void;
   isReadOnly?: boolean;
+  isReviewOnlyCase?: boolean;
   isArchivedCase?: boolean;
   isConfirmed?: boolean;
   confirmationSaveVersion?: number;
@@ -40,6 +41,7 @@ export const Sidebar = ({
   setFiles,
   setShowNotes,
   isReadOnly = false,
+  isReviewOnlyCase = false,
   isArchivedCase = false,
   isConfirmed = false,
   confirmationSaveVersion = 0,
@@ -89,6 +91,7 @@ export const Sidebar = ({
         setFiles={setFiles}
         onNotesClick={() => setShowNotes(true)}
         isReadOnly={isReadOnly}
+        isReviewOnlyCase={isReviewOnlyCase}
         isArchivedCase={isArchivedCase}
         isConfirmed={isConfirmed}
         confirmationSaveVersion={confirmationSaveVersion}

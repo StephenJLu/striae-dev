@@ -117,11 +117,11 @@ export const Navbar = ({
   const disableLongRunningCaseActions = isUploading;
   const isCaseManagementActive = true;
   const isFileManagementActive = isFileMenuOpen || hasLoadedImage;
-  const canOpenImageNotes = hasLoadedImage && !isCurrentImageConfirmed && !isReadOnly;
+  const canOpenImageNotes = hasLoadedImage && !isCurrentImageConfirmed;
   const isImageNotesActive = canOpenImageNotes;
   const canDeleteCurrentFile = hasLoadedImage && !isReadOnly;
-  const isArchivedRegularReadOnly = Boolean(isReadOnly && archiveDetails?.archived && !isReviewOnlyCase);
-  const caseExportLabel = isArchivedRegularReadOnly
+  const isArchivedCase = Boolean(isReadOnly && archiveDetails?.archived);
+  const caseExportLabel = isArchivedCase
     ? 'Export Archive'
     : isReadOnly
       ? 'Export Confirmations'
@@ -184,13 +184,15 @@ export const Navbar = ({
                   type="button"
                   role="menuitem"
                   className={`${styles.caseMenuItem} ${styles.caseMenuItemExport}`}
-                  disabled={!hasLoadedCase || disableLongRunningCaseActions}
+                  disabled={!hasLoadedCase || disableLongRunningCaseActions || (isArchivedCase && isReviewOnlyCase)}
                   title={
                     !hasLoadedCase
                       ? 'Load a case to export case data'
                       : disableLongRunningCaseActions
                         ? 'Export is unavailable while files are uploading'
-                        : undefined
+                        : isArchivedCase && isReviewOnlyCase
+                          ? 'Cannot export imported archive packages'
+                          : undefined
                   }
                   onClick={() => {
                     onOpenCaseExport?.();

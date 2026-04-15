@@ -26,6 +26,7 @@ interface CaseSidebarProps {
   setFiles: React.Dispatch<React.SetStateAction<FileData[]>>;
   currentCase: string | null;
   isReadOnly?: boolean;
+  isReviewOnlyCase?: boolean;
   isArchivedCase?: boolean;
   isConfirmed?: boolean;
   confirmationSaveVersion?: number;
@@ -47,6 +48,7 @@ export const CaseSidebar = ({
   setFiles,
   currentCase,
   isReadOnly = false,
+  isReviewOnlyCase = false,
   isArchivedCase = false,
   isConfirmed = false,
   confirmationSaveVersion = 0,
@@ -260,11 +262,14 @@ const handleImageSelect = (file: FileData) => {
 
   const showCaseExportButton = Boolean(currentCase && isReadOnly);
   const caseExportButtonLabel = isArchivedCase ? 'Export Archive' : 'Export Confirmations';
+  const isImportedArchive = isArchivedCase && isReviewOnlyCase;
 
   const exportCaseTitle = isUploading
     ? 'Cannot export while uploading'
     : !currentCase
     ? 'Load a case first'
+    : isImportedArchive
+    ? 'Cannot export imported archive packages'
     : undefined;
 
 return (
@@ -389,7 +394,7 @@ return (
         <button
           className={styles.confirmationExportButton}
           onClick={onOpenCaseExport}
-          disabled={isUploading || !currentCase}
+          disabled={isUploading || !currentCase || isImportedArchive}
           title={exportCaseTitle}
         >
           {caseExportButtonLabel}

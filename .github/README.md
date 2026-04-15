@@ -22,6 +22,12 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-04-14] - *[Minor Release v6.1.0](https://github.com/striae-org/striae/releases/tag/v6.1.0)*
+
+- **🧭 Item Model Terminology Refactor** - Completed a broad class-to-item naming/type transition across core data and UI surfaces, including item type/subclass display and control refinements.
+- **🧩 Split Item Data and Reporting** - Added split left/right item datasets, split additional notes, updated summary/notes displays, and aligned PDF report formats plus icon/tool reporting behavior.
+- **🗂️ File Management and Stabilization Follow-Ups** - Refined file-management filtering for split-item workflows and included release-window dependency/code-review maintenance plus archive re-export packaging fixes.
+
 ## [2026-04-12] - *[Patch Release v6.0.1](https://github.com/striae-org/striae/releases/tag/v6.0.1)*
 
 - **🗂️ Archive Import UX Follow-Ups** - Continued archive import alert/messaging refinements from the v6.0.0 release window for clearer archive-operation feedback.

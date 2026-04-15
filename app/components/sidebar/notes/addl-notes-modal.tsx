@@ -7,10 +7,11 @@ interface AddlNotesModalProps {
   onClose: () => void;
   notes: string;
   onSave: (notes: string) => void;
+  isReadOnly?: boolean;
   showNotification?: (message: string, type: 'success' | 'error' | 'warning') => void;
 }
 
-export const AddlNotesModal = ({ isOpen, onClose, notes, onSave, showNotification }: AddlNotesModalProps) => {
+export const AddlNotesModal = ({ isOpen, onClose, notes, onSave, isReadOnly = false, showNotification }: AddlNotesModalProps) => {
   const [tempNotes, setTempNotes] = useState(notes);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -31,6 +32,11 @@ export const AddlNotesModal = ({ isOpen, onClose, notes, onSave, showNotificatio
   if (!isOpen) return null;  
 
   const handleSave = async () => {
+    if (isReadOnly) {
+      showNotification?.('This case is read-only. Notes cannot be modified.', 'error');
+      return;
+    }
+
     setIsSaving(true);
     try {
       await Promise.resolve(onSave(tempNotes));
@@ -58,12 +64,13 @@ export const AddlNotesModal = ({ isOpen, onClose, notes, onSave, showNotificatio
           onChange={(e) => setTempNotes(e.target.value)}
           className={styles.modalTextarea}
           placeholder="Enter additional notes..."
+          disabled={isReadOnly}
         />
         <div className={styles.modalButtons}>
           <button 
             onClick={handleSave} 
             className={styles.saveButton}
-            disabled={isSaving}
+            disabled={isSaving || isReadOnly}
             aria-busy={isSaving}
           >
             {isSaving ? 'Saving...' : 'Save'}

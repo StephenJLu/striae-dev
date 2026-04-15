@@ -24,6 +24,7 @@ interface SidebarContainerProps {
   setShowNotes: (show: boolean) => void;
   onAnnotationRefresh?: () => void;
   isReadOnly?: boolean;
+  isReviewOnlyCase?: boolean;
   isArchivedCase?: boolean;
   isConfirmed?: boolean;
   confirmationSaveVersion?: number;
