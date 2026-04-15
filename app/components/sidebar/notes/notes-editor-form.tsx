@@ -17,6 +17,7 @@ interface NotesEditorFormProps {
   onAnnotationRefresh?: () => void;
   originalFileName?: string;
   isUploading?: boolean;
+  isReadOnly?: boolean;
   showNotification?: (message: string, type: 'success' | 'error' | 'warning') => void;
   onDirtyChange?: (isDirty: boolean) => void;
   onRegisterSaveHandler?: (saveHandler: (() => Promise<boolean>) | null) => void;
@@ -31,7 +32,6 @@ interface NotesFormSnapshot {
   leftItem: string;
   rightItem: string;
   caseFontColor: string;
-  selectedItem: 'left' | 'right';
   // Left item class characteristics
   leftItemType: ItemType | '';
   leftCustomClass: string;
@@ -96,7 +96,7 @@ const serializeNotesSnapshot = (snapshot: NotesFormSnapshot): string => JSON.str
 const DIRTY_CHECK_DEBOUNCE_MS = 180;
 const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
-export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefresh, originalFileName, isUploading = false, showNotification: externalShowNotification, onDirtyChange, onRegisterSaveHandler }: NotesEditorFormProps) => {
+export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefresh, originalFileName, isUploading = false, isReadOnly = false, showNotification: externalShowNotification, onDirtyChange, onRegisterSaveHandler }: NotesEditorFormProps) => {
   // Loading/Saving Notes States
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string>();
@@ -154,7 +154,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
   const [savedSnapshot, setSavedSnapshot] = useState<string>('');
   const [hasLoadedSnapshot, setHasLoadedSnapshot] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
-  const areInputsDisabled = isUploading || isConfirmedImage;
+  const areInputsDisabled = isUploading || isConfirmedImage || isReadOnly;
 
   const notificationHandler = useCallback((message: string, type: 'success' | 'error' | 'warning' = 'success') => {
     if (externalShowNotification) {
@@ -226,7 +226,6 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         leftItem,
         rightItem,
         caseFontColor,
-        selectedItem,
         leftItemType,
         leftCustomClass,
         leftClassNote,
@@ -284,7 +283,6 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
     rightShotshellData,
     caseFontColor,
     savedSnapshot,
-    selectedItem,
     leftAdditionalNotes,
     rightAdditionalNotes,
     supportLevel,
@@ -357,7 +355,6 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
             leftItem: existingNotes.leftItem || '',
             rightItem: existingNotes.rightItem || '',
             caseFontColor: existingNotes.caseFontColor || '',
-            selectedItem: 'left',
             leftItemType: migratedLeftItemType,
             leftCustomClass: migratedLeftCustomClass,
             leftClassNote: migratedLeftClassNote,
@@ -390,7 +387,6 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
             leftItem: '',
             rightItem: '',
             caseFontColor: '',
-            selectedItem: 'left',
             leftItemType: '',
             leftCustomClass: '',
             leftClassNote: '',
@@ -444,6 +440,11 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
 
     if (!imageId) {
       console.error('No image selected');
+      return false;
+    }
+
+    if (isReadOnly) {
+      notificationHandler('This case is read-only. Notes cannot be modified.', 'error');
       return false;
     }
 
@@ -543,7 +544,6 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         leftItem,
         rightItem,
         caseFontColor,
-        selectedItem,
         leftItemType,
         leftCustomClass,
         leftClassNote,
@@ -619,6 +619,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
     indexColor,
     indexNumber,
     indexType,
+    isReadOnly,
     leftCase,
     leftItem,
     notificationHandler,
@@ -635,7 +636,6 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
     rightItem,
     rightShotshellData,
     leftShotshellData,
-    selectedItem,
     leftAdditionalNotes,
     rightAdditionalNotes,
     supportLevel,
@@ -779,7 +779,6 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                 value={selectedItem}
                 onChange={(e) => setSelectedItem(e.target.value as 'left' | 'right')}
                 className={styles.select}
-                disabled={areInputsDisabled}
               >
                 <option value="left">{`Case: ${leftCase || '—'} Item: ${leftItem || '—'}`}</option>
                 <option value="right" disabled={!rightItem && !rightCase}>
@@ -830,7 +829,6 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                   type="button"
                   onClick={() => setIsClassDetailsOpen(true)}
                   className={styles.itemDetailsButton}
-                  disabled={areInputsDisabled}
                 >
                   Class Characteristics & GRC
                 </button>
@@ -955,7 +953,6 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
           <button 
             onClick={() => setIsModalOpen(true)}
             className={styles.notesButton}
-            disabled={areInputsDisabled}
             title={isConfirmedImage ? "Cannot edit notes for confirmed images" : isUploading ? "Cannot add notes while uploading" : undefined}
           >
             Additional Notes
@@ -976,7 +973,14 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         notes={additionalNotes}
-        onSave={setAdditionalNotes}
+        onSave={(notes) => {
+          if (areInputsDisabled) {
+            return;
+          }
+
+          setAdditionalNotes(notes);
+        }}
+        isReadOnly={areInputsDisabled}
         showNotification={notificationHandler}
       />
       <ItemDetailsModal
@@ -987,6 +991,10 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         cartridgeCaseData={getSelectedItemData().cartridgeCaseData}
         shotshellData={getSelectedItemData().shotshellData}
         onSave={(b, c, s) => {
+          if (areInputsDisabled) {
+            return;
+          }
+
           setSelectedItemData({
             bulletData: b,
             cartridgeCaseData: c,

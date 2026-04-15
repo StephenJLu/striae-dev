@@ -117,11 +117,12 @@ export const Navbar = ({
   const disableLongRunningCaseActions = isUploading;
   const isCaseManagementActive = true;
   const isFileManagementActive = isFileMenuOpen || hasLoadedImage;
-  const canOpenImageNotes = hasLoadedImage && !isCurrentImageConfirmed && !isReadOnly;
+  const canOpenImageNotes = hasLoadedImage;
+  const isImageNotesReadOnly = isReadOnly || isCurrentImageConfirmed || isUploading;
   const isImageNotesActive = canOpenImageNotes;
   const canDeleteCurrentFile = hasLoadedImage && !isReadOnly;
-  const isArchivedRegularReadOnly = Boolean(isReadOnly && archiveDetails?.archived && !isReviewOnlyCase);
-  const caseExportLabel = isArchivedRegularReadOnly
+  const isArchivedCase = Boolean(isReadOnly && archiveDetails?.archived);
+  const caseExportLabel = isArchivedCase
     ? 'Export Archive'
     : isReadOnly
       ? 'Export Confirmations'
@@ -184,13 +185,15 @@ export const Navbar = ({
                   type="button"
                   role="menuitem"
                   className={`${styles.caseMenuItem} ${styles.caseMenuItemExport}`}
-                  disabled={!hasLoadedCase || disableLongRunningCaseActions}
+                  disabled={!hasLoadedCase || disableLongRunningCaseActions || (isArchivedCase && isReviewOnlyCase)}
                   title={
                     !hasLoadedCase
                       ? 'Load a case to export case data'
                       : disableLongRunningCaseActions
                         ? 'Export is unavailable while files are uploading'
-                        : undefined
+                        : isArchivedCase && isReviewOnlyCase
+                          ? 'Cannot export imported archive packages'
+                          : undefined
                   }
                   onClick={() => {
                     onOpenCaseExport?.();
@@ -365,10 +368,8 @@ export const Navbar = ({
             title={
               !hasLoadedImage
                 ? 'Load an image to enable image notes'
-                : isCurrentImageConfirmed
-                  ? 'Confirmed images are read-only and viewable via toolbar only'
-                  : isReadOnly
-                    ? 'Image notes are disabled for read-only cases'
+                : isImageNotesReadOnly
+                  ? 'Image notes are view-only in this state'
                     : undefined
             }
             onClick={() => {

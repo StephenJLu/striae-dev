@@ -13,6 +13,7 @@ interface NotesEditorModalProps {
   originalFileName?: string;
   onAnnotationRefresh?: () => void;
   isUploading?: boolean;
+  isReadOnly?: boolean;
   showNotification?: (message: string, type: 'success' | 'error' | 'warning') => void;
 }
 
@@ -25,6 +26,7 @@ export const NotesEditorModal = ({
   originalFileName,
   onAnnotationRefresh,
   isUploading = false,
+  isReadOnly = false,
   showNotification,
 }: NotesEditorModalProps) => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -186,6 +188,7 @@ export const NotesEditorModal = ({
             onAnnotationRefresh={onAnnotationRefresh}
             originalFileName={originalFileName}
             isUploading={isUploading}
+            isReadOnly={isReadOnly}
             showNotification={showNotification}
             onDirtyChange={handleDirtyChange}
             onRegisterSaveHandler={handleRegisterSaveHandler}
