@@ -308,7 +308,12 @@ export const Canvas = ({
               // Resolve display values from left/right fields, falling back to legacy single-set fields
               const displayItemType = annotationData.leftItemType || annotationData.rightItemType || annotationData.itemType;
               const displayCustomClass = annotationData.leftCustomClass || annotationData.rightCustomClass || annotationData.customClass;
-              const displayClassNote = annotationData.leftClassNote || annotationData.rightClassNote || annotationData.classNote;
+              const leftClassNote = annotationData.leftClassNote?.trim();
+              const rightClassNote = annotationData.rightClassNote?.trim();
+              const legacyClassNote = annotationData.classNote?.trim();
+              const displayClassNote = leftClassNote && rightClassNote
+                ? `${leftClassNote} / ${rightClassNote}`
+                : leftClassNote || rightClassNote || legacyClassNote;
               const displayValue = displayCustomClass || displayItemType;
               if (!displayValue) return null;
               return (

@@ -435,7 +435,15 @@ export const renderReport: ReportRenderer = (data: PDFGenerationData): string =>
         ${annotationData && annotationsSet?.has('item') ? `
         <div class="class-annotation">
           <div class="class-text-annotation">
-            ${safeText(annotationData.leftCustomClass || annotationData.rightCustomClass || annotationData.customClass || annotationData.leftItemType || annotationData.rightItemType || annotationData.itemType || annotationData.classType)}${(annotationData.leftClassNote || annotationData.rightClassNote || annotationData.classNote) ? ` (${safeText(annotationData.leftClassNote || annotationData.rightClassNote || annotationData.classNote)})` : ''}
+            ${safeText(annotationData.leftCustomClass || annotationData.rightCustomClass || annotationData.customClass || annotationData.leftItemType || annotationData.rightItemType || annotationData.itemType || annotationData.classType)}${(() => {
+              const leftClassNote = annotationData.leftClassNote?.trim();
+              const rightClassNote = annotationData.rightClassNote?.trim();
+              const legacyClassNote = annotationData.classNote?.trim();
+              const displayClassNote = leftClassNote && rightClassNote
+                ? `${leftClassNote} / ${rightClassNote}`
+                : leftClassNote || rightClassNote || legacyClassNote;
+              return displayClassNote ? ` (${safeText(displayClassNote)})` : '';
+            })()}
           </div>
         </div>
         ` : '<div class="class-annotation"></div>'}
