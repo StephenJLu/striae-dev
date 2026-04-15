@@ -26,7 +26,6 @@ interface SidebarContainerProps {
   isReadOnly?: boolean;
   isReviewOnlyCase?: boolean;
   isArchivedCase?: boolean;
-  isConfirmed?: boolean;
   confirmationSaveVersion?: number;
   isUploading?: boolean;
   onUploadStatusChange?: (isUploading: boolean) => void;

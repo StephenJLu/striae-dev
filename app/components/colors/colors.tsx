@@ -4,6 +4,7 @@ import styles from './colors.module.css';
 interface ColorSelectorProps {
   selectedColor: string;
   onColorSelect: (color: string) => void;
+  disabled?: boolean;
 }
 
 interface ColorOption {
@@ -24,7 +25,7 @@ const commonColors: ColorOption[] = [
   { value: '#ffffff', label: 'White' }
 ];
 
-export const ColorSelector = ({ selectedColor, onColorSelect }: ColorSelectorProps) => {
+export const ColorSelector = ({ selectedColor, onColorSelect, disabled = false }: ColorSelectorProps) => {
   const [showColorWheel, setShowColorWheel] = useState(false);
 
   return (
@@ -34,6 +35,7 @@ export const ColorSelector = ({ selectedColor, onColorSelect }: ColorSelectorPro
         <button 
           onClick={() => setShowColorWheel(!showColorWheel)}
           className={styles.toggleButton}
+          disabled={disabled}
         >
           {showColorWheel ? 'Presets' : 'Color Wheel'}
         </button>
@@ -47,6 +49,7 @@ export const ColorSelector = ({ selectedColor, onColorSelect }: ColorSelectorPro
             onChange={(e) => onColorSelect(e.target.value)}
             className={styles.colorWheel}
             title="Choose a color"
+            disabled={disabled}
           />
         </>
       ) : (
@@ -59,6 +62,7 @@ export const ColorSelector = ({ selectedColor, onColorSelect }: ColorSelectorPro
             onClick={() => onColorSelect(color.value)}
             aria-label={`Select ${color.label}`}
             title={color.label}
+            disabled={disabled}
           />
         ))}
       </div>

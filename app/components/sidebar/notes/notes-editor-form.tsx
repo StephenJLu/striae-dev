@@ -154,7 +154,9 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
   const [savedSnapshot, setSavedSnapshot] = useState<string>('');
   const [hasLoadedSnapshot, setHasLoadedSnapshot] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
-  const areInputsDisabled = isUploading || isConfirmedImage || isReadOnly;
+  const areEditsDisabled = isUploading || isReadOnly || isConfirmedImage;
+  const isReadOnlyMode = isConfirmedImage || isReadOnly;
+  const canOpenModals = !isUploading;
 
   const notificationHandler = useCallback((message: string, type: 'success' | 'error' | 'warning' = 'success') => {
     if (externalShowNotification) {
@@ -687,7 +689,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                 type="text"
                 value={leftCase}
                 onChange={(e) => setLeftCase(e.target.value)}
-                disabled={useCurrentCaseLeft || areInputsDisabled}                
+                disabled={useCurrentCaseLeft || areEditsDisabled}                
               />
             </div>
             <label className={`${styles.checkboxLabel} mb-4`}>
@@ -696,7 +698,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                 checked={useCurrentCaseLeft}
                 onChange={(e) => setUseCurrentCaseLeft(e.target.checked)}
                 className={styles.checkbox}
-                disabled={areInputsDisabled}
+                disabled={areEditsDisabled}
               />
               <span>Use current case number</span>
             </label>            
@@ -707,7 +709,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                 type="text"
                 value={leftItem}
                 onChange={(e) => setLeftItem(e.target.value)}
-                disabled={areInputsDisabled}
+                disabled={areEditsDisabled}
               />
             </div>
           </div>
@@ -720,7 +722,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                 type="text"
                 value={rightCase}
                 onChange={(e) => setRightCase(e.target.value)}
-                disabled={useCurrentCaseRight || areInputsDisabled}                
+                disabled={useCurrentCaseRight || areEditsDisabled}                
               />
             </div>
             <label className={`${styles.checkboxLabel} mb-4`}>
@@ -729,7 +731,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                 checked={useCurrentCaseRight}
                 onChange={(e) => setUseCurrentCaseRight(e.target.checked)}
                 className={styles.checkbox}
-                disabled={areInputsDisabled}
+                disabled={areEditsDisabled}
               />
               <span>Use current case number</span>
             </label>
@@ -740,7 +742,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                 type="text"
                 value={rightItem}
                 onChange={(e) => setRightItem(e.target.value)}
-                disabled={areInputsDisabled}
+                disabled={areEditsDisabled}
               />
             </div>            
           </div>
@@ -751,6 +753,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
           <ColorSelector
             selectedColor={caseFontColor}
             onColorSelect={setCaseFontColor}
+            disabled={areEditsDisabled}
           />
         </div>
           </>
@@ -795,7 +798,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                     value={getSelectedItemData().itemType}
                     onChange={(e) => setSelectedItemData({ itemType: e.target.value as ItemType })}
                     className={styles.select}
-                    disabled={areInputsDisabled}
+                    disabled={areEditsDisabled}
                   >
                     <option value="">Select item type...</option>
                     <option value="Bullet">Bullet</option>
@@ -810,7 +813,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                       value={getSelectedItemData().customClass}
                       onChange={(e) => setSelectedItemData({ customClass: e.target.value })}
                       placeholder="Specify object type"
-                      disabled={areInputsDisabled}
+                      disabled={areEditsDisabled}
                     />
                   )}
 
@@ -819,7 +822,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                     onChange={(e) => setSelectedItemData({ classNote: e.target.value })}
                     placeholder="Enter item details..."
                     className={styles.textarea}
-                    disabled={areInputsDisabled}
+                    disabled={areEditsDisabled}
                   />
                 </div>
             </div>
@@ -838,7 +841,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                     checked={getSelectedItemData().hasSubclass}
                     onChange={(e) => setSelectedItemData({ hasSubclass: e.target.checked })}
                     className={styles.checkbox}
-                    disabled={areInputsDisabled}
+                    disabled={areEditsDisabled}
                   />
                   <span>Potential subclass?</span>
                 </label>
@@ -866,7 +869,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                 type="radio"
                 checked={indexType === 'color'}
                 onChange={() => setIndexType('color')}
-                disabled={areInputsDisabled}
+                disabled={areEditsDisabled}
               />
               <span>Color</span>
             </label>
@@ -875,7 +878,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                 type="radio"
                 checked={indexType === 'number'}
                 onChange={() => setIndexType('number')}
-                disabled={areInputsDisabled}
+                disabled={areEditsDisabled}
               />
               <span>Number/Letter</span>
             </label>
@@ -887,12 +890,13 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
               value={indexNumber}
               onChange={(e) => setIndexNumber(e.target.value)}
               placeholder="Enter index number"
-              disabled={areInputsDisabled}
+              disabled={areEditsDisabled}
             />
           ) : indexType === 'color' ? (            
             <ColorSelector
               selectedColor={indexColor}
               onColorSelect={setIndexColor}
+              disabled={areEditsDisabled}
             />            
           ) : null}
         </div>
@@ -926,7 +930,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                   }
                 }}
                 className={styles.select}
-                disabled={areInputsDisabled}
+                disabled={areEditsDisabled}
               >
                 <option value="">Select support level...</option>
                 <option value="ID">Identification</option>
@@ -939,7 +943,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
                   checked={includeConfirmation}
                   onChange={(e) => setIncludeConfirmation(e.target.checked)}
                   className={styles.checkbox}
-                  disabled={areInputsDisabled}
+                  disabled={areEditsDisabled}
                 />
                 <span>Include confirmation field</span>
               </label>
@@ -953,7 +957,8 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
           <button 
             onClick={() => setIsModalOpen(true)}
             className={styles.notesButton}
-            title={isConfirmedImage ? "Cannot edit notes for confirmed images" : isUploading ? "Cannot add notes while uploading" : undefined}
+            disabled={!canOpenModals}
+            title={isUploading ? "Cannot open notes while uploading" : undefined}
           >
             Additional Notes
           </button>
@@ -963,8 +968,8 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
           <button 
               onClick={handleSave}
               className={styles.saveButton}
-              disabled={areInputsDisabled}
-              title={isConfirmedImage ? "Cannot save notes for confirmed images" : isUploading ? "Cannot save notes while uploading" : undefined}
+              disabled={areEditsDisabled}
+              title={isConfirmedImage ? "Cannot save notes - image is confirmed" : isUploading ? "Cannot save notes while uploading" : isReadOnly ? "Cannot save notes - case is read-only" : undefined}
             >
               Save Notes
             </button>
@@ -974,13 +979,13 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         onClose={() => setIsModalOpen(false)}
         notes={additionalNotes}
         onSave={(notes) => {
-          if (areInputsDisabled) {
+          if (areEditsDisabled) {
             return;
           }
 
           setAdditionalNotes(notes);
         }}
-        isReadOnly={areInputsDisabled}
+        isReadOnly={isReadOnlyMode}
         showNotification={notificationHandler}
       />
       <ItemDetailsModal
@@ -991,7 +996,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
         cartridgeCaseData={getSelectedItemData().cartridgeCaseData}
         shotshellData={getSelectedItemData().shotshellData}
         onSave={(b, c, s) => {
-          if (areInputsDisabled) {
+          if (areEditsDisabled) {
             return;
           }
 
@@ -1010,7 +1015,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
           }
         }}
         showNotification={notificationHandler}
-        isReadOnly={areInputsDisabled}
+        isReadOnly={isReadOnlyMode}
       />
       </>
         )}

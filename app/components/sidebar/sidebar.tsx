@@ -22,7 +22,6 @@ interface SidebarProps {
   isReadOnly?: boolean;
   isReviewOnlyCase?: boolean;
   isArchivedCase?: boolean;
-  isConfirmed?: boolean;
   confirmationSaveVersion?: number;
   isUploading?: boolean;
   onUploadStatusChange?: (isUploading: boolean) => void;
@@ -43,7 +42,6 @@ export const Sidebar = ({
   isReadOnly = false,
   isReviewOnlyCase = false,
   isArchivedCase = false,
-  isConfirmed = false,
   confirmationSaveVersion = 0,
   isUploading: initialIsUploading = false,
   onUploadStatusChange,
@@ -93,7 +91,6 @@ export const Sidebar = ({
         isReadOnly={isReadOnly}
         isReviewOnlyCase={isReviewOnlyCase}
         isArchivedCase={isArchivedCase}
-        isConfirmed={isConfirmed}
         confirmationSaveVersion={confirmationSaveVersion}
         selectedFileId={imageId}
         isUploading={isUploading}
