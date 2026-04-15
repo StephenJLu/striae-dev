@@ -6,6 +6,8 @@ export interface FileConfirmationSummary {
   isConfirmed: boolean;
   updatedAt: string;
   itemType?: ItemType;
+  leftItemType?: ItemType;
+  rightItemType?: ItemType;
 }
 
 export interface CaseConfirmationSummary {
@@ -198,6 +200,14 @@ function normalizeFileConfirmationSummary(value: unknown): FileConfirmationSumma
   // Support both new 'itemType' and legacy 'classType' properties
   const itemType = value.itemType ?? value.classType;
   const normalizedItemType = typeof itemType === 'string' && ['Bullet', 'Cartridge Case', 'Shotshell', 'Other'].includes(itemType) ? (itemType as ItemType) : undefined;
+  const normalizedLeftItemType =
+    typeof value.leftItemType === 'string' && ['Bullet', 'Cartridge Case', 'Shotshell', 'Other'].includes(value.leftItemType)
+      ? (value.leftItemType as ItemType)
+      : undefined;
+  const normalizedRightItemType =
+    typeof value.rightItemType === 'string' && ['Bullet', 'Cartridge Case', 'Shotshell', 'Other'].includes(value.rightItemType)
+      ? (value.rightItemType as ItemType)
+      : undefined;
 
   const summary: FileConfirmationSummary = {
     includeConfirmation: value.includeConfirmation === true,
@@ -207,6 +217,14 @@ function normalizeFileConfirmationSummary(value: unknown): FileConfirmationSumma
 
   if (normalizedItemType) {
     summary.itemType = normalizedItemType;
+  }
+
+  if (normalizedLeftItemType) {
+    summary.leftItemType = normalizedLeftItemType;
+  }
+
+  if (normalizedRightItemType) {
+    summary.rightItemType = normalizedRightItemType;
   }
 
   return summary;
@@ -238,6 +256,8 @@ export function computeCaseConfirmationAggregate(filesById: Record<string, FileC
 
 export function toFileConfirmationSummary(annotationData: AnnotationData | null): FileConfirmationSummary {
   const includeConfirmation = annotationData?.includeConfirmation === true;
+  const leftItemType = annotationData?.leftItemType || annotationData?.itemType;
+  const rightItemType = annotationData?.rightItemType;
 
   const summary: FileConfirmationSummary = {
     includeConfirmation,
@@ -245,8 +265,19 @@ export function toFileConfirmationSummary(annotationData: AnnotationData | null)
     updatedAt: getIsoNow()
   };
 
-  if (annotationData?.itemType) {
-    summary.itemType = annotationData.itemType;
+  if (leftItemType) {
+    summary.leftItemType = leftItemType;
+  }
+
+  if (rightItemType) {
+    summary.rightItemType = rightItemType;
+  }
+
+  // Keep legacy single-value item type for existing consumers.
+  if (leftItemType) {
+    summary.itemType = leftItemType;
+  } else if (rightItemType) {
+    summary.itemType = rightItemType;
   }
 
   return summary;

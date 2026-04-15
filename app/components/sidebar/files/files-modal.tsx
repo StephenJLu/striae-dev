@@ -61,12 +61,24 @@ function formatDate(dateString: string): string {
   return new Date(parsed).toLocaleDateString();
 }
 
-function getItemTypeLabel(itemType?: FileConfirmationSummary['itemType']): string {
-  if (!itemType) {
+function getItemTypeLabel(summary: FileConfirmationSummary): string {
+  const itemTypes = [
+    summary.leftItemType,
+    summary.rightItemType,
+    summary.itemType,
+  ].filter((value): value is NonNullable<FileConfirmationSummary['itemType']> => Boolean(value));
+
+  const uniqueItemTypes = Array.from(new Set(itemTypes));
+
+  if (uniqueItemTypes.length === 0) {
     return 'Unset';
   }
 
-  return itemType;
+  if (uniqueItemTypes.length === 1) {
+    return uniqueItemTypes[0];
+  }
+
+  return `${uniqueItemTypes[0]} / ${uniqueItemTypes[1]}`;
 }
 
 function getConfirmationLabel(summary: FileConfirmationSummary): string {
@@ -434,7 +446,7 @@ export const FilesModal = ({
                     const isOpenSelected = effectiveOpenSelectedFileId === file.id;
                     const isDeleteSelected = effectiveDeleteSelectedFileIds.has(file.id);
                     const confirmationLabel = getConfirmationLabel(summary);
-                    const itemTypeLabel = getItemTypeLabel(summary.itemType);
+                    const itemTypeLabel = getItemTypeLabel(summary);
 
                     let confirmationClass = '';
                     if (summary.includeConfirmation) {

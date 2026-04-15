@@ -39,6 +39,21 @@ function getFileConfirmationState(fileId: string, statusById: FileConfirmationBy
   return statusById[fileId] || DEFAULT_CONFIRMATION_SUMMARY;
 }
 
+function getSummaryItemTypes(summary: FileConfirmationSummary): Array<NonNullable<FileConfirmationSummary['itemType']>> {
+  const types = [
+    summary.leftItemType,
+    summary.rightItemType,
+    summary.itemType,
+  ].filter((value): value is NonNullable<FileConfirmationSummary['itemType']> => Boolean(value));
+
+  return Array.from(new Set(types));
+}
+
+function getPrimaryItemType(summary: FileConfirmationSummary): FileConfirmationSummary['itemType'] {
+  const [first] = getSummaryItemTypes(summary);
+  return first;
+}
+
 function getConfirmationRank(summary: FileConfirmationSummary): number {
   if (summary.includeConfirmation && !summary.isConfirmed) {
     return 0;
@@ -103,12 +118,14 @@ function matchesItemTypeFilter(
     return true;
   }
 
+  const itemTypes = getSummaryItemTypes(summary);
+
   if (itemTypeFilter === 'Other') {
     // Treat legacy/unset item types as Other for filtering.
-    return summary.itemType === 'Other' || !summary.itemType;
+    return itemTypes.length === 0 || itemTypes.includes('Other');
   }
 
-  return summary.itemType === itemTypeFilter;
+  return itemTypes.includes(itemTypeFilter);
 }
 
 function matchesSearch(file: FileData, query: string): boolean {
@@ -182,7 +199,7 @@ export function sortFilesForModal(
   return next.sort((left, right) => {
     const leftSummary = getFileConfirmationState(left.id, statusById);
     const rightSummary = getFileConfirmationState(right.id, statusById);
-    const difference = getItemTypeRank(leftSummary.itemType) - getItemTypeRank(rightSummary.itemType);
+    const difference = getItemTypeRank(getPrimaryItemType(leftSummary)) - getItemTypeRank(getPrimaryItemType(rightSummary));
 
     if (difference !== 0) {
       return difference;
