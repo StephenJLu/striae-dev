@@ -117,8 +117,6 @@ export const Navbar = ({
   const disableLongRunningCaseActions = isUploading;
   const isCaseManagementActive = true;
   const isFileManagementActive = isFileMenuOpen || hasLoadedImage;
-  const canOpenImageNotes = hasLoadedImage;
-  const isImageNotesActive = canOpenImageNotes;
   const canDeleteCurrentFile = hasLoadedImage && !isReadOnly;
   const isArchivedCase = Boolean(isReadOnly && archiveDetails?.archived);
   
@@ -137,6 +135,9 @@ export const Navbar = ({
     isArchivedCase: isArchivedCase,
     isConfirmedImage: isCurrentImageConfirmed
   });
+
+  const canOpenImageNotes = notesPermission.canOpen;
+  const isImageNotesActive = canOpenImageNotes;
 
   const caseExportLabel = isArchivedCase
     ? 'Export Archive'
@@ -383,6 +384,10 @@ export const Navbar = ({
             aria-pressed={isImageNotesActive}
             title={imageNotesTitle}
             onClick={() => {
+              if (!notesPermission.canOpen) {
+                return;
+              }
+
               onOpenImageNotes?.();
             }}
           >

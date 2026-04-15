@@ -154,7 +154,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
   const [savedSnapshot, setSavedSnapshot] = useState<string>('');
   const [hasLoadedSnapshot, setHasLoadedSnapshot] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
-  const areEditsDisabled = isUploading || isReadOnly;
+  const areEditsDisabled = isUploading || isReadOnly || isConfirmedImage;
   const isReadOnlyMode = isConfirmedImage || isReadOnly;
   const canOpenModals = !isUploading;
 
@@ -753,6 +753,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
           <ColorSelector
             selectedColor={caseFontColor}
             onColorSelect={setCaseFontColor}
+            disabled={areEditsDisabled}
           />
         </div>
           </>
@@ -895,6 +896,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
             <ColorSelector
               selectedColor={indexColor}
               onColorSelect={setIndexColor}
+              disabled={areEditsDisabled}
             />            
           ) : null}
         </div>
