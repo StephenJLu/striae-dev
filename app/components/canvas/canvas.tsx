@@ -303,14 +303,22 @@ export const Canvas = ({
           <div className={styles.imageContainer}>
             <div className={styles.imageWrapper}>
             {/* Class Characteristics - Above Image */}
-            {activeAnnotations?.has('class') && annotationData && (annotationData.customClass || annotationData.itemType) && (
-              <div className={styles.classCharacteristics}>
-                <div className={styles.classText}>
-                  {annotationData.customClass || annotationData.itemType}
-                  {annotationData.classNote && ` (${annotationData.classNote})`}
+            {activeAnnotations?.has('class') && annotationData && (() => {
+              // Resolve display values from left/right fields, falling back to legacy single-set fields
+              const displayItemType = annotationData.leftItemType || annotationData.rightItemType || annotationData.itemType;
+              const displayCustomClass = annotationData.leftCustomClass || annotationData.rightCustomClass || annotationData.customClass;
+              const displayClassNote = annotationData.leftClassNote || annotationData.rightClassNote || annotationData.classNote;
+              const displayValue = displayCustomClass || displayItemType;
+              if (!displayValue) return null;
+              return (
+                <div className={styles.classCharacteristics}>
+                  <div className={styles.classText}>
+                    {displayValue}
+                    {displayClassNote && ` (${displayClassNote})`}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
             
             <img 
             ref={imageRef}
@@ -440,7 +448,7 @@ export const Canvas = ({
       )}
       
       {/* Subclass Warning - Bottom Right of Canvas */}
-      {activeAnnotations?.has('class') && annotationData?.hasSubclass && (
+      {activeAnnotations?.has('class') && annotationData && (annotationData.leftHasSubclass || annotationData.rightHasSubclass || annotationData.hasSubclass) && (
         <div className={`${styles.subclassWarning} ${isFlashing ? styles.flashing : ''}`}>
           <div className={styles.subclassText}>
             POTENTIAL SUBCLASS
