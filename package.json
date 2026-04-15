@@ -50,12 +50,12 @@
     "workers/pdf-worker/src/assets/generated-assets.example.ts",
     "!workers/pdf-worker/src/formats/**/*",
     "workers/pdf-worker/src/formats/format-striae.ts",
-    ".env.example",    
+    ".env.example",
     "firebase.json",
     "tsconfig.json",
     "vite.config.ts",
     "/worker-configuration.d.ts",
-    "wrangler.toml.example",    
+    "wrangler.toml.example",
     "LICENSE"
   ],
   "sideEffects": false,
@@ -100,23 +100,23 @@
     "deploy-workers:user": "cd workers/user-worker && npm run deploy"
   },
   "dependencies": {
-    "@react-router/cloudflare": "^7.14.0",
+    "@react-router/cloudflare": "^7.14.1",
     "firebase": "^12.12.0",
-    "isbot": "^5.1.37",
+    "isbot": "^5.1.38",
     "jszip": "^3.10.1",
     "qrcode": "^1.5.4",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "react-router": "^7.14.0"
+    "react-router": "^7.14.1"
   },
   "devDependencies": {
-    "@react-router/dev": "^7.14.0",
-    "@react-router/fs-routes": "^7.14.0",
+    "@react-router/dev": "^7.14.1",
+    "@react-router/fs-routes": "^7.14.1",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.58.1",
-    "@typescript-eslint/parser": "^8.58.1",
+    "@typescript-eslint/parser": "^8.58.2",
     "eslint": "^9.39.4",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import": "^2.32.0",
@@ -128,7 +128,7 @@
     "typescript": "^5.9.3",
     "vite": "^7.3.2",
     "vite-tsconfig-paths": "^6.1.1",
-    "wrangler": "^4.81.1"
+    "wrangler": "^4.82.2"
   },
   "overrides": {
     "@tootallnate/once": "3.0.1"
