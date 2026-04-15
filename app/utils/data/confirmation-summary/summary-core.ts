@@ -256,7 +256,7 @@ export function computeCaseConfirmationAggregate(filesById: Record<string, FileC
 
 export function toFileConfirmationSummary(annotationData: AnnotationData | null): FileConfirmationSummary {
   const includeConfirmation = annotationData?.includeConfirmation === true;
-  const leftItemType = annotationData?.leftItemType || annotationData?.itemType;
+  const leftItemType = annotationData?.leftItemType || annotationData?.itemType || (annotationData?.classType as ItemType | undefined);
   const rightItemType = annotationData?.rightItemType;
 
   const summary: FileConfirmationSummary = {

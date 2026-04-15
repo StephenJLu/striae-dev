@@ -305,16 +305,23 @@ export const Canvas = ({
             <div className={styles.imageWrapper}>
             {/* Item Type - Above Image */}
             {activeAnnotations?.has('item') && annotationData && (() => {
-              // Resolve display values from left/right fields, falling back to legacy single-set fields
-              const displayItemType = annotationData.leftItemType || annotationData.rightItemType || annotationData.itemType;
-              const displayCustomClass = annotationData.leftCustomClass || annotationData.rightCustomClass || annotationData.customClass;
+              // Resolve display values from left/right fields, falling back to legacy single-set fields.
+              // When both sides are populated and differ, combine them as "Left / Right".
+              // classType is a legacy field kept for backward compat with older annotations (also handled in PDF generation).
+              const leftValue = annotationData.leftCustomClass || annotationData.leftItemType;
+              const rightValue = annotationData.rightCustomClass || annotationData.rightItemType;
+              const legacyValue = annotationData.customClass || annotationData.itemType || annotationData.classType;
+              const displayValue =
+                leftValue && rightValue && leftValue !== rightValue
+                  ? `${leftValue} / ${rightValue}`
+                  : leftValue || rightValue || legacyValue;
               const leftClassNote = annotationData.leftClassNote?.trim();
               const rightClassNote = annotationData.rightClassNote?.trim();
               const legacyClassNote = annotationData.classNote?.trim();
-              const displayClassNote = leftClassNote && rightClassNote
-                ? `${leftClassNote} / ${rightClassNote}`
-                : leftClassNote || rightClassNote || legacyClassNote;
-              const displayValue = displayCustomClass || displayItemType;
+              const displayClassNote =
+                leftClassNote && rightClassNote && leftClassNote !== rightClassNote
+                  ? `${leftClassNote} / ${rightClassNote}`
+                  : leftClassNote || rightClassNote || legacyClassNote;
               if (!displayValue) return null;
               return (
                 <div className={styles.classCharacteristics}>

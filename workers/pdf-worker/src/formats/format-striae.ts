@@ -435,14 +435,22 @@ export const renderReport: ReportRenderer = (data: PDFGenerationData): string =>
         ${annotationData && annotationsSet?.has('item') ? `
         <div class="class-annotation">
           <div class="class-text-annotation">
-            ${safeText(annotationData.leftCustomClass || annotationData.rightCustomClass || annotationData.customClass || annotationData.leftItemType || annotationData.rightItemType || annotationData.itemType || annotationData.classType)}${(() => {
+            ${(() => {
+              const leftValue = annotationData.leftCustomClass || annotationData.leftItemType;
+              const rightValue = annotationData.rightCustomClass || annotationData.rightItemType;
+              const legacyValue = annotationData.customClass || annotationData.itemType || annotationData.classType;
+              const displayValue =
+                leftValue && rightValue && leftValue !== rightValue
+                  ? `${leftValue} / ${rightValue}`
+                  : leftValue || rightValue || legacyValue;
               const leftClassNote = annotationData.leftClassNote?.trim();
               const rightClassNote = annotationData.rightClassNote?.trim();
               const legacyClassNote = annotationData.classNote?.trim();
-              const displayClassNote = leftClassNote && rightClassNote
-                ? `${leftClassNote} / ${rightClassNote}`
-                : leftClassNote || rightClassNote || legacyClassNote;
-              return displayClassNote ? ` (${safeText(displayClassNote)})` : '';
+              const displayClassNote =
+                leftClassNote && rightClassNote && leftClassNote !== rightClassNote
+                  ? `${leftClassNote} / ${rightClassNote}`
+                  : leftClassNote || rightClassNote || legacyClassNote;
+              return safeText(displayValue || '') + (displayClassNote ? ` (${safeText(displayClassNote)})` : '');
             })()}
           </div>
         </div>

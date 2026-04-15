@@ -316,7 +316,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
           setCaseFontColor(existingNotes.caseFontColor || '');
           
           // Migration: if old single-set fields exist, map to left item; otherwise use new left/right fields
-          const migratedLeftItemType = existingNotes.leftItemType || existingNotes.itemType || '';
+          const migratedLeftItemType = existingNotes.leftItemType || existingNotes.itemType || (existingNotes.classType as ItemType | undefined) || '';
           const migratedLeftCustomClass = existingNotes.leftCustomClass || existingNotes.customClass || '';
           const migratedLeftClassNote = existingNotes.leftClassNote || existingNotes.classNote || '';
           const migratedLeftHasSubclass = existingNotes.leftHasSubclass ?? existingNotes.hasSubclass ?? false;
@@ -333,7 +333,7 @@ export const NotesEditorForm = ({ currentCase, user, imageId, onAnnotationRefres
           setLeftShotshellData(migratedLeftShotshellData);
           
           // Set right item fields (new structure)
-          setRightItemType(existingNotes.rightItemType || '');
+          setRightItemType(existingNotes.rightItemType || existingNotes.itemType || (existingNotes.classType as ItemType | undefined) || '');
           setRightCustomClass(existingNotes.rightCustomClass || '');
           setRightClassNote(existingNotes.rightClassNote || '');
           setRightHasSubclass(existingNotes.rightHasSubclass ?? false);

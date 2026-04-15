@@ -92,6 +92,8 @@ export interface AnnotationData {
   rightHasSubclass?: boolean;
   // Deprecated (kept for backward compatibility): use leftItemType, rightItemType, etc.
   itemType?: ItemType;
+  /** @deprecated Pre-split legacy field; use leftItemType / rightItemType instead. */
+  classType?: string;
   customClass?: string;
   classNote?: string;
   bulletData?: BulletAnnotationData;
