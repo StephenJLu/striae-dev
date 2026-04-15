@@ -187,7 +187,7 @@
   letter-spacing: 0.5px;
 }
 
-/* Class Characteristics Display */
+/* Item Type Display */
 .classCharacteristics {
   position: absolute;
   bottom: calc(100% + 0.5rem);

@@ -432,15 +432,15 @@ export const renderReport: ReportRenderer = (data: PDFGenerationData): string =>
         </div>
         ` : '<div class="support-level-annotation"></div>'}
         
-        ${annotationData && annotationsSet?.has('class') ? `
+        ${annotationData && annotationsSet?.has('item') ? `
         <div class="class-annotation">
           <div class="class-text-annotation">
-            ${safeText(annotationData.customClass || annotationData.itemType || annotationData.classType)}${annotationData.classNote ? ` (${safeText(annotationData.classNote)})` : ''}
+            ${safeText(annotationData.leftCustomClass || annotationData.rightCustomClass || annotationData.customClass || annotationData.leftItemType || annotationData.rightItemType || annotationData.itemType || annotationData.classType)}${(annotationData.leftClassNote || annotationData.rightClassNote || annotationData.classNote) ? ` (${safeText(annotationData.leftClassNote || annotationData.rightClassNote || annotationData.classNote)})` : ''}
           </div>
         </div>
         ` : '<div class="class-annotation"></div>'}
         
-        ${annotationData && annotationsSet?.has('class') && annotationData.hasSubclass ? `
+        ${annotationData && annotationsSet?.has('item') && (annotationData.leftHasSubclass || annotationData.rightHasSubclass || annotationData.hasSubclass) ? `
         <div class="subclass-annotation">
           <div class="subclass-text">
             POTENTIAL SUBCLASS

@@ -33,7 +33,16 @@ export interface AnnotationData {
   // ID/Support level annotations
   supportLevel?: 'ID' | 'Exclusion' | 'Inconclusive';
 
-  // Class annotations
+  // Class annotations (left/right per-item)
+  leftItemType?: string;
+  leftCustomClass?: string;
+  leftClassNote?: string;
+  leftHasSubclass?: boolean;
+  rightItemType?: string;
+  rightCustomClass?: string;
+  rightClassNote?: string;
+  rightHasSubclass?: boolean;
+  // Legacy (kept for backward compatibility)
   itemType?: string;
   classType?: string;
   customClass?: string;
