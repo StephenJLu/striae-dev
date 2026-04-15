@@ -95,10 +95,12 @@ export async function downloadCaseAsZip(
         exportData.metadata.exportedByName ||
         exportData.metadata.exportedBy ||
         'Unknown';
+      // Don't add forensic warning comment to encrypted content; it will break JSON parsing on decryption.
+      // The archive package already includes forensic metadata in README.txt and FORENSIC_MANIFEST.json.
       const caseJsonContent = await generateJSONContent(
         exportData,
         options.includeUserInfo,
-        protectForensicData
+        false
       );
 
       const archivePackage = await buildArchivePackage({
