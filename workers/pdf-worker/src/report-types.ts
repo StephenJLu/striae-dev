@@ -1,3 +1,5 @@
+import type { IndexType, SupportLevel } from '../../../shared/types/annotation-literals';
+
 export interface BoxAnnotation {
   x: number;
   y: number;
@@ -16,7 +18,7 @@ export interface ConfirmationData {
 
 export interface AnnotationData {
   // Index annotations
-  indexType?: 'number' | 'color';
+  indexType?: IndexType;
   indexNumber?: string;
   indexColor?: string;
 
@@ -31,7 +33,7 @@ export interface AnnotationData {
   boxAnnotations?: BoxAnnotation[];
 
   // ID/Support level annotations
-  supportLevel?: 'ID' | 'Exclusion' | 'Inconclusive';
+  supportLevel?: SupportLevel;
 
   // Class annotations (left/right per-item)
   leftItemType?: string;

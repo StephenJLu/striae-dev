@@ -5,7 +5,7 @@ import { AddlNotesModal } from './addl-notes-modal';
 import { ItemDetailsModal } from './item-details/item-details-modal';
 import { buildItemDetailsSummary } from './item-details/item-details-shared';
 import { getNotes, saveNotes } from '~/components/actions/notes-manage';
-import { type AnnotationData, type BulletAnnotationData, type CartridgeCaseAnnotationData, type ShotshellAnnotationData, type ItemType } from '~/types/annotations';
+import { type AnnotationData, type BulletAnnotationData, type CartridgeCaseAnnotationData, type ShotshellAnnotationData, type ItemType, type SupportLevel, type IndexType } from '~/types/annotations';
 import { resolveEarliestAnnotationTimestamp } from '~/utils/ui';
 import { auditService } from '~/services/audit';
 import styles from './notes.module.css';
@@ -22,9 +22,6 @@ interface NotesEditorFormProps {
   onDirtyChange?: (isDirty: boolean) => void;
   onRegisterSaveHandler?: (saveHandler: (() => Promise<boolean>) | null) => void;
 }
-
-type SupportLevel = 'ID' | 'Exclusion' | 'Inconclusive';
-type IndexType = 'number' | 'color';
 
 interface NotesFormSnapshot {
   leftCase: string;
