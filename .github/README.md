@@ -22,6 +22,12 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-04-15] - *[Patch Release v6.1.1](https://github.com/striae-org/striae/releases/tag/v6.1.1)*
+
+- **🔐 Notes Editing Permission Centralization** - Centralized notes editing permission enforcement and refactored the related notes-editing paths for more consistent write-access validation.
+- **🧩 Shared Annotation Literals Cleanup** - Added shared annotation literals to reduce duplicated annotation-model constants and align annotation handling.
+- **⚙️ Release-Window Maintenance** - Included dependency bumps, Wrangler updates, compatibility-date refreshes, and code-review follow-up commits completed since v6.1.0.
+
 ## [2026-04-14] - *[Minor Release v6.1.0](https://github.com/striae-org/striae/releases/tag/v6.1.0)*
 
 - **🧭 Item Model Terminology Refactor** - Completed a broad class-to-item naming/type transition across core data and UI surfaces, including item type/subclass display and control refinements.
