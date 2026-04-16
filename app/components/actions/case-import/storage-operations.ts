@@ -228,12 +228,27 @@ export async function deleteReadOnlyCase(user: User, caseNumber: string): Promis
     );
 
     if (caseResponse.status === 404) {
-      // No backing data object exists; only remove the case reference from user metadata.
-      const removedFromMetadata = await removeReadOnlyCase(user, caseNumber);
-      if (removedFromMetadata) {
-        await removeConfirmationSummary();
+      // No backing data object exists.
+      // Treat this as successful idempotent cleanup even if metadata was already removed.
+      try {
+        const removedFromMetadata = await removeReadOnlyCase(user, caseNumber);
+
+        if (!removedFromMetadata) {
+          console.info(
+            `Read-only case ${caseNumber} metadata was already absent during 404 cleanup.`
+          );
+        }
+      } catch (removeMetadataError) {
+        console.warn(
+          `Failed metadata cleanup for read-only case ${caseNumber} during 404 cleanup:`,
+          removeMetadataError
+        );
       }
-      return removedFromMetadata;
+
+      // Safe/idempotent cleanup; run regardless of metadata state.
+      await removeConfirmationSummary();
+
+      return true;
     }
 
     if (!caseResponse.ok) {
