@@ -131,7 +131,9 @@ export const ensureCaseConfirmationSummary = async (
     throw new Error(`Access denied: ${accessCheck.reason}`);
   }
 
-  const summary = await getConfirmationSummaryDocument(user);
+  const summary = options.prefetchedSummary
+    ? structuredClone(options.prefetchedSummary)
+    : await getConfirmationSummaryDocument(user);
   const existingCase = summary.cases[caseNumber];
   const filesById: Record<string, FileConfirmationSummary> = existingCase ? { ...existingCase.filesById } : {};
   const fileIds = new Set(files.map((file) => file.id));

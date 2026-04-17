@@ -5,6 +5,7 @@ import styles from './sidebar.module.css';
 import { CaseSidebar } from './cases/case-sidebar';
 import { Toast } from '../toast/toast';
 import { type FileData } from '~/types';
+import { type UserConfirmationSummaryDocument } from '~/utils/data';
 
 interface SidebarProps {
   user: User;
@@ -26,6 +27,7 @@ interface SidebarProps {
   isUploading?: boolean;
   onUploadStatusChange?: (isUploading: boolean) => void;
   onOpenCaseExport?: () => void;
+  initialConfirmationSummary?: UserConfirmationSummaryDocument;
 }
 
 export const Sidebar = ({ 
@@ -46,6 +48,7 @@ export const Sidebar = ({
   isUploading: initialIsUploading = false,
   onUploadStatusChange,
   onOpenCaseExport,
+  initialConfirmationSummary,
 }: SidebarProps) => {
   const [isUploading, setIsUploading] = useState(initialIsUploading);
   const [toastMessage, setToastMessage] = useState('');
@@ -97,6 +100,7 @@ export const Sidebar = ({
         onUploadStatusChange={handleUploadStatusChange}
         onUploadComplete={handleUploadComplete}
         onOpenCaseExport={onOpenCaseExport}
+        initialConfirmationSummary={initialConfirmationSummary}
       />
       <Toast 
         message={toastMessage}

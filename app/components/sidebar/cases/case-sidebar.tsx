@@ -5,7 +5,6 @@ import styles from './cases.module.css';
 import { FilesModal } from '../files/files-modal';
 import { ImageUploadZone } from '../upload/image-upload-zone';
 import {
-  fetchFiles,
   deleteFile,
 } from '../../actions/image-manage';
 import { 
@@ -13,7 +12,8 @@ import {
   ensureCaseConfirmationSummary,
   getCaseConfirmationSummary,
   getNotesViewPermission,
-  getNotesButtonTooltip
+  getNotesButtonTooltip,
+  type UserConfirmationSummaryDocument
 } from '~/utils/data';
 import { type FileData } from '~/types';
 
@@ -36,6 +36,7 @@ interface CaseSidebarProps {
   onUploadStatusChange?: (isUploading: boolean) => void;
   onUploadComplete?: (result: { successCount: number; failedFiles: string[] }) => void;
   onOpenCaseExport?: () => void;
+  initialConfirmationSummary?: UserConfirmationSummaryDocument;
 }
 
 export const CaseSidebar = ({ 
@@ -56,7 +57,8 @@ export const CaseSidebar = ({
   isUploading = false,
   onUploadStatusChange,
   onUploadComplete,
-  onOpenCaseExport
+  onOpenCaseExport,
+  initialConfirmationSummary,
 }: CaseSidebarProps) => {
   
   const [, setFileError] = useState('');
@@ -97,25 +99,35 @@ export const CaseSidebar = ({
     }
   }, [currentCase, files.length, user]);
 
-  // Check file upload permissions when currentCase or files change
+  // Check file upload permissions when currentCase or files change.
   useEffect(() => {
-    checkFileUploadPermissions();
-  }, [checkFileUploadPermissions]);
+    let isCancelled = false;
+    const check = async () => {
+      if (currentCase) {
+        try {
+          const permission = await canUploadFile(user, files.length);
+          if (!isCancelled) {
+            setCanUploadNewFile(permission.canUpload);
+            setUploadFileError(permission.reason || '');
+          }
+        } catch (error) {
+          console.error('Error checking file upload permission:', error);
+          if (!isCancelled) {
+            setCanUploadNewFile(false);
+            setUploadFileError('Unable to verify upload permissions');
+          }
+        }
+      } else if (!isCancelled) {
+        setCanUploadNewFile(true);
+        setUploadFileError('');
+      }
+    };
+    void check();
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentCase, files.length, user]);
    
-  useEffect(() => {
-    if (currentCase) {
-      fetchFiles(user, currentCase, { skipValidation: true })
-        .then(loadedFiles => {
-          setFiles(loadedFiles);
-        })
-        .catch(err => {
-          console.error('Failed to load files:', err);
-          setFileError(err instanceof Error ? err.message : 'Failed to load files');
-        });
-    } else {
-      setFiles([]);
-    }
-  }, [user, currentCase, setFiles]);
 
   // Fetch confirmation status for all files when case/files change
   useEffect(() => {
@@ -130,7 +142,12 @@ export const CaseSidebar = ({
         return;
       }
 
-      const caseSummary = await ensureCaseConfirmationSummary(user, currentCase, files).catch((error) => {
+      const caseSummary = await ensureCaseConfirmationSummary(
+        user,
+        currentCase,
+        files,
+        confirmationSaveVersion === 0 ? { prefetchedSummary: initialConfirmationSummary } : undefined
+      ).catch((error) => {
         console.error(`Error fetching confirmation summary for case ${currentCase}:`, error);
         return null;
       });
@@ -155,7 +172,7 @@ export const CaseSidebar = ({
     return () => {
       isCancelled = true;
     };
-  }, [currentCase, fileIdsKey, user, files]);
+  }, [currentCase, fileIdsKey, user, files, initialConfirmationSummary, confirmationSaveVersion]);
 
   // Refresh only selected file confirmation status after confirmation-related data is persisted
   useEffect(() => {
@@ -283,6 +300,7 @@ return (
         isReadOnly={isReadOnly}
         selectedFileId={selectedFileId}
         confirmationSaveVersion={confirmationSaveVersion}
+        initialConfirmationSummary={initialConfirmationSummary}
       />
       
         <div className={styles.filesSection}>

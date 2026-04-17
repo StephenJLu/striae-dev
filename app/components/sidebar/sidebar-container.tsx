@@ -6,6 +6,7 @@ import { Link } from 'react-router';
 import { Sidebar } from './sidebar';
 import type { User } from 'firebase/auth';
 import { type FileData } from '~/types';
+import { type UserConfirmationSummaryDocument } from '~/utils/data';
 import styles from './sidebar.module.css';
 import { getAppVersion } from '~/utils/common';
 import { useOverlayDismiss } from '~/hooks/useOverlayDismiss';
@@ -30,6 +31,7 @@ interface SidebarContainerProps {
   isUploading?: boolean;
   onUploadStatusChange?: (isUploading: boolean) => void;
   onOpenCaseExport?: () => void;
+  initialConfirmationSummary?: UserConfirmationSummaryDocument;
 }
 
 export const SidebarContainer: React.FC<SidebarContainerProps> = (props) => {

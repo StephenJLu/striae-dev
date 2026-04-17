@@ -10,7 +10,7 @@ import { ExportConfirmationsModal } from '~/components/navbar/case-modals/export
 import { Toolbar } from '~/components/toolbar/toolbar';
 import { Canvas } from '~/components/canvas/canvas';
 import { Toast, type ToastType } from '~/components/toast/toast';
-import { getImageUrl, fetchFiles, deleteFile } from '~/components/actions/image-manage';
+import { getImageUrl, deleteFile } from '~/components/actions/image-manage';
 import { getNotes, saveNotes } from '~/components/actions/notes-manage';
 import { generatePDF } from '~/components/actions/generate-pdf';
 import { exportConfirmationData } from '~/components/actions/confirm-export';
@@ -20,9 +20,9 @@ import { NotesEditorModal } from '~/components/sidebar/notes/notes-editor-modal'
 import { UserAuditViewer } from '~/components/audit/user-audit-viewer';
 import { fetchUserApi } from '~/utils/api';
 import { type AnnotationData, type FileData, type ExportOptions } from '~/types';
-import { validateCaseNumber, renameCase, deleteCase, checkExistingCase, createNewCase, archiveCase, getCaseArchiveDetails } from '~/components/actions/case-manage';
+import { validateCaseNumber, renameCase, deleteCase, checkExistingCase, createNewCase, archiveCase, deriveCaseArchiveDetails } from '~/components/actions/case-manage';
 import { checkReadOnlyCaseExists, deleteReadOnlyCase } from '~/components/actions/case-review';
-import { canCreateCase, getCaseConfirmationSummary } from '~/utils/data';
+import { canCreateCase, getCaseConfirmationSummary, getCaseData, getConfirmationSummaryDocument, type UserConfirmationSummaryDocument } from '~/utils/data';
 import {
   resolveEarliestAnnotationTimestamp,
   CREATE_READ_ONLY_CASE_EXISTS_ERROR,
@@ -64,6 +64,7 @@ export const Striae = ({ user }: StriaePage) => {
   const [isUploading, setIsUploading] = useState(false);
   const [isReadOnlyCase, setIsReadOnlyCase] = useState(false);
   const [isReviewOnlyCase, setIsReviewOnlyCase] = useState(false);
+  const [initialConfirmationSummary, setInitialConfirmationSummary] = useState<UserConfirmationSummaryDocument | undefined>(undefined);
 
   // Annotation states
   const [activeAnnotations, setActiveAnnotations] = useState<Set<string>>(new Set());
@@ -189,41 +190,96 @@ export const Striae = ({ user }: StriaePage) => {
     setImageId(undefined);    
   };
 
-  // Check if current case is read-only when case changes
+  const showNotification = (
+    message: string,
+    type: ToastType = 'success',
+    duration = 4000
+  ) => {
+    setToastType(type);
+    setToastMessage(message);
+    setToastDuration(duration);
+    setShowToast(true);
+  };
+
+  const closeToast = () => {
+    setShowToast(false);
+  };
+
+  // Tracks whether the current case load was triggered by loadCaseIntoWorkspace.
+  // A ref (not state) so it can be read inside the metadata effect without
+  // becoming a dependency that would re-trigger the fetch on status changes.
+  const loadInitiatedRef = useRef(false);
+
+  // On case change: load case data, read-only status, archive details, and
+  // pre-fetch the confirmation summary — all in a single parallel batch to
+  // avoid redundant round-trips to the user and data workers.
   useEffect(() => {
-    const checkReadOnlyStatus = async () => {
+    let isCancelled = false;
+
+    const loadCaseMetadata = async () => {
       if (!currentCase || !user?.uid) {
         setIsReadOnlyCase(false);
         setIsReviewOnlyCase(false);
+        setArchiveDetails({ archived: false });
+        setFiles([]);
+        setInitialConfirmationSummary(undefined);
+        setCaseLoadStatus('idle');
         return;
       }
 
       try {
         // Imported review cases are tracked in the user's read-only case list.
         // This includes archived ZIP imports and distinguishes them from manually archived regular cases.
-        const readOnlyCaseEntry = await checkReadOnlyCaseExists(user, currentCase);
-        const details = await getCaseArchiveDetails(user, currentCase);
+        // Individual .catch(() => null) guards prevent a single failing call from aborting the batch.
+        const [readOnlyCaseEntry, caseData, summaryDoc] = await Promise.all([
+          checkReadOnlyCaseExists(user, currentCase).catch(() => null),
+          getCaseData(user, currentCase, { skipValidation: true }).catch(() => null),
+          getConfirmationSummaryDocument(user).catch(() => null),
+        ]);
+
+        if (isCancelled) return;
+
         const reviewOnly = Boolean(readOnlyCaseEntry);
+        const details = deriveCaseArchiveDetails(caseData);
         setIsReviewOnlyCase(reviewOnly);
         setIsReadOnlyCase(reviewOnly || details.archived);
         setArchiveDetails(details);
+        setFiles(caseData?.files ?? []);
+        setInitialConfirmationSummary(summaryDoc ?? undefined);
+        // Only show toast for loads triggered via loadCaseIntoWorkspace.
+        // Direct setCurrentCase calls (e.g. case creation) handle their own notifications.
+        if (loadInitiatedRef.current) {
+          showNotification(`Case ${currentCase} loaded successfully.`, 'success');
+          loadInitiatedRef.current = false;
+        }
       } catch (error) {
-        console.error('Error checking read-only status:', error);
+        if (isCancelled) return;
+        console.error('Error loading case metadata:', error);
         setIsReadOnlyCase(false);
         setIsReviewOnlyCase(false);
         setArchiveDetails({ archived: false });
+        setFiles([]);
+        setInitialConfirmationSummary(undefined);
+        if (loadInitiatedRef.current) {
+          showNotification(`Failed to load case ${currentCase}. Please try again.`, 'error');
+          loadInitiatedRef.current = false;
+        }
       }
     };
 
-    checkReadOnlyStatus();
+    void loadCaseMetadata();
+    return () => {
+      isCancelled = true;
+    };
   }, [currentCase, user]);
 
-  // Disable box annotation mode when notes sidebar is opened
-  useEffect(() => {
-    if (showNotes && isBoxAnnotationMode) {
-      setIsBoxAnnotationMode(false);
-    }
-  }, [showNotes, isBoxAnnotationMode]);
+  // Derived early so downstream handlers (handleToolSelect) can reference them.
+  const hasLoadedImage = !!(selectedImage && selectedImage !== '/clear.jpg' && imageLoaded);
+  const isCurrentImageConfirmed = hasLoadedImage && !!annotationData?.confirmationData;
+  // Derive the effective notes open state — notes can only be open when an image is loaded.
+  const effectiveShowNotes = showNotes && hasLoadedImage;
+  // Box annotation mode is mutually exclusive with the notes panel being open.
+  const effectiveIsBoxAnnotationMode = isBoxAnnotationMode && !effectiveShowNotes;
 
   // Handler for toolbar annotation selection
   const handleToolSelect = (toolId: string, active: boolean) => {
@@ -240,7 +296,7 @@ export const Striae = ({ user }: StriaePage) => {
 
     // Handle box annotation mode (prevent when notes are open, read-only, or confirmed)
     if (toolId === 'box') {
-      setIsBoxAnnotationMode(active && !showNotes && !isReadOnlyCase && !annotationData?.confirmationData);
+      setIsBoxAnnotationMode(active && !effectiveShowNotes && !isReadOnlyCase && !annotationData?.confirmationData);
     }
   };
 
@@ -274,22 +330,6 @@ export const Striae = ({ user }: StriaePage) => {
       setShowToast,
       setToastDuration
     });
-  };
-
-  const showNotification = (
-    message: string,
-    type: ToastType = 'success',
-    duration = 4000
-  ) => {
-    setToastType(type);
-    setToastMessage(message);
-    setToastDuration(duration);
-    setShowToast(true);
-  };
-
-  // Close toast notification
-  const closeToast = () => {
-    setShowToast(false);
   };
 
   const handleExport = async (
@@ -572,11 +612,14 @@ export const Striae = ({ user }: StriaePage) => {
   };
 
   const loadCaseIntoWorkspace = async (caseToLoad: string) => {
+    if (caseToLoad === currentCase) {
+      showNotification(`Case ${caseToLoad} is already loaded.`, 'success');
+      return;
+    }
+    loadInitiatedRef.current = true;
     setCurrentCase(caseToLoad);
     setShowNotes(false);
-    const loadedFiles = await fetchFiles(user, caseToLoad, { skipValidation: true });
-    setFiles(loadedFiles);
-    showNotification(`Case ${caseToLoad} loaded successfully.`, 'success');
+    showNotification(`Loading case ${caseToLoad}...`, 'loading', 0);
   };
 
   const handleOpenCaseSubmit = async (nextCaseNumber: string) => {
@@ -742,15 +785,6 @@ export const Striae = ({ user }: StriaePage) => {
   }
 };
 
-  const hasLoadedImage = !!(selectedImage && selectedImage !== '/clear.jpg' && imageLoaded);
-  const isCurrentImageConfirmed = hasLoadedImage && !!annotationData?.confirmationData;
-
-  useEffect(() => {
-    if (showNotes && !hasLoadedImage) {
-      setShowNotes(false);
-    }
-  }, [showNotes, hasLoadedImage]);
-
   // Automatic save handler for annotation updates
   const handleAnnotationUpdate = async (data: AnnotationData) => {
     if (annotationData?.confirmationData) {
@@ -871,6 +905,7 @@ export const Striae = ({ user }: StriaePage) => {
           confirmationSaveVersion={confirmationSaveVersion}
           isUploading={isUploading}
           onUploadStatusChange={setIsUploading}
+          initialConfirmationSummary={initialConfirmationSummary}
         />
         <main className={styles.mainContent}>
         <div className={styles.canvasArea}>
@@ -896,7 +931,7 @@ export const Striae = ({ user }: StriaePage) => {
             error={error ?? ''}
             activeAnnotations={activeAnnotations}
             annotationData={annotationData}
-            isBoxAnnotationMode={isBoxAnnotationMode}
+            isBoxAnnotationMode={effectiveIsBoxAnnotationMode}
             boxAnnotationColor={boxAnnotationColor}
             onAnnotationUpdate={handleAnnotationUpdate}
             isReadOnly={isReadOnlyCase}
@@ -923,6 +958,7 @@ export const Striae = ({ user }: StriaePage) => {
         currentCase={currentCase || ''}
         user={user}
         confirmationSaveVersion={confirmationSaveVersion}
+        initialConfirmationSummary={initialConfirmationSummary}
       />
       <FilesModal
         isOpen={isFilesModalOpen}
@@ -936,9 +972,10 @@ export const Striae = ({ user }: StriaePage) => {
         isReadOnly={isReadOnlyCase}
         selectedFileId={imageId}
         confirmationSaveVersion={confirmationSaveVersion}
+        initialConfirmationSummary={initialConfirmationSummary}
       />
       <NotesEditorModal
-        isOpen={showNotes}
+        isOpen={effectiveShowNotes}
         onClose={() => setShowNotes(false)}
         currentCase={currentCase}
         user={user}

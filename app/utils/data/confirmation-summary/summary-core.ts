@@ -26,6 +26,12 @@ export interface UserConfirmationSummaryDocument {
 export interface ConfirmationSummaryEnsureOptions {
   forceRefresh?: boolean;
   maxAgeMs?: number;
+  /**
+   * Pre-fetched summary document to use instead of fetching from the data worker.
+   * Useful when the document has already been fetched in a parallel request, such as
+   * during initial case load, to avoid a redundant round-trip.
+   */
+  prefetchedSummary?: UserConfirmationSummaryDocument;
 }
 
 export interface ConfirmationSummaryTelemetry {
