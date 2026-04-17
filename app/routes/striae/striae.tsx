@@ -190,6 +190,26 @@ export const Striae = ({ user }: StriaePage) => {
     setImageId(undefined);    
   };
 
+  const showNotification = (
+    message: string,
+    type: ToastType = 'success',
+    duration = 4000
+  ) => {
+    setToastType(type);
+    setToastMessage(message);
+    setToastDuration(duration);
+    setShowToast(true);
+  };
+
+  const closeToast = () => {
+    setShowToast(false);
+  };
+
+  // Tracks whether the current case load was triggered by loadCaseIntoWorkspace.
+  // A ref (not state) so it can be read inside the metadata effect without
+  // becoming a dependency that would re-trigger the fetch on status changes.
+  const loadInitiatedRef = useRef(false);
+
   // On case change: load case data, read-only status, archive details, and
   // pre-fetch the confirmation summary — all in a single parallel batch to
   // avoid redundant round-trips to the user and data workers.
@@ -203,15 +223,17 @@ export const Striae = ({ user }: StriaePage) => {
         setArchiveDetails({ archived: false });
         setFiles([]);
         setInitialConfirmationSummary(undefined);
+        setCaseLoadStatus('idle');
         return;
       }
 
       try {
         // Imported review cases are tracked in the user's read-only case list.
         // This includes archived ZIP imports and distinguishes them from manually archived regular cases.
+        // Individual .catch(() => null) guards prevent a single failing call from aborting the batch.
         const [readOnlyCaseEntry, caseData, summaryDoc] = await Promise.all([
-          checkReadOnlyCaseExists(user, currentCase),
-          getCaseData(user, currentCase, { skipValidation: true }),
+          checkReadOnlyCaseExists(user, currentCase).catch(() => null),
+          getCaseData(user, currentCase, { skipValidation: true }).catch(() => null),
           getConfirmationSummaryDocument(user).catch(() => null),
         ]);
 
@@ -224,12 +246,24 @@ export const Striae = ({ user }: StriaePage) => {
         setArchiveDetails(details);
         setFiles(caseData?.files ?? []);
         setInitialConfirmationSummary(summaryDoc ?? undefined);
+        // Only show toast for loads triggered via loadCaseIntoWorkspace.
+        // Direct setCurrentCase calls (e.g. case creation) handle their own notifications.
+        if (loadInitiatedRef.current) {
+          showNotification(`Case ${currentCase} loaded successfully.`, 'success');
+          loadInitiatedRef.current = false;
+        }
       } catch (error) {
         if (isCancelled) return;
         console.error('Error loading case metadata:', error);
         setIsReadOnlyCase(false);
         setIsReviewOnlyCase(false);
         setArchiveDetails({ archived: false });
+        setFiles([]);
+        setInitialConfirmationSummary(undefined);
+        if (loadInitiatedRef.current) {
+          showNotification(`Failed to load case ${currentCase}. Please try again.`, 'error');
+          loadInitiatedRef.current = false;
+        }
       }
     };
 
@@ -239,8 +273,13 @@ export const Striae = ({ user }: StriaePage) => {
     };
   }, [currentCase, user]);
 
-  // Disable box annotation mode when notes sidebar is opened
-  // (effect removed — derived below alongside effectiveShowNotes)
+  // Derived early so downstream handlers (handleToolSelect) can reference them.
+  const hasLoadedImage = !!(selectedImage && selectedImage !== '/clear.jpg' && imageLoaded);
+  const isCurrentImageConfirmed = hasLoadedImage && !!annotationData?.confirmationData;
+  // Derive the effective notes open state — notes can only be open when an image is loaded.
+  const effectiveShowNotes = showNotes && hasLoadedImage;
+  // Box annotation mode is mutually exclusive with the notes panel being open.
+  const effectiveIsBoxAnnotationMode = isBoxAnnotationMode && !effectiveShowNotes;
 
   // Handler for toolbar annotation selection
   const handleToolSelect = (toolId: string, active: boolean) => {
@@ -257,7 +296,7 @@ export const Striae = ({ user }: StriaePage) => {
 
     // Handle box annotation mode (prevent when notes are open, read-only, or confirmed)
     if (toolId === 'box') {
-      setIsBoxAnnotationMode(active && !showNotes && !isReadOnlyCase && !annotationData?.confirmationData);
+      setIsBoxAnnotationMode(active && !effectiveShowNotes && !isReadOnlyCase && !annotationData?.confirmationData);
     }
   };
 
@@ -302,11 +341,6 @@ export const Striae = ({ user }: StriaePage) => {
     setToastMessage(message);
     setToastDuration(duration);
     setShowToast(true);
-  };
-
-  // Close toast notification
-  const closeToast = () => {
-    setShowToast(false);
   };
 
   const handleExport = async (
@@ -589,9 +623,10 @@ export const Striae = ({ user }: StriaePage) => {
   };
 
   const loadCaseIntoWorkspace = async (caseToLoad: string) => {
+    loadInitiatedRef.current = true;
     setCurrentCase(caseToLoad);
     setShowNotes(false);
-    showNotification(`Case ${caseToLoad} loaded successfully.`, 'success');
+    showNotification(`Loading case ${caseToLoad}...`, 'loading', 0);
   };
 
   const handleOpenCaseSubmit = async (nextCaseNumber: string) => {
@@ -756,15 +791,6 @@ export const Striae = ({ user }: StriaePage) => {
     setSelectedFilename(undefined);
   }
 };
-
-  const hasLoadedImage = !!(selectedImage && selectedImage !== '/clear.jpg' && imageLoaded);
-  const isCurrentImageConfirmed = hasLoadedImage && !!annotationData?.confirmationData;
-  // Derive the effective notes open state — notes can only be open when an image is loaded.
-  // This avoids a synchronous setState-in-effect to auto-close them.
-  const effectiveShowNotes = showNotes && hasLoadedImage;
-  // Box annotation mode is mutually exclusive with the notes panel being open.
-  // Derived here so handleToolSelect already guards the setter with !showNotes.
-  const effectiveIsBoxAnnotationMode = isBoxAnnotationMode && !effectiveShowNotes;
 
   // Automatic save handler for annotation updates
   const handleAnnotationUpdate = async (data: AnnotationData) => {

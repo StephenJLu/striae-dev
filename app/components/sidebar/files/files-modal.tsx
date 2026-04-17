@@ -193,7 +193,7 @@ export const FilesModal = ({
 
       const caseSummary = await ensureCaseConfirmationSummary(user, currentCase, files, {
         forceRefresh: shouldForceItemTypeSummaryRefresh,
-        prefetchedSummary: initialConfirmationSummary,
+        prefetchedSummary: confirmationSaveVersion === 0 ? initialConfirmationSummary : undefined,
       }).catch((err) => {
         console.error(`Error fetching confirmation summary for case ${currentCase}:`, err);
         return null;

@@ -142,7 +142,12 @@ export const CaseSidebar = ({
         return;
       }
 
-      const caseSummary = await ensureCaseConfirmationSummary(user, currentCase, files, { prefetchedSummary: initialConfirmationSummary }).catch((error) => {
+      const caseSummary = await ensureCaseConfirmationSummary(
+        user,
+        currentCase,
+        files,
+        confirmationSaveVersion === 0 ? { prefetchedSummary: initialConfirmationSummary } : undefined
+      ).catch((error) => {
         console.error(`Error fetching confirmation summary for case ${currentCase}:`, error);
         return null;
       });
@@ -167,7 +172,7 @@ export const CaseSidebar = ({
     return () => {
       isCancelled = true;
     };
-  }, [currentCase, fileIdsKey, user, files, initialConfirmationSummary]);
+  }, [currentCase, fileIdsKey, user, files, initialConfirmationSummary, confirmationSaveVersion]);
 
   // Refresh only selected file confirmation status after confirmation-related data is persisted
   useEffect(() => {

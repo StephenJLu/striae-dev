@@ -164,6 +164,7 @@ export const createUser = async (
       throw new Error(`Failed to create user data: ${response.status} ${response.statusText}`);
     }
 
+    invalidateUserDataCache(user.uid);
     return userData;
   } catch (error) {
     console.error('Error creating user data:', error);
