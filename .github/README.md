@@ -22,6 +22,13 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-04-17] - *[Patch Release v6.1.4](https://github.com/striae-org/striae/releases/tag/v6.1.4)*
+
+- **⚡ Case Loading State Efficiency** - Refactored case loading state management across the case route, sidebar, and sidebar container to reduce redundant fetches, with added permission-evaluation guards and a case-already-loaded short-circuit to avoid unnecessary re-fetches.
+- **⚡ Cases and Files Modal Efficiency** - Improved the all-cases modal and files modal to reduce unnecessary re-renders and redundant data operations during case-switching flows.
+- **🔒 Security Maintenance** - Bumped `protobufjs` package to resolve a known vulnerability in transitive dependency chains.
+- **⚙️ Release-Window Maintenance** - Included compatibility-date refreshes across all workers and code-review follow-up commits completed since v6.1.3.
+
 ## [2026-04-16] - *[Patch Release v6.1.3](https://github.com/striae-org/striae/releases/tag/v6.1.3)*
 
 - **🐛 Confirmation-Status Cleanup Fix** - Fixed confirmation-status cleanup behavior for read-only case deletion scenarios to prevent stale status artifacts when read-only cases are removed.
