@@ -45,13 +45,15 @@ export const MFAVerification = ({ resolver, onSuccess, onError, onCancel }: MFAV
   }, []);
 
   useEffect(() => {
+    if (!isClient) return;
+
     // Only initialize reCAPTCHA if there is at least one phone hint
     const hasPhoneHint = resolver.hints.some(
       (h) => h.factorId === PhoneMultiFactorGenerator.FACTOR_ID
     );
     if (!hasPhoneHint) return;
-    
-    // Initialize reCAPTCHA verifier
+
+    // Initialize reCAPTCHA verifier only after the container element is in the DOM
     const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
       size: 'invisible',
       callback: () => {
@@ -67,8 +69,9 @@ export const MFAVerification = ({ resolver, onSuccess, onError, onCancel }: MFAV
 
     return () => {
       verifier.clear();
+      recaptchaVerifierRef.current = null;
     };
-  }, [onError, resolver.hints]);
+  }, [isClient, onError, resolver.hints]);
 
   const sendVerificationCode = async () => {
     const captchaVerifier = recaptchaVerifierRef.current;

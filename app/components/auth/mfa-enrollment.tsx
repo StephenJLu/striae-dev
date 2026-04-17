@@ -45,7 +45,9 @@ export const MFAEnrollment: React.FC<MFAEnrollmentProps> = ({
   }, []);
 
   useEffect(() => {
-    // Initialize reCAPTCHA verifier
+    if (!isClient) return;
+
+    // Initialize reCAPTCHA verifier only after the container element is in the DOM
     const verifier = new RecaptchaVerifier(auth, 'recaptcha-container-enrollment', {
       size: 'invisible',
       callback: () => {
@@ -61,8 +63,9 @@ export const MFAEnrollment: React.FC<MFAEnrollmentProps> = ({
 
     return () => {
       verifier.clear();
+      recaptchaVerifierRef.current = null;
     };
-  }, [onError]);
+  }, [isClient, onError]);
 
   useEffect(() => {
     if (resendTimer > 0) {
