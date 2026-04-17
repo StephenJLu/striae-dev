@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { auth } from '~/services/firebase';
 import {
   PhoneAuthProvider,
@@ -34,7 +34,7 @@ export const MFAEnrollment: React.FC<MFAEnrollmentProps> = ({
   const [verificationCode, setVerificationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
-  const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
+  const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
   const [verificationId, setVerificationId] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
   const [isClient, setIsClient] = useState(false);
@@ -45,8 +45,6 @@ export const MFAEnrollment: React.FC<MFAEnrollmentProps> = ({
   }, []);
 
   useEffect(() => {
-    if (!isClient) return;
-    
     // Initialize reCAPTCHA verifier
     const verifier = new RecaptchaVerifier(auth, 'recaptcha-container-enrollment', {
       size: 'invisible',
@@ -59,12 +57,12 @@ export const MFAEnrollment: React.FC<MFAEnrollmentProps> = ({
         onError(error);
       }
     });
-    setRecaptchaVerifier(verifier);
+    recaptchaVerifierRef.current = verifier;
 
     return () => {
       verifier.clear();
     };
-  }, [onError, isClient]);
+  }, [onError]);
 
   useEffect(() => {
     if (resendTimer > 0) {
@@ -129,7 +127,8 @@ export const MFAEnrollment: React.FC<MFAEnrollmentProps> = ({
       return;
     }
 
-    if (!recaptchaVerifier) {
+    const captchaVerifier = recaptchaVerifierRef.current;
+    if (!captchaVerifier) {
       const error = getValidationError('MFA_RECAPTCHA_ERROR');
       setErrorMessage(error);
       onError(error);
@@ -151,7 +150,7 @@ export const MFAEnrollment: React.FC<MFAEnrollmentProps> = ({
       const phoneAuthProvider = new PhoneAuthProvider(auth);
       const verificationId = await phoneAuthProvider.verifyPhoneNumber(
         phoneInfoOptions,
-        recaptchaVerifier
+        captchaVerifier
       );
 
       setVerificationId(verificationId);
