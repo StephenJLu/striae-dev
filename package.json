@@ -132,7 +132,7 @@
     "wrangler": "^4.83.0"
   },
   "overrides": {
-    "@tootallnate/once": "3.0.1"
+    "@tootallnate/once": "3.0.1"    
   },
   "engines": {
     "node": ">=20.19.0"
