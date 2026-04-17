@@ -332,17 +332,6 @@ export const Striae = ({ user }: StriaePage) => {
     });
   };
 
-  const showNotification = (
-    message: string,
-    type: ToastType = 'success',
-    duration = 4000
-  ) => {
-    setToastType(type);
-    setToastMessage(message);
-    setToastDuration(duration);
-    setShowToast(true);
-  };
-
   const handleExport = async (
     exportCaseNumber: string,
     designatedReviewerEmail?: string,
