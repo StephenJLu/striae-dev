@@ -24,6 +24,7 @@ import {
   getConfirmationSummaryDocument,
   getUserCases,
   getUserReadOnlyCases,
+  type UserConfirmationSummaryDocument,
 } from '~/utils/data';
 import { fetchFiles } from '~/components/actions/image-manage';
 import styles from './all-cases-modal.module.css';
@@ -35,6 +36,7 @@ interface CasesModalProps {
   currentCase: string;
   user: User;
   confirmationSaveVersion?: number;
+  initialConfirmationSummary?: UserConfirmationSummaryDocument;
 }
 
 interface CaseConfirmationStatus {
@@ -64,7 +66,8 @@ export const CasesModal = ({
   onSelectCase,
   currentCase,
   user,
-  confirmationSaveVersion = 0
+  confirmationSaveVersion = 0,
+  initialConfirmationSummary,
 }: CasesModalProps) => {
   const [allCases, setAllCases] = useState<CasesModalCaseItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -96,73 +99,74 @@ export const CasesModal = ({
   });
   const [caseConfirmationStatus, setCaseConfirmationStatus] = useState<CaseConfirmationStatus>({});
   const caseConfirmationStatusRef = useRef<CaseConfirmationStatus>({});
-
-  const loadCases = useCallback(async () => {
-    try {
-      const [ownedCases, readOnlyCases] = await Promise.all([
-        getUserCases(user),
-        getUserReadOnlyCases(user),
-      ]);
-
-      const ownedCaseEntries = await Promise.all(
-        ownedCases.map(async (entry) => {
-          const caseData = await getCaseData(user, entry.caseNumber).catch(() => null);
-
-          return {
-            caseNumber: entry.caseNumber,
-            createdAt: entry.createdAt,
-            archived: caseData?.archived === true,
-            isReadOnly: false,
-          } as CasesModalCaseItem;
-        })
-      );
-
-      const readOnlyEntries: CasesModalCaseItem[] = readOnlyCases.map((entry) => ({
-        caseNumber: entry.caseNumber,
-        createdAt: entry.importedAt,
-        archived: false,
-        isReadOnly: true,
-      }));
-
-      const mergedCasesMap = new Map<string, CasesModalCaseItem>();
-      [...ownedCaseEntries, ...readOnlyEntries].forEach((entry) => {
-        if (!mergedCasesMap.has(entry.caseNumber)) {
-          mergedCasesMap.set(entry.caseNumber, entry);
-        }
-      });
-
-      setAllCases(Array.from(mergedCasesMap.values()));
-      setSelectedCaseNumber((previous) => previous ?? (currentCase || null));
-    } catch (err) {
-      console.error('Failed to load cases:', err);
-      setError('Failed to load cases');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, currentCase]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     caseConfirmationStatusRef.current = caseConfirmationStatus;
   }, [caseConfirmationStatus]);
 
-  const startLoading = () => {
-    setIsLoading(true);
-    setError('');
-  };
-
   useEffect(() => {
-    if (isOpen) {
-      const loadingTimer = window.setTimeout(() => {
-        startLoading();
-      }, 0);
+    if (!isOpen) return;
 
-      void loadCases();
+    let isCancelled = false;
 
-      return () => {
-        window.clearTimeout(loadingTimer);
-      };
-    }
-  }, [isOpen, loadCases]);
+    const load = async () => {
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const [ownedCases, readOnlyCases] = await Promise.all([
+          getUserCases(user),
+          getUserReadOnlyCases(user),
+        ]);
+
+        const ownedCaseEntries = await Promise.all(
+          ownedCases.map(async (entry) => {
+            const caseData = await getCaseData(user, entry.caseNumber).catch(() => null);
+
+            return {
+              caseNumber: entry.caseNumber,
+              createdAt: entry.createdAt,
+              archived: caseData?.archived === true,
+              isReadOnly: false,
+            } as CasesModalCaseItem;
+          })
+        );
+
+        const readOnlyEntries: CasesModalCaseItem[] = readOnlyCases.map((entry) => ({
+          caseNumber: entry.caseNumber,
+          createdAt: entry.importedAt,
+          archived: false,
+          isReadOnly: true,
+        }));
+
+        const mergedCasesMap = new Map<string, CasesModalCaseItem>();
+        [...ownedCaseEntries, ...readOnlyEntries].forEach((entry) => {
+          if (!mergedCasesMap.has(entry.caseNumber)) {
+            mergedCasesMap.set(entry.caseNumber, entry);
+          }
+        });
+
+        if (!isCancelled) {
+          setAllCases(Array.from(mergedCasesMap.values()));
+          setSelectedCaseNumber((previous) => previous ?? (currentCase || null));
+          setIsLoading(false);
+        }
+      } catch (err) {
+        console.error('Failed to load cases:', err);
+        if (!isCancelled) {
+          setError('Failed to load cases');
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void load();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen, user, currentCase, refreshKey]);
 
   const archiveScopedCases = useMemo(() => {
     if (preferences.showArchivedOnly) {
@@ -191,16 +195,11 @@ export const CasesModal = ({
   );
 
   const totalPages = Math.max(1, Math.ceil(visibleCases.length / CASES_PER_PAGE));
-
-  useEffect(() => {
-    if (currentPage > totalPages - 1) {
-      setCurrentPage(totalPages - 1);
-    }
-  }, [currentPage, totalPages]);
+  const effectiveCurrentPage = Math.min(currentPage, totalPages - 1);
 
   const paginatedCases = visibleCases.slice(
-    currentPage * CASES_PER_PAGE,
-    (currentPage + 1) * CASES_PER_PAGE
+    effectiveCurrentPage * CASES_PER_PAGE,
+    (effectiveCurrentPage + 1) * CASES_PER_PAGE
   );
 
   const hasCustomPreferences =
@@ -212,6 +211,9 @@ export const CasesModal = ({
     () => allCases.find((entry) => entry.caseNumber === selectedCaseNumber) ?? null,
     [allCases, selectedCaseNumber]
   );
+
+  // Derived from the memo — naturally null when the selected case no longer exists in allCases.
+  const effectiveSelectedCaseNumber = selectedCase?.caseNumber ?? null;
 
   const canRenameSelectedCase = Boolean(
     selectedCase && !selectedCase.archived && !selectedCase.isReadOnly
@@ -233,31 +235,7 @@ export const CasesModal = ({
         ? 'Read-only review cases cannot be deleted. Use Clear RO Case under Case Management first.'
         : undefined;
 
-  useEffect(() => {
-    setCurrentPage(0);
-  }, [preferences.sortBy, preferences.confirmationFilter, preferences.showArchivedOnly]);
-
-  useEffect(() => {
-    if (paginatedCases.length === 0) {
-      setFocusedIndex(0);
-      return;
-    }
-
-    if (focusedIndex > paginatedCases.length - 1) {
-      setFocusedIndex(paginatedCases.length - 1);
-    }
-  }, [paginatedCases, focusedIndex]);
-
-  useEffect(() => {
-    if (!selectedCaseNumber) {
-      return;
-    }
-
-    const exists = allCases.some((entry) => entry.caseNumber === selectedCaseNumber);
-    if (!exists) {
-      setSelectedCaseNumber(null);
-    }
-  }, [allCases, selectedCaseNumber]);
+  const effectiveFocusedIndex = paginatedCases.length === 0 ? 0 : Math.min(focusedIndex, paginatedCases.length - 1);
 
   const hydrateCaseConfirmationStatuses = useCallback(async (caseNumbers: string[]) => {
     const missingCaseNumbers = caseNumbers.filter(
@@ -313,10 +291,16 @@ export const CasesModal = ({
         return;
       }
 
-      const summary = await getConfirmationSummaryDocument(user).catch((err) => {
-        console.error('Failed to load confirmation summary:', err);
-        return null;
-      });
+      // Use the pre-fetched summary if available and no confirmation saves have
+      // been made since case load (confirmationSaveVersion === 0). When saves
+      // have occurred the summary may be stale, so re-fetch from the data worker.
+      const summary =
+        initialConfirmationSummary && confirmationSaveVersion === 0
+          ? initialConfirmationSummary
+          : await getConfirmationSummaryDocument(user).catch((err) => {
+              console.error('Failed to load confirmation summary:', err);
+              return null;
+            });
 
       if (!summary || isCancelled) {
         return;
@@ -338,7 +322,7 @@ export const CasesModal = ({
     return () => {
       isCancelled = true;
     };
-  }, [isOpen, user, confirmationSaveVersion]);
+  }, [isOpen, user, confirmationSaveVersion, initialConfirmationSummary]);
 
   useEffect(() => {
     if (!isOpen || paginatedCases.length === 0) {
@@ -367,11 +351,11 @@ export const CasesModal = ({
   };
 
   const handleOpenSelectedCase = () => {
-    if (!selectedCaseNumber) {
+    if (!effectiveSelectedCaseNumber) {
       return;
     }
 
-    onSelectCase(selectedCaseNumber);
+    onSelectCase(effectiveSelectedCaseNumber);
     requestClose();
   };
 
@@ -419,7 +403,6 @@ export const CasesModal = ({
 
     try {
       await renameCase(user, selectedCase.caseNumber, nextCaseNumber);
-      await loadCases();
       setSelectedCaseNumber(nextCaseNumber);
       setIsRenameModalOpen(false);
 
@@ -427,6 +410,7 @@ export const CasesModal = ({
         onSelectCase(nextCaseNumber);
       }
 
+      setRefreshKey((k) => k + 1);
       setActionNotice({
         type: 'success',
         message: `Case renamed to ${nextCaseNumber}.`,
@@ -468,13 +452,13 @@ export const CasesModal = ({
 
     try {
       await archiveCase(user, selectedCase.caseNumber, archiveReason);
-      await loadCases();
       setIsArchiveModalOpen(false);
 
       if (selectedCase.caseNumber === currentCase) {
         onSelectCase(selectedCase.caseNumber);
       }
 
+      setRefreshKey((k) => k + 1);
       setActionNotice({
         type: 'success',
         message: 'Case archived successfully.',
@@ -523,9 +507,9 @@ export const CasesModal = ({
 
     try {
       const deleteResult = await deleteCase(user, selectedCase.caseNumber);
-      await loadCases();
       setSelectedCaseNumber(null);
       setIsDeleteModalOpen(false);
+      setRefreshKey((k) => k + 1);
 
       if (deleteResult.missingImages.length > 0) {
         setActionNotice({
@@ -693,7 +677,7 @@ export const CasesModal = ({
                   {paginatedCases.map((caseEntry, index) => {
                     const caseNum = caseEntry.caseNumber;
                     const confirmationStatus = caseConfirmationStatus[caseNum] || DEFAULT_CONFIRMATION_STATUS;
-                    const isSelected = selectedCaseNumber === caseNum;
+                    const isSelected = effectiveSelectedCaseNumber === caseNum;
                     const confirmationLabel = confirmationStatus.includeConfirmation
                       ? confirmationStatus.isConfirmed
                         ? 'Confirmed'
@@ -716,7 +700,7 @@ export const CasesModal = ({
                           }}
                           role="option"
                           aria-selected={isSelected}
-                          tabIndex={focusedIndex === index ? 0 : -1}
+                          tabIndex={effectiveFocusedIndex === index ? 0 : -1}
                           className={`${styles.caseItem} ${isSelected ? styles.active : ''}`}
                           onClick={() => handleSelectCase(caseNum, index)}
                           onFocus={() => setFocusedIndex(index)}
@@ -806,7 +790,7 @@ export const CasesModal = ({
             type="button"
             className={styles.openSelectedButton}
             onClick={handleOpenSelectedCase}
-            disabled={!selectedCaseNumber || isRunningAction}
+            disabled={!effectiveSelectedCaseNumber || isRunningAction}
           >
             {isRunningAction ? 'Working...' : 'Open Selected Case'}
           </button>
@@ -815,14 +799,14 @@ export const CasesModal = ({
             <div className={styles.pagination}>
               <button
                 onClick={() => setCurrentPage(p => p - 1)}
-                disabled={currentPage === 0}
+                disabled={effectiveCurrentPage === 0}
               >
                 Previous
               </button>
-              <span>{currentPage + 1} of {totalPages} ({visibleCases.length} filtered cases)</span>
+              <span>{effectiveCurrentPage + 1} of {totalPages} ({visibleCases.length} filtered cases)</span>
               <button
                 onClick={() => setCurrentPage(p => p + 1)}
-                disabled={currentPage === totalPages - 1}
+                disabled={effectiveCurrentPage === totalPages - 1}
               >
                 Next
               </button>

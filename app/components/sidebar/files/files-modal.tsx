@@ -16,6 +16,7 @@ import { deleteFile } from '~/components/actions/image-manage';
 import {
   ensureCaseConfirmationSummary,
   type FileConfirmationSummary,
+  type UserConfirmationSummaryDocument,
 } from '~/utils/data';
 import { type FileData } from '~/types';
 import { DeleteFilesModal } from './delete-files-modal';
@@ -31,6 +32,7 @@ interface FilesModalProps {
   isReadOnly?: boolean;
   selectedFileId?: string;
   confirmationSaveVersion?: number;
+  initialConfirmationSummary?: UserConfirmationSummaryDocument;
 }
 
 interface ActionNotice {
@@ -99,6 +101,7 @@ export const FilesModal = ({
   isReadOnly = false,
   selectedFileId,
   confirmationSaveVersion = 0,
+  initialConfirmationSummary,
 }: FilesModalProps) => {
   const { user } = useContext(AuthContext);
   const [currentPage, setCurrentPage] = useState(0);
@@ -190,6 +193,7 @@ export const FilesModal = ({
 
       const caseSummary = await ensureCaseConfirmationSummary(user, currentCase, files, {
         forceRefresh: shouldForceItemTypeSummaryRefresh,
+        prefetchedSummary: initialConfirmationSummary,
       }).catch((err) => {
         console.error(`Error fetching confirmation summary for case ${currentCase}:`, err);
         return null;
@@ -214,6 +218,7 @@ export const FilesModal = ({
     user,
     confirmationSaveVersion,
     shouldForceItemTypeSummaryRefresh,
+    initialConfirmationSummary,
   ]);
 
   const toggleDeleteSelection = (fileId: string) => {

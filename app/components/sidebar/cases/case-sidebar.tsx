@@ -295,6 +295,7 @@ return (
         isReadOnly={isReadOnly}
         selectedFileId={selectedFileId}
         confirmationSaveVersion={confirmationSaveVersion}
+        initialConfirmationSummary={initialConfirmationSummary}
       />
       
         <div className={styles.filesSection}>

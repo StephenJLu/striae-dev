@@ -939,6 +939,7 @@ export const Striae = ({ user }: StriaePage) => {
         currentCase={currentCase || ''}
         user={user}
         confirmationSaveVersion={confirmationSaveVersion}
+        initialConfirmationSummary={initialConfirmationSummary}
       />
       <FilesModal
         isOpen={isFilesModalOpen}
@@ -952,6 +953,7 @@ export const Striae = ({ user }: StriaePage) => {
         isReadOnly={isReadOnlyCase}
         selectedFileId={imageId}
         confirmationSaveVersion={confirmationSaveVersion}
+        initialConfirmationSummary={initialConfirmationSummary}
       />
       <NotesEditorModal
         isOpen={effectiveShowNotes}
