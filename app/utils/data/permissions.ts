@@ -36,21 +36,43 @@ export interface NotesViewPermission {
   reason?: string;         // Reason if notes cannot be opened
 }
 
+const USER_DATA_CACHE_TTL_MS = 30_000;
+
+interface UserDataCacheEntry {
+  data: UserData | null;
+  expiresAt: number;
+}
+
+const userDataCache = new Map<string, UserDataCacheEntry>();
+
+function invalidateUserDataCache(uid: string): void {
+  userDataCache.delete(uid);
+}
+
 /**
- * Get user data from KV store
+ * Get user data from KV store, with a 30-second in-memory cache to avoid
+ * redundant round-trips across the many callers within a single case-load sequence.
  */
 export const getUserData = async (user: User): Promise<UserData | null> => {
+  const cached = userDataCache.get(user.uid);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.data;
+  }
+
   try {
     const response = await fetchUserApi(user, `/${encodeURIComponent(user.uid)}`, {
       method: 'GET',
     });
 
     if (response.ok) {
-      return await response.json() as UserData;
+      const data = await response.json() as UserData;
+      userDataCache.set(user.uid, { data, expiresAt: Date.now() + USER_DATA_CACHE_TTL_MS });
+      return data;
     }
     
     if (response.status === 404) {
-      return null; // User not found
+      userDataCache.set(user.uid, { data: null, expiresAt: Date.now() + USER_DATA_CACHE_TTL_MS });
+      return null;
     }
 
     const responseBody = await response.text().catch(() => '');
@@ -300,7 +322,9 @@ export const updateUserData = async (user: User, updates: Partial<UserData>): Pr
       throw new Error(`Failed to update user data: ${response.status} - ${errorText}`);
     }
 
-    return await response.json() as UserData;
+    const result = await response.json() as UserData;
+    invalidateUserDataCache(user.uid);
+    return result;
     
   } catch (error) {
     console.error('Error updating user data:', error);

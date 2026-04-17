@@ -29,6 +29,23 @@ import { type CaseArchiveDetails, type DeleteCaseResult } from './types';
 export type { DeleteCaseResult, CaseArchiveDetails };
 export { validateCaseNumber };
 
+/**
+ * Derive archive details from already-fetched case data without making an additional
+ * network request. Use this when CaseData is already available to avoid a redundant fetch.
+ */
+export const deriveCaseArchiveDetails = (caseData: CaseData | null): CaseArchiveDetails => {
+  if (!caseData || !caseData.archived) {
+    return { archived: false };
+  }
+  return {
+    archived: true,
+    archivedAt: caseData.archivedAt,
+    archivedBy: caseData.archivedBy,
+    archivedByDisplay: caseData.archivedByDisplay,
+    archiveReason: caseData.archiveReason,
+  };
+};
+
 export const listCases = async (user: User): Promise<string[]> => {
   try {
     // Use centralized function to get user cases
