@@ -2,6 +2,7 @@ import type { User } from 'firebase/auth';
 import { fetchDataApi } from '~/utils/api';
 import {
   getUserReadOnlyCases,
+  removeCaseConfirmationSummary,
   updateUserData,
   validateUserSession
 } from '~/utils/data';
@@ -206,6 +207,14 @@ export async function deleteReadOnlyCase(user: User, caseNumber: string): Promis
     );
   };
 
+  const removeConfirmationSummary = async (): Promise<void> => {
+    try {
+      await removeCaseConfirmationSummary(user, caseNumber);
+    } catch (summaryError) {
+      console.warn(`Failed to remove confirmation summary for case ${caseNumber}:`, summaryError);
+    }
+  };
+
   let caseDataDeleteHadFailure = false;
 
   try {
@@ -219,8 +228,26 @@ export async function deleteReadOnlyCase(user: User, caseNumber: string): Promis
     );
 
     if (caseResponse.status === 404) {
-      // No backing data object exists; only remove the case reference from user metadata.
-      await removeReadOnlyCase(user, caseNumber);
+      // No backing data object exists.
+      // Treat this as successful idempotent cleanup even if metadata was already removed.
+      try {
+        const removedFromMetadata = await removeReadOnlyCase(user, caseNumber);
+
+        if (!removedFromMetadata) {
+          console.info(
+            `Read-only case ${caseNumber} metadata was already absent during 404 cleanup.`
+          );
+        }
+      } catch (removeMetadataError) {
+        console.warn(
+          `Failed metadata cleanup for read-only case ${caseNumber} during 404 cleanup:`,
+          removeMetadataError
+        );
+      }
+
+      // Safe/idempotent cleanup; run regardless of metadata state.
+      await removeConfirmationSummary();
+
       return true;
     }
 
@@ -296,6 +323,8 @@ export async function deleteReadOnlyCase(user: User, caseNumber: string): Promis
       return false;
     }
 
+    await removeConfirmationSummary();
+
     if (caseDataDeleteHadFailure) {
       console.warn(
         `Read-only case ${caseNumber} removed from metadata with partial storage cleanup failures.`
@@ -311,6 +340,7 @@ export async function deleteReadOnlyCase(user: User, caseNumber: string): Promis
     try {
       const removedFromMetadata = await removeReadOnlyCase(user, caseNumber);
       if (removedFromMetadata) {
+        await removeConfirmationSummary();
         console.warn(
           `Read-only case ${caseNumber} removed from metadata during error fallback. ` +
           'Some backing storage may require manual cleanup.'
