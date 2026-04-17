@@ -1,4 +1,4 @@
-# Striae Release Notes - v6.1.1-v6.1.2
+# Striae Release Notes - v6.1.2
 
 **Release Date**: April 15, 2026
 **Period**: April 14, 2026 through April 15, 2026
@@ -8,7 +8,7 @@
 
 ## Summary
 
-v6.1.1-v6.1.2 is a patch release focused on centralizing notes editing permission enforcement, reducing annotation-model duplication through shared literals, and carrying forward dependency, Wrangler, compatibility-date, and review-driven maintenance completed since April 14, 2026.
+v6.1.2 is a patch release focused on centralizing notes editing permission enforcement, reducing annotation-model duplication through shared literals, and carrying forward dependency, Wrangler, compatibility-date, and review-driven maintenance completed since April 14, 2026.
 
 ## Detailed Changes
 
@@ -42,4 +42,4 @@ v6.1.1-v6.1.2 is a patch release focused on centralizing notes editing permissio
 
 ## Closing Note
 
-v6.1.1-v6.1.2 tightens notes-permission enforcement and annotation literal consistency while packaging the expected dependency and tooling maintenance from the post-v6.1.0 stabilization window.
+v6.1.2 tightens notes-permission enforcement and annotation literal consistency while packaging the expected dependency and tooling maintenance from the post-v6.1.0 stabilization window.

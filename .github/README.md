@@ -22,7 +22,12 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
-## [2026-04-15] - *[Patch Release v6.1.1-v6.1.2](https://github.com/striae-org/striae/releases/tag/v6.1.2)*
+## [2026-04-16] - *[Patch Release v6.1.3](https://github.com/striae-org/striae/releases/tag/v6.1.3)*
+
+- **🐛 Confirmation-Status Cleanup Fix** - Fixed confirmation-status cleanup behavior for read-only case deletion scenarios to prevent stale status artifacts when read-only cases are removed.
+- **⚙️ Release-Window Maintenance** - Included isbot and eslint-plugin-react-hooks bumps, Wrangler updates, compatibility-date refreshes, and code-review follow-up commits completed since v6.1.2.
+
+## [2026-04-15] - *[Patch Release v6.1.2](https://github.com/striae-org/striae/releases/tag/v6.1.2)*
 
 - **🔐 Notes Editing Permission Centralization** - Centralized notes editing permission enforcement and refactored the related notes-editing paths for more consistent write-access validation.
 - **🧩 Shared Annotation Literals Cleanup** - Added shared annotation literals to reduce duplicated annotation-model constants and align annotation handling.
