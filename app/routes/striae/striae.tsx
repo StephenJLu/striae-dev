@@ -612,6 +612,10 @@ export const Striae = ({ user }: StriaePage) => {
   };
 
   const loadCaseIntoWorkspace = async (caseToLoad: string) => {
+    if (caseToLoad === currentCase) {
+      showNotification(`Case ${caseToLoad} is already loaded.`, 'success');
+      return;
+    }
     loadInitiatedRef.current = true;
     setCurrentCase(caseToLoad);
     setShowNotes(false);
