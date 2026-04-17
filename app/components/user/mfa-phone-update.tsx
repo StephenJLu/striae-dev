@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   EmailAuthProvider,
   getMultiFactorResolver,
@@ -56,7 +56,7 @@ export const MfaPhoneUpdateSection = ({
   const [mfaReauthVerificationCode, setMfaReauthVerificationCode] = useState('');
   const [isMfaReauthCodeSent, setIsMfaReauthCodeSent] = useState(false);
   const [isMfaReauthLoading, setIsMfaReauthLoading] = useState(false);
-  const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
+  const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
 
   const isMfaBusy = isMfaLoading || isMfaReauthLoading;
   const hasMfaPhoneInput = mfaPhoneInput.trim().length > 0;
@@ -125,7 +125,8 @@ export const MfaPhoneUpdateSection = ({
       return;
     }
 
-    if (!recaptchaVerifier) {
+    const captchaVerifier = recaptchaVerifierRef.current;
+    if (!captchaVerifier) {
       setMfaError(getValidationError('MFA_RECAPTCHA_ERROR'));
       setMfaSuccess('');
       return;
@@ -144,7 +145,7 @@ export const MfaPhoneUpdateSection = ({
       };
 
       const phoneAuthProvider = new PhoneAuthProvider(auth);
-      const verificationId = await phoneAuthProvider.verifyPhoneNumber(phoneInfoOptions, recaptchaVerifier);
+      const verificationId = await phoneAuthProvider.verifyPhoneNumber(phoneInfoOptions, captchaVerifier);
 
       setMfaVerificationId(verificationId);
       setIsMfaCodeSent(true);
@@ -208,7 +209,7 @@ export const MfaPhoneUpdateSection = ({
       const { message, data } = handleAuthError(err);
 
       if (data?.code === 'auth/multi-factor-auth-required') {
-        if (!recaptchaVerifier) {
+        if (!recaptchaVerifierRef.current) {
           setMfaSuccess('');
           setMfaError(getValidationError('MFA_RECAPTCHA_ERROR'));
           return;
@@ -249,7 +250,8 @@ export const MfaPhoneUpdateSection = ({
       return;
     }
 
-    if (!recaptchaVerifier) {
+    const captchaVerifier = recaptchaVerifierRef.current;
+    if (!captchaVerifier) {
       setMfaSuccess('');
       setMfaError(getValidationError('MFA_RECAPTCHA_ERROR'));
       return;
@@ -266,7 +268,7 @@ export const MfaPhoneUpdateSection = ({
         session: mfaReauthResolver.session,
       };
 
-      const verificationId = await phoneAuthProvider.verifyPhoneNumber(phoneInfoOptions, recaptchaVerifier);
+      const verificationId = await phoneAuthProvider.verifyPhoneNumber(phoneInfoOptions, captchaVerifier);
       setMfaReauthVerificationId(verificationId);
       setMfaReauthVerificationCode('');
       setIsMfaReauthCodeSent(true);
@@ -502,11 +504,11 @@ export const MfaPhoneUpdateSection = ({
       },
     });
 
-    setRecaptchaVerifier(verifier);
+    recaptchaVerifierRef.current = verifier;
 
     return () => {
       verifier.clear();
-      setRecaptchaVerifier(null);
+      recaptchaVerifierRef.current = null;
     };
   }, [isOpen, user]);
 

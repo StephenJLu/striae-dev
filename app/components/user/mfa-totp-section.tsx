@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   EmailAuthProvider,
   getMultiFactorResolver,
@@ -49,7 +49,7 @@ export const MfaTotpSection = ({
   const [reauthVerificationCode, setReauthVerificationCode] = useState('');
   const [isReauthCodeSent, setIsReauthCodeSent] = useState(false);
   const [isReauthLoading, setIsReauthLoading] = useState(false);
-  const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
+  const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
 
   const isBusy = isLoading || isReauthLoading;
 
@@ -98,11 +98,11 @@ export const MfaTotpSection = ({
         setError(getValidationError('MFA_RECAPTCHA_EXPIRED'));
       },
     });
-    setRecaptchaVerifier(verifier);
+    recaptchaVerifierRef.current = verifier;
 
     return () => {
       verifier.clear();
-      setRecaptchaVerifier(null);
+      recaptchaVerifierRef.current = null;
     };
   }, [isOpen, user]);
 
@@ -168,7 +168,7 @@ export const MfaTotpSection = ({
       const { data, message } = handleAuthError(err);
 
       if (data?.code === 'auth/multi-factor-auth-required') {
-        if (!recaptchaVerifier) {
+        if (!recaptchaVerifierRef.current) {
           setError(getValidationError('MFA_RECAPTCHA_ERROR'));
           return;
         }
@@ -199,7 +199,8 @@ export const MfaTotpSection = ({
   };
 
   const handleSendReauthCode = async () => {
-    if (!reauthResolver || !reauthHint || !recaptchaVerifier) {
+    const captchaVerifier = recaptchaVerifierRef.current;
+    if (!reauthResolver || !reauthHint || !captchaVerifier) {
       setError(getValidationError('MFA_RECAPTCHA_ERROR'));
       return;
     }
@@ -211,7 +212,7 @@ export const MfaTotpSection = ({
       const phoneAuthProvider = new PhoneAuthProvider(auth);
       const verificationId = await phoneAuthProvider.verifyPhoneNumber(
         { multiFactorHint: reauthHint, session: reauthResolver.session },
-        recaptchaVerifier
+        captchaVerifier
       );
       setReauthVerificationId(verificationId);
       setReauthVerificationCode('');

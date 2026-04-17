@@ -223,7 +223,6 @@ export const Striae = ({ user }: StriaePage) => {
         setArchiveDetails({ archived: false });
         setFiles([]);
         setInitialConfirmationSummary(undefined);
-        setCaseLoadStatus('idle');
         return;
       }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   PhoneAuthProvider, 
   PhoneMultiFactorGenerator, 
@@ -36,7 +36,7 @@ export const MFAVerification = ({ resolver, onSuccess, onError, onCancel }: MFAV
   const [verificationId, setVerificationId] = useState('');
   const [loading, setLoading] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
-  const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
+  const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
   const [isClient, setIsClient] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -52,8 +52,8 @@ export const MFAVerification = ({ resolver, onSuccess, onError, onCancel }: MFAV
       (h) => h.factorId === PhoneMultiFactorGenerator.FACTOR_ID
     );
     if (!hasPhoneHint) return;
-    
-    // Initialize reCAPTCHA verifier
+
+    // Initialize reCAPTCHA verifier only after the container element is in the DOM
     const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
       size: 'invisible',
       callback: () => {
@@ -65,15 +65,17 @@ export const MFAVerification = ({ resolver, onSuccess, onError, onCancel }: MFAV
         onError(error);
       }
     });
-    setRecaptchaVerifier(verifier);
+    recaptchaVerifierRef.current = verifier;
 
     return () => {
       verifier.clear();
+      recaptchaVerifierRef.current = null;
     };
   }, [isClient, onError, resolver.hints]);
 
   const sendVerificationCode = async () => {
-    if (!recaptchaVerifier) {
+    const captchaVerifier = recaptchaVerifierRef.current;
+    if (!captchaVerifier) {
       const error = getValidationError('MFA_RECAPTCHA_ERROR');
       setErrorMessage(error);
       onError(error);
@@ -90,7 +92,7 @@ export const MFAVerification = ({ resolver, onSuccess, onError, onCancel }: MFAV
         session: resolver.session
       };
 
-      const vId = await phoneAuthProvider.verifyPhoneNumber(phoneInfoOptions, recaptchaVerifier);
+      const vId = await phoneAuthProvider.verifyPhoneNumber(phoneInfoOptions, captchaVerifier);
       setVerificationId(vId);
       setCodeSent(true);
     } catch (error: unknown) {
@@ -102,9 +104,7 @@ export const MFAVerification = ({ resolver, onSuccess, onError, onCancel }: MFAV
       }
       setErrorMessage(errorMsg);
       onError(errorMsg);
-      if (recaptchaVerifier) {
-        recaptchaVerifier.clear();
-      }
+      recaptchaVerifierRef.current?.clear();
     } finally {
       setLoading(false);
     }

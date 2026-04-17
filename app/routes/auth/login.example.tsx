@@ -147,7 +147,24 @@ export const Login = () => {
       // On network/API errors, throw error to prevent login
       throw new Error('System error. Please try logging in at a later time.');
     }
-  };  
+  };
+
+  // Add proper sign out handling
+  const handleSignOut = async () => {
+    try {
+      await auth.signOut();      
+      setUser(null);
+      setIsLoading(false);
+      setShowMfaEnrollment(false);
+      setShowMfaVerification(false);
+      setMfaResolver(null);
+      setIsWelcomeToastVisible(false);
+      setWelcomeToastType('success');
+      shouldShowWelcomeToastRef.current = false;
+    } catch (err) {
+      console.error('Sign out error:', err);
+    }
+  };
 
    useEffect(() => {
   const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -435,23 +452,6 @@ export const Login = () => {
     setIsLoading(false);
   }
 };
-
-  // Add proper sign out handling
-  const handleSignOut = async () => {
-    try {
-      await auth.signOut();      
-      setUser(null);
-      setIsLoading(false);
-      setShowMfaEnrollment(false);
-      setShowMfaVerification(false);
-      setMfaResolver(null);
-      setIsWelcomeToastVisible(false);
-      setWelcomeToastType('success');
-      shouldShowWelcomeToastRef.current = false;
-    } catch (err) {
-      console.error('Sign out error:', err);
-    }
-  };
 
   // MFA handlers
   const handleMfaSuccess = () => {

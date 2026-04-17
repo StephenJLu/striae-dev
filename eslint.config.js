@@ -41,6 +41,12 @@ export default [
           "plugin:react-hooks/recommended",
           "plugin:jsx-a11y/recommended",
         ],
+        rules: {
+          // set-state-in-effect produces widespread false positives for accepted patterns
+          // such as SSR hydration guards (setIsClient), modal reset effects, and
+          // async data-loading callbacks (void loadData()). Disabled at config level.
+          "react-hooks/set-state-in-effect": "off",
+        },
         settings: {
           react: {
             version: "detect",
