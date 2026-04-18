@@ -33,8 +33,6 @@
   "files": [
     "app/",
     "!app/config",
-    "!app/routes/auth/login.tsx",
-    "!app/routes/auth/login.module.css",
     "react-router.config.ts",
     "load-context.ts",
     "scripts/",
