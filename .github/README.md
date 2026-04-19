@@ -22,6 +22,12 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-04-18] - *[Patch Release v6.1.5](https://github.com/striae-org/striae/releases/tag/v6.1.5)*
+
+- **🔐 Auth Surface Cleanup** - Finalized the active login route assets, removed the remaining auth route template flow from scaffolding, and aligned login/MFA reCAPTCHA handling with the production auth surface.
+- **🚫 App Non-Indexing Controls** - Added explicit `noindex, nofollow` protections through document metadata, response headers, and `robots.txt` to keep the application surface out of search indexing.
+- **⚙️ Post-Release Tooling Maintenance** - Included lint configuration cleanup, package refreshes, Wrangler type regeneration, compatibility-date updates, and code-review follow-up commits completed after v6.1.4.
+
 ## [2026-04-17] - *[Patch Release v6.1.4](https://github.com/striae-org/striae/releases/tag/v6.1.4)*
 
 - **⚡ Case Loading State Efficiency** - Refactored case loading state management across the case route, sidebar, and sidebar container to reduce redundant fetches, with added permission-evaluation guards and a case-already-loaded short-circuit to avoid unnecessary re-fetches.
