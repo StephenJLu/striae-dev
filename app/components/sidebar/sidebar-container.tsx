@@ -113,11 +113,11 @@ export const SidebarContainer: React.FC<SidebarContainerProps> = (props) => {
                   Security Policy
                 </Link>
                 <Link
-                  to="https://community.striae.org"
+                  to="https://account.striae.org/p/login/dRmcMZ3HC5vVfFZ4St4wM00"
                   target="_blank" 
                   rel="noopener noreferrer" 
                   className={styles.footerModalLink}>
-                  Striae Community
+                  Manage Account
                 </Link>                
               </div>
 
