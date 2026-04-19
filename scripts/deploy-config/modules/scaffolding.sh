@@ -63,23 +63,6 @@ copy_example_configs() {
         echo -e "${GREEN}    ✅ app: copied $copied_config_files config file(s) from config-example${NC}"
     fi
 
-    # Copy auth route template files
-    echo -e "${YELLOW}  Copying auth route template files...${NC}"
-
-    if [ -f "app/routes/auth/login.example.tsx" ] && { [ "$update_env" = "true" ] || [ ! -f "app/routes/auth/login.tsx" ]; }; then
-        cp app/routes/auth/login.example.tsx app/routes/auth/login.tsx
-        echo -e "${GREEN}    ✅ auth: login.tsx created from example${NC}"
-    elif [ -f "app/routes/auth/login.tsx" ]; then
-        echo -e "${YELLOW}    ⚠️  auth: login.tsx already exists, skipping copy${NC}"
-    fi
-
-    if [ -f "app/routes/auth/login.module.example.css" ] && { [ "$update_env" = "true" ] || [ ! -f "app/routes/auth/login.module.css" ]; }; then
-        cp app/routes/auth/login.module.example.css app/routes/auth/login.module.css
-        echo -e "${GREEN}    ✅ auth: login.module.css created from example${NC}"
-    elif [ -f "app/routes/auth/login.module.css" ]; then
-        echo -e "${YELLOW}    ⚠️  auth: login.module.css already exists, skipping copy${NC}"
-    fi
-
     # Navigate to each worker directory and copy the example file
     echo -e "${YELLOW}  Copying worker configuration files...${NC}"
 
