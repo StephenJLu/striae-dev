@@ -117,7 +117,7 @@ export const SidebarContainer: React.FC<SidebarContainerProps> = (props) => {
                   target="_blank" 
                   rel="noopener noreferrer" 
                   className={styles.footerModalLink}>
-                  Manage Account
+                  Manage Membership
                 </Link>                
               </div>
 
