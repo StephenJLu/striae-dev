@@ -79,6 +79,13 @@
     "typegen": "wrangler types",
     "preview": "npm run build && wrangler pages dev",
     "cf-typegen": "wrangler types",
+    "test": "npm run test:app && npm run test:workers:data",
+    "test:app": "vitest run --config tests/app/vitest.config.ts",
+    "test:workers:data": "vitest run --config tests/workers/data/vitest.config.mjs",
+    "test:watch": "vitest --config tests/app/vitest.config.ts",
+    "test:e2e": "playwright test",
+    "test:all": "npm run test && npm run test:e2e",
+    "test:coverage": "vitest run --config tests/app/vitest.config.ts --coverage",
     "enable-totp-mfa": "node ./scripts/enable-totp-mfa.mjs",
     "unenroll-totp-mfa": "node ./scripts/unenroll-totp-mfa.mjs",
     "update-versions": "node ./scripts/update-markdown-versions.cjs",
@@ -109,6 +116,7 @@
     "react-router": "^7.14.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@react-router/dev": "^7.14.1",
     "@react-router/fs-routes": "^7.14.1",
     "@types/qrcode": "^1.5.6",
@@ -116,6 +124,7 @@
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.58.2",
     "@typescript-eslint/parser": "^8.58.2",
+    "@vitest/coverage-v8": "^4.1.4",
     "eslint": "^9.39.4",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import": "^2.32.0",
@@ -126,6 +135,7 @@
     "modern-normalize": "^3.0.1",
     "typescript": "^6.0.3",
     "vite": "^8.0.9",
+    "vitest": "^4.1.4",
     "wrangler": "^4.84.0"
   },
   "overrides": {
