@@ -550,6 +550,8 @@ export const addUserCase = async (user: User, caseData: CaseMetadata): Promise<v
       const errorText = await response.text();
       throw new Error(`Failed to add case to user: ${response.status} - ${errorText}`);
     }
+
+    invalidateUserDataCache(user.uid);
     
   } catch (error) {
     console.error('Error adding case to user:', error);
