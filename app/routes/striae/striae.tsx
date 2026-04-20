@@ -22,7 +22,7 @@ import { fetchUserApi } from '~/utils/api';
 import { type AnnotationData, type FileData, type ExportOptions } from '~/types';
 import { validateCaseNumber, renameCase, deleteCase, checkExistingCase, createNewCase, archiveCase, deriveCaseArchiveDetails } from '~/components/actions/case-manage';
 import { checkReadOnlyCaseExists, deleteReadOnlyCase } from '~/components/actions/case-review';
-import { canCreateCase, getCaseConfirmationSummary, getCaseData, getConfirmationSummaryDocument, type UserConfirmationSummaryDocument } from '~/utils/data';
+import { canCreateCase, ensureCaseConfirmationSummary, getCaseData, getConfirmationSummaryDocument, type UserConfirmationSummaryDocument } from '~/utils/data';
 import {
   resolveEarliestAnnotationTimestamp,
   CREATE_READ_ONLY_CASE_EXISTS_ERROR,
@@ -382,7 +382,9 @@ export const Striae = ({ user }: StriaePage) => {
     if (!currentCase || !user) return;
 
     try {
-      const summary = await getCaseConfirmationSummary(user, currentCase);
+      const summary = await ensureCaseConfirmationSummary(user, currentCase, files, {
+        forceRefresh: true,
+      });
       const filesById = summary?.filesById ?? {};
       const values = Object.values(filesById);
       const confirmedCount = values.filter((f) => f.includeConfirmation && f.isConfirmed).length;

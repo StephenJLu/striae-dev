@@ -38,6 +38,7 @@ export async function fetchDataApi(
 
   return fetch(`${DATA_API_BASE}${normalizedPath}`, {
     ...init,
+    cache: 'no-store',
     headers
   });
 }
