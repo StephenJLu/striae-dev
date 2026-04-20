@@ -20,7 +20,7 @@ interface EmailActionHandlerProps {
   lang: string | null;
 }
 
-type HandlerState = 'loading' | 'ready-reset' | 'success' | 'error' | 'unsupported';
+type HandlerState = 'loading' | 'ready-reset' | 'success' | 'error';
 
 const getUserAgent = (): string | undefined => {
   if (typeof navigator === 'undefined') {
@@ -168,16 +168,6 @@ export const EmailActionHandler = ({ mode, oobCode, continueUrl, lang }: EmailAc
           setState('error');
         }
 
-        return;
-      }
-
-      if (mode === 'recoverEmail') {
-        if (!isMounted) {
-          return;
-        }
-
-        setState('unsupported');
-        setError('Email change recovery is not supported for Striae accounts.');
         return;
       }
 
@@ -378,7 +368,7 @@ export const EmailActionHandler = ({ mode, oobCode, continueUrl, lang }: EmailAc
           </form>
         )}
 
-        {(state === 'success' || state === 'error' || state === 'unsupported') && (
+        {(state === 'success' || state === 'error') && (
           <div className={styles.actions}>
             {showContinueButton && (
               <button
