@@ -28,9 +28,7 @@ import { generateUniqueId } from '~/utils/common';
 import { evaluatePasswordPolicy, buildActionCodeSettings, userHasMFA } from '~/utils/auth';
 import type { UserData } from '~/types';
 
-const DEMO_COMPANY_NAME = 'STRIAE DEMO';
-
-const SUPPORTED_EMAIL_ACTION_MODES = new Set(['resetPassword', 'verifyEmail', 'recoverEmail']);
+const SUPPORTED_EMAIL_ACTION_MODES = new Set(['resetPassword', 'verifyEmail']);
 
 const getUserFirstName = (user: User): string => {
   const displayName = user.displayName?.trim();
@@ -69,7 +67,7 @@ export const Login = () => {
   const [isClient, setIsClient] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [company, setCompany] = useState(DEMO_COMPANY_NAME);
+  const [company, setCompany] = useState('');
   const [badgeId, setBadgeId] = useState('');
   const [confirmPasswordValue, setConfirmPasswordValue] = useState('');
   
