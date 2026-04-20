@@ -1,6 +1,6 @@
 {
   "name": "@striae-org/striae",
-  "version": "6.1.5",
+  "version": "6.1.6",
   "private": false,
   "description": "Striae is a specialized, cloud-native platform designed to streamline forensic firearms identification by providing an intuitive environment for digital comparison image annotation, authenticated confirmations, and automated report generation.",
   "license": "Apache-2.0",
@@ -124,9 +124,8 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "firebase-admin": "^13.8.0",
     "modern-normalize": "^3.0.1",
-    "typescript": "^5.9.3",
-    "vite": "^7.3.2",
-    "vite-tsconfig-paths": "^6.1.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.8",
     "wrangler": "^4.83.0"
   },
   "overrides": {
