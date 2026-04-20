@@ -22,6 +22,12 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-04-19] - *[Patch Release v6.1.6](https://github.com/striae-org/striae/releases/tag/v6.1.6)*
+
+- **🔗 Sidebar Navigation Update** - Replaced the "Striae Community" link in the About & Support sidebar footer with a direct "Manage Membership" link pointing to the account management portal.
+- **⚡ Vite Native Path Resolution** - Migrated from the `vite-tsconfig-paths` plugin to Vite's built-in `resolve.tsconfigPaths` option, removing the plugin dependency.
+- **⚙️ Post-Release Tooling Maintenance** - Included dependency bumps, compatibility-date updates, and Dependabot YAML configuration cleanup after v6.1.5.
+
 ## [2026-04-18] - *[Patch Release v6.1.5](https://github.com/striae-org/striae/releases/tag/v6.1.5)*
 
 - **🔐 Auth Surface Cleanup** - Finalized the active login route assets, removed the remaining auth route template flow from scaffolding, and aligned login/MFA reCAPTCHA handling with the production auth surface.
