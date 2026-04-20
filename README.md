@@ -60,6 +60,5 @@ See `LICENSE`.
 
 ## Support
 
-- Striae Community: [https://community.striae.org](https://community.striae.org)
 - Support page: [https://www.striae.org/support](https://www.striae.org/support)
 - Contact: [info@striae.org](mailto:info@striae.org)

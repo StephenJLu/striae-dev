@@ -8,8 +8,6 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 💬 Contact & Support
 
-**[Striae Community](https://community.striae.org)**
-
 **[Striae Support](https://www.striae.org/support)**
 
 **[Email Support](mailto:info@striae.org)**
