@@ -729,7 +729,7 @@ export const Striae = ({ user }: StriaePage) => {
             supportLevel: notes.supportLevel || 'Inconclusive',
             includeConfirmation: notes.includeConfirmation ?? false,
             boxAnnotations: notes.boxAnnotations || [],
-            updatedAt: notes.updatedAt || new Date().toISOString()
+            updatedAt: notes.updatedAt || ''
           });
         } else {
           setAnnotationData(null);
@@ -794,6 +794,7 @@ export const Striae = ({ user }: StriaePage) => {
     const now = new Date().toISOString();
     const dataWithEarliestTimestamp: AnnotationData = {
       ...data,
+      updatedAt: now,
       earliestAnnotationTimestamp: resolveEarliestAnnotationTimestamp(
         data.earliestAnnotationTimestamp,
         annotationData?.earliestAnnotationTimestamp,
