@@ -597,6 +597,8 @@ export const removeUserCase = async (user: User, caseNumber: string): Promise<vo
       const errorText = await response.text();
       throw new Error(`Failed to remove case from user: ${response.status} - ${errorText}`);
     }
+
+    invalidateUserDataCache(user.uid);
     
   } catch (error) {
     console.error('Error removing case from user:', error);
