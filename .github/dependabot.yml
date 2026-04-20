@@ -7,18 +7,12 @@ updates:
 
     ignore:
       # ESLint 10.x blocked: key plugins do not yet declare ^10 peer support.
-      # Blockers: eslint-plugin-react (max ^9.7), eslint-plugin-react-hooks (max ^9),
-      #           eslint-plugin-jsx-a11y (max ^9), eslint-plugin-import (max ^9).
-      # Remove this ignore once those four plugins ship ^10 peer declarations.
+      # Blockers: eslint-plugin-react (max ^9.7), eslint-plugin-jsx-a11y (max ^9),
+      #           eslint-plugin-import (max ^9).
+      # eslint-plugin-react-hooks resolved: now declares ^10 peer support.
+      # Remove this ignore once those three plugins ship ^10 peer declarations.
       - dependency-name: "eslint"
         versions: [">= 10"]
-
-      # TypeScript 6.x blocked: current peer ranges still require TS < 6.
-      # Blockers: @typescript-eslint/{parser,eslint-plugin} (>=4.8.4 <6.0.0),
-      #           @react-router/{cloudflare,dev,fs-routes} (^5.1.0).
-      # Remove this ignore once both ecosystems publish TS 6-compatible peer declarations.
-      - dependency-name: "typescript"
-        versions: [">= 6"]
 
     groups:
       # Group all ESLint-ecosystem packages together.
@@ -31,9 +25,7 @@ updates:
           - "eslint-*"
           - "@typescript-eslint/*"
 
-      # wrangler transitively pulls in undici, which has a security pin override.
-      # When wrangler ships a release that internally requires a newer undici
-      # (>= the pinned version), the override in package.json can be removed.
+      # Group wrangler and Cloudflare packages together for coordinated upgrades.
       wrangler-ecosystem:
         patterns:
           - "wrangler"
