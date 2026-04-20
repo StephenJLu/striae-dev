@@ -22,6 +22,14 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-04-20] - *[Patch Release v6.1.7](https://github.com/striae-org/striae/releases/tag/v6.1.7)*
+
+- **🗑️ Case Deletion Fix** - Fixed a regression blocking deletion of the currently loaded case from the all-cases modal; any case can now be deleted from the modal regardless of which case is active.
+- **⚡ Data Cache Refresh Hardening** - Hardened the data cache refresh logic to handle edge cases that could leave stale entries after refresh operations.
+- **🐛 Case Listing Cache Reset** - Fixed the case listing cache not resetting correctly after a case deletion, preventing stale entries from persisting in the list.
+- **🔑 Case Creation/Rename Permissions Fix** - Resolved a bug where permission checks for case creation and rename operations incorrectly blocked valid users.
+- **🧹 Auth and Demo Logic Cleanup** - Removed unused demo company logic and the unimplemented `recoverEmail` email action handler, reducing dead code paths in the auth flow.
+
 ## [2026-04-19] - *[Patch Release v6.1.6](https://github.com/striae-org/striae/releases/tag/v6.1.6)*
 
 - **🔗 Sidebar Navigation Update** - Replaced the "Striae Community" link in the About & Support sidebar footer with a direct "Manage Membership" link pointing to the account management portal.
