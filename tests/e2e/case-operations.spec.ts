@@ -9,7 +9,7 @@
  *   - tests/e2e/.env.test configured with test credentials
  */
 
-import { test, expect } from '../fixtures/auth';
+import { test, expect } from './fixtures/auth';
 
 // Unique prefix per test run to avoid collisions between runs
 const RUN_ID = Date.now().toString(36).toUpperCase();

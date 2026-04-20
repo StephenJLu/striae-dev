@@ -57,7 +57,7 @@ async function decryptAesGcm(
   key: CryptoKey,
   iv: Uint8Array
 ): Promise<string> {
-  const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+  const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv as BufferSource }, key, ciphertext as BufferSource);
   return new TextDecoder().decode(plaintext);
 }
 
@@ -186,7 +186,7 @@ describe('encryptImageWithSharedKey', () => {
 
     const result = await encryptImageWithSharedKey(blob, aesKey, iv);
 
-    const expectedHashBuffer = await crypto.subtle.digest('SHA-256', result.ciphertext);
+    const expectedHashBuffer = await crypto.subtle.digest('SHA-256', result.ciphertext as BufferSource);
     const expectedHash = Array.from(new Uint8Array(expectedHashBuffer))
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('');
@@ -200,7 +200,7 @@ describe('encryptImageWithSharedKey', () => {
     const iv = crypto.getRandomValues(new Uint8Array(12));
 
     const { ciphertext } = await encryptImageWithSharedKey(blob, aesKey, iv);
-    const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, aesKey, ciphertext);
+    const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv as BufferSource }, aesKey, ciphertext as BufferSource);
     expect(new Uint8Array(plaintext)).toEqual(originalBytes);
   });
 });
@@ -244,7 +244,7 @@ describe('wrapAesKeyWithPublicKey', () => {
 
     // Decrypt
     const recoveredKey = await unwrapAesKey(wrappedKey, rsaKeyPair.privateKey);
-    const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, recoveredKey, ciphertext);
+    const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv as BufferSource }, recoveredKey, ciphertext as BufferSource);
 
     expect(new TextDecoder().decode(plaintext)).toBe(original);
   });

@@ -14,7 +14,7 @@
  *   - tests/e2e/.env.test configured with test credentials
  */
 
-import { test, expect } from '../fixtures/auth';
+import { test, expect } from './fixtures/auth';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
