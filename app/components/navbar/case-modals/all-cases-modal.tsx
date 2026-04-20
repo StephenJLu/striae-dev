@@ -33,6 +33,7 @@ interface CasesModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectCase: (caseNum: string) => void;
+  onCurrentCaseDeleted?: () => void;
   currentCase: string;
   user: User;
   confirmationSaveVersion?: number;
@@ -64,6 +65,7 @@ export const CasesModal = ({
   isOpen,
   onClose,
   onSelectCase,
+  onCurrentCaseDeleted,
   currentCase,
   user,
   confirmationSaveVersion = 0,
@@ -224,16 +226,14 @@ export const CasesModal = ({
   );
 
   const canDeleteSelectedCase = Boolean(
-    selectedCase && selectedCase.caseNumber !== currentCase && !selectedCase.isReadOnly
+    selectedCase && !selectedCase.isReadOnly
   );
 
   const deleteSelectedCaseTitle = !selectedCase
     ? 'Select a case to delete.'
-    : selectedCase.caseNumber === currentCase
-      ? 'Open a different case before deleting this one.'
-      : selectedCase.isReadOnly
-        ? 'Read-only review cases cannot be deleted. Use Clear RO Case under Case Management first.'
-        : undefined;
+    : selectedCase.isReadOnly
+      ? 'Read-only review cases cannot be deleted here. Use Clear RO Case under Case Management first.'
+      : undefined;
 
   const effectiveFocusedIndex = paginatedCases.length === 0 ? 0 : Math.min(focusedIndex, paginatedCases.length - 1);
 
@@ -475,16 +475,13 @@ export const CasesModal = ({
 
   const handleDeleteSelectedCase = async () => {
     if (!selectedCase || !canDeleteSelectedCase) {
-      const isCurrentCaseSelection = selectedCase?.caseNumber === currentCase;
       const isReadOnlyReviewSelection = selectedCase?.isReadOnly === true;
 
       setActionNotice({
         type: 'warning',
-        message: isCurrentCaseSelection
-          ? 'Open a different case before deleting this one.'
-          : isReadOnlyReviewSelection
-            ? 'Read-only review cases cannot be deleted. Use Clear RO Case under Case Management first.'
-            : 'Selected case cannot be deleted.',
+        message: isReadOnlyReviewSelection
+          ? 'Read-only review cases cannot be deleted here. Use Clear RO Case under Case Management first.'
+          : 'Selected case cannot be deleted.',
       });
       return;
     }
@@ -506,10 +503,15 @@ export const CasesModal = ({
     setActionNotice(null);
 
     try {
+      const wasCurrentCase = selectedCase.caseNumber === currentCase;
       const deleteResult = await deleteCase(user, selectedCase.caseNumber);
       setSelectedCaseNumber(null);
       setIsDeleteModalOpen(false);
       setRefreshKey((k) => k + 1);
+
+      if (wasCurrentCase) {
+        onCurrentCaseDeleted?.();
+      }
 
       if (deleteResult.missingImages.length > 0) {
         setActionNotice({

@@ -957,6 +957,7 @@ export const Striae = ({ user }: StriaePage) => {
         onSelectCase={(selectedCase) => {
           void loadCaseIntoWorkspace(selectedCase);
         }}
+        onCurrentCaseDeleted={clearLoadedCaseState}
         currentCase={currentCase || ''}
         user={user}
         confirmationSaveVersion={confirmationSaveVersion}
