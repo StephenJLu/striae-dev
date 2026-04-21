@@ -109,7 +109,7 @@ describe('encryptJsonForStorage / decryptJsonFromStorage', () => {
   it('decrypts back to the original JSON string', async () => {
     const original = JSON.stringify({ case: 'TEST-001', files: ['a', 'b'] });
     const { ciphertext, envelope } = await encryptJsonForStorage(original, publicKeyPem, TEST_KEY_ID);
-    const decrypted = await decryptJsonFromStorage(ciphertext.buffer, envelope, privateKeyPem);
+    const decrypted = await decryptJsonFromStorage(ciphertext.buffer as ArrayBuffer, envelope, privateKeyPem);
     expect(decrypted).toBe(original);
   });
 
@@ -124,14 +124,14 @@ describe('encryptJsonForStorage / decryptJsonFromStorage', () => {
     };
     const original = JSON.stringify(largeObject);
     const { ciphertext, envelope } = await encryptJsonForStorage(original, publicKeyPem, TEST_KEY_ID);
-    const decrypted = await decryptJsonFromStorage(ciphertext.buffer, envelope, privateKeyPem);
+    const decrypted = await decryptJsonFromStorage(ciphertext.buffer as ArrayBuffer, envelope, privateKeyPem);
     expect(decrypted).toBe(original);
   });
 
   it('round-trips a payload with unicode characters', async () => {
     const original = JSON.stringify({ note: 'Ñoño 日本語 🔬 forensics' });
     const { ciphertext, envelope } = await encryptJsonForStorage(original, publicKeyPem, TEST_KEY_ID);
-    const decrypted = await decryptJsonFromStorage(ciphertext.buffer, envelope, privateKeyPem);
+    const decrypted = await decryptJsonFromStorage(ciphertext.buffer as ArrayBuffer, envelope, privateKeyPem);
     expect(decrypted).toBe(original);
   });
 
@@ -152,7 +152,7 @@ describe('encryptJsonForStorage / decryptJsonFromStorage', () => {
     const wrongPrivatePem = await exportToPkcs8Pem(wrongPair.privateKey);
 
     await expect(
-      decryptJsonFromStorage(ciphertext.buffer, envelope, wrongPrivatePem)
+      decryptJsonFromStorage(ciphertext.buffer as ArrayBuffer, envelope, wrongPrivatePem)
     ).rejects.toThrow();
   });
 });
@@ -160,7 +160,6 @@ describe('encryptJsonForStorage / decryptJsonFromStorage', () => {
 describe('decryptExportData', () => {
   let publicKeyPem: string;
   let privateKeyPem: string;
-  const TEST_KEY_ID = 'export-key-001';
 
   beforeAll(async () => {
     const keyPair = await generateRsaOaepKeyPair();

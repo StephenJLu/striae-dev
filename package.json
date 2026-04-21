@@ -44,7 +44,6 @@
     "!workers/*/package-lock.json",
     "!workers/*/worker-configuration.d.ts",
     "!workers/*/wrangler.jsonc",
-    "!workers/*/src/**/*worker.ts",
     "!workers/pdf-worker/src/assets/**/*",
     "workers/pdf-worker/src/assets/generated-assets.example.ts",
     "!workers/pdf-worker/src/formats/**/*",

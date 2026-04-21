@@ -36,7 +36,7 @@ Included:
 - `app/` source (with `app/config-example/`)
 - `functions/`, `public/`
 - Worker package manifests
-- Worker source files needed by the example workers, including nested helper modules, while excluding production worker entry files (`workers/*/src/**/*.ts` excluding `workers/*/src/**/*worker.ts`)
+- Worker source files needed by the workers, including nested helper modules
 - PDF worker example support files limited to `workers/pdf-worker/src/assets/generated-assets.example.ts` and `workers/pdf-worker/src/formats/format-striae.ts` (no extra PDF image assets or custom formats)
 - Worker example Wrangler configs (`workers/*/wrangler.jsonc.example`)
 - Project-level example and build config (`.env.example`, `wrangler.toml.example`, `tsconfig.json`, etc.)
