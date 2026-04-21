@@ -12,7 +12,7 @@
 import { test as base, expect } from '@playwright/test';
 import path from 'path';
 
-const AUTH_FILE = path.join(__dirname, '../.auth/session.json');
+const AUTH_FILE = path.resolve('tests/e2e/.auth/session.json');
 
 export const test = base.extend({
   // Override storageState at the fixture level so it applies even if

@@ -12,12 +12,13 @@
  * If the session file already exists and SKIP_AUTH_SETUP=1 is set, login is skipped.
  */
 
-import { chromium, type FullConfig } from '@playwright/test';
+import { chromium } from '@playwright/test';
 import path from 'path';
 import fs from 'fs';
+import { generate as generateTotp } from 'otplib';
 
-const AUTH_FILE = path.join(__dirname, '../.auth/session.json');
-const ENV_FILE = path.join(__dirname, '../.env.test');
+const AUTH_FILE = path.resolve('tests/e2e/.auth/session.json');
+const ENV_FILE = path.resolve('tests/e2e/.env.test');
 
 function loadEnvFile(filePath: string): Record<string, string> {
   if (!fs.existsSync(filePath)) {
@@ -37,11 +38,12 @@ function loadEnvFile(filePath: string): Record<string, string> {
   return result;
 }
 
-export default async function globalSetup(_config: FullConfig) {
+export default async function globalSetup(): Promise<void> {
   // Load .env.test vars if present
   const envVars = loadEnvFile(ENV_FILE);
   const email = process.env.TEST_USER_EMAIL ?? envVars.TEST_USER_EMAIL;
   const password = process.env.TEST_USER_PASSWORD ?? envVars.TEST_USER_PASSWORD;
+  const totpSecret = process.env.TEST_TOTP_SECRET ?? envVars.TEST_TOTP_SECRET;
   const skipAuthSetup = (process.env.SKIP_AUTH_SETUP ?? envVars.SKIP_AUTH_SETUP) === '1';
 
   // Skip if already have a session and skip flag is set
@@ -77,12 +79,31 @@ export default async function globalSetup(_config: FullConfig) {
     // Submit the form
     await page.click('button[type="submit"]');
 
-    // Wait until we are no longer on the login form (auth state changed)
-    // The app renders the Striae workspace after login
-    await page.waitForFunction(
-      () => !document.querySelector('button[type="submit"]'),
-      { timeout: 30_000 }
-    );
+    // After submit, the app may show a TOTP/MFA verification prompt before the workspace loads.
+    // Wait briefly to let the next screen render, then check what appeared.
+    await page.waitForTimeout(2_000);
+
+    const totpInput = page.locator('input[autocomplete="one-time-code"], input[placeholder*="6-digit" i]').first();
+    if (await totpInput.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      if (!totpSecret) {
+        throw new Error(
+          '[global-setup] MFA prompt detected but TEST_TOTP_SECRET is not set.\n' +
+          'Add TEST_TOTP_SECRET=<your-base32-secret> to tests/e2e/.env.test.\n' +
+          'You can find the base32 secret in your authenticator app or when TOTP was first enrolled.'
+        );
+      }
+
+      // Generate the current TOTP code and fill it in
+      const totpCode = await generateTotp({ secret: totpSecret } as Parameters<typeof generateTotp>[0]);
+      console.log('[global-setup] MFA prompt detected — entering TOTP code');
+      await totpInput.fill(totpCode);
+
+      // Click the verify button
+      await page.click('button:has-text("Verify Code"), button:has-text("Verify")');
+    }
+
+    // Wait until the URL moves away from /auth (login + TOTP both complete)
+    await page.waitForURL((url) => !url.pathname.startsWith('/auth'), { timeout: 30_000 });
 
     // Ensure the .auth directory exists
     const authDir = path.dirname(AUTH_FILE);

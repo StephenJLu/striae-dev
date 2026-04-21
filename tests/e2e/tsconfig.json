@@ -3,7 +3,7 @@
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "types": ["@playwright/test", "node"],
     "esModuleInterop": true,
-    "module": "CommonJS",
+    "module": "ESNext",
     "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "target": "ES2022",

@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 import path from 'path';
 
-const authFile = path.join(__dirname, 'tests/e2e/.auth/session.json');
+const authFile = path.resolve('tests/e2e/.auth/session.json');
 
 export default defineConfig({
   testDir: './tests/e2e',
