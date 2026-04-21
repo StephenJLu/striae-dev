@@ -80,8 +80,8 @@ async function verifyRsaPss(
   return crypto.subtle.verify(
     { name: 'RSA-PSS', saltLength: 32 },
     key,
-    base64UrlToUint8Array(signatureBase64url),
-    new TextEncoder().encode(payload)
+    base64UrlToUint8Array(signatureBase64url) as BufferSource,
+    new TextEncoder().encode(payload) as BufferSource
   );
 }
 

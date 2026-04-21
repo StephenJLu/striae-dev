@@ -20,6 +20,13 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-04-20] - *[Patch Release v6.1.8](https://github.com/striae-org/striae/releases/tag/v6.1.8)*
+
+- **🧹 Worker CORS Cleanup** - Removed CORS configuration from all worker entry points and consolidated worker source files by renaming `.example.ts` files to canonical `.ts` files; refactored user worker routes and removed CORS scaffolding from deploy config scripts.
+- **🧪 Unit Test Suite Expansion** - Added app-level tests for forensics operations (confirmation signing, export encryption, manifest signing, audit export signing) and confirmation summary data, plus worker-level data utility tests (encryption, signature, and signing payload utils).
+- **🔗 Community Links Removal** - Removed community links from `.github/README.md` and `README.md`.
+- **⚙️ Maintenance** - Updated `.gitignore`, removed leftover output files, and applied lint fixes across `eslint.config.js`, worker test files, and `README.md`.
+
 ## [2026-04-20] - *[Patch Release v6.1.7](https://github.com/striae-org/striae/releases/tag/v6.1.7)*
 
 - **🗑️ Case Deletion Fix** - Fixed a regression blocking deletion of the currently loaded case from the all-cases modal; any case can now be deleted from the modal regardless of which case is active.
