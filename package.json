@@ -102,7 +102,7 @@
     "deploy-workers:user": "cd workers/user-worker && npm run deploy"
   },
   "dependencies": {
-    "@react-router/cloudflare": "^7.14.1",
+    "@react-router/cloudflare": "^7.14.2",
     "firebase": "^12.12.1",
     "isbot": "^5.1.39",
     "jszip": "^3.10.1",
@@ -112,7 +112,7 @@
     "react-router": "^7.14.2"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.14.8",
+    "@cloudflare/vitest-pool-workers": "^0.14.9",
     "@react-router/dev": "^7.14.2",
     "@react-router/fs-routes": "^7.14.2",
     "@types/qrcode": "^1.5.6",
