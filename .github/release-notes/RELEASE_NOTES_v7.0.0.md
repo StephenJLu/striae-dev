@@ -17,7 +17,7 @@ v7.0.0 is a major release delivering a foundational restructuring of the worker 
 - Replaced HTTP-based worker proxying (via `AUDIT_WORKER_DOMAIN`, `DATA_WORKER_DOMAIN`, `IMAGE_WORKER_DOMAIN`, `PDF_WORKER_DOMAIN`, and `USER_WORKER_DOMAIN` environment variables) with Cloudflare Service Bindings across all five Pages proxy functions (`functions/api/audit/`, `functions/api/data/`, `functions/api/image/`, `functions/api/pdf/`, `functions/api/user/`).
 - Removed `normalizeWorkerBaseUrl` helper functions and URL construction logic from all proxy functions; worker calls now use `env.AUDIT_WORKER.fetch(...)`, `env.DATA_WORKER.fetch(...)`, etc.
 - Removed the top-level `worker-configuration.d.ts` (7,500+ lines of generated bindings) from the repository; worker configuration is now managed via wrangler type generation.
-- Removed `env-utils.sh` (domain environment variable helpers) from deploy config scripts and updated `prompt.sh` and `validation.sh` accordingly.
+- Removed worker domain helper functions from `env-utils.sh` and updated `prompt.sh` and `validation.sh` accordingly.
 - Removed `deploy-pages-secrets.sh` worker domain secret handling steps.
 - Updated `wrangler.toml.example` and all worker `wrangler.jsonc.example` files to reflect service binding configuration.
 - Removed the `WORKER_DOMAINS` block from `.env.example`.
@@ -25,9 +25,14 @@ v7.0.0 is a major release delivering a foundational restructuring of the worker 
 
 ### Custom Auth Key Removal
 
-- Removed stale custom auth key (`CUSTOM_AUTH_KEY_SECRET`) bindings from all worker types (data, image, pdf, user) that had been carried over from an earlier authentication scheme.
-- Cleaned up all per-worker `worker-configuration.d.ts` generated files (13,000+ lines each) that referenced the stale key binding.
-- Removed `customAuthKey` from data worker config, image worker auth handlers, and user worker auth; updated corresponding types.
+- Removed stale custom auth key bindings and associated secret environment variables from all worker types that had been carried over from an earlier authentication scheme:
+  - `USER_DB_AUTH` from the data worker
+  - `R2_KEY_SECRET` from the image worker
+  - `IMAGES_API_TOKEN` from the image worker
+  - `PDF_WORKER_AUTH` from the pdf worker
+- Removed `X-Custom-Auth-Key` header usage from worker auth handlers across affected workers.
+- Cleaned up all per-worker `worker-configuration.d.ts` generated files (13,000+ lines each) that referenced these stale bindings.
+- Updated corresponding types and auth handler logic in each affected worker.
 
 ### Image Management Cleanup
 

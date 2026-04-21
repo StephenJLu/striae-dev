@@ -106,7 +106,7 @@ echo ""
 echo -e "${PURPLE}Step 3/7: Generating Wrangler Types${NC}"
 echo "-------------------------------------"
 echo -e "${YELLOW}📝 Running wrangler types in root and all worker directories...${NC}"
-if ! wrangler types; then
+if ! npx wrangler types; then
     echo -e "${RED}❌ Root wrangler types generation failed!${NC}"
     exit 1
 fi

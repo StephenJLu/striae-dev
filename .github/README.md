@@ -22,8 +22,8 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## [2026-04-21] - *[Major Release v7.0.0](https://github.com/striae-org/striae/releases/tag/v7.0.0)*
 
-- **🔗 Service Bindings Migration** - Replaced HTTP-based worker proxying (domain environment variables and URL normalization) with Cloudflare Service Bindings across all five worker proxy functions; removed top-level `worker-configuration.d.ts` and `env-utils.sh` deploy helper; updated `wrangler.toml.example` and all worker `wrangler.jsonc.example` files.
-- **🔑 Custom Auth Key Removal** - Removed stale `CUSTOM_AUTH_KEY_SECRET` bindings from all worker types and cleaned up the associated generated `worker-configuration.d.ts` files.
+- **🔗 Service Bindings Migration** - Replaced HTTP-based worker proxying (domain environment variables and URL normalization) with Cloudflare Service Bindings across all five worker proxy functions; removed top-level `worker-configuration.d.ts` and worker domain helper functions from `env-utils.sh`; updated `wrangler.toml.example` and all worker `wrangler.jsonc.example` files.
+- **🔑 Custom Auth Key Removal** - Removed stale auth key bindings (`USER_DB_AUTH`, `R2_KEY_SECRET`, `IMAGES_API_TOKEN`, `PDF_WORKER_AUTH`) and `X-Custom-Auth-Key` header usage from affected workers; cleaned up associated generated `worker-configuration.d.ts` files.
 - **🖼️ Image Management Cleanup** - Removed the direct blob retrieval fallback from `image-manage.ts`; image access now exclusively uses signed URLs.
 - **⚙️ Deploy Config Update** - Added worker name registration step to `scaffolding.sh` for service binding setup.
 - **📦 Dependency Updates** - Bumped Firebase SDK, ESLint, app deps, worker package versions, and Cloudflare compatibility dates across all layers.
