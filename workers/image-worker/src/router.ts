@@ -8,8 +8,7 @@ import { parsePathSegments } from './utils/path-utils';
 export async function routeImageWorkerRequest(
   request: Request,
   env: Env,
-  createJsonResponse: CreateImageWorkerResponse,
-  corsHeaders: Record<string, string>
+  createJsonResponse: CreateImageWorkerResponse
 ): Promise<Response> {
   const requestUrl = new URL(request.url);
   const pathSegments = parsePathSegments(requestUrl.pathname);
@@ -36,7 +35,7 @@ export async function routeImageWorkerRequest(
         return createJsonResponse({ error: 'Image ID is required' }, 400);
       }
 
-      return handleImageServing(request, env, fileId, createJsonResponse, corsHeaders);
+      return handleImageServing(request, env, fileId, createJsonResponse);
     }
 
     case 'DELETE': {

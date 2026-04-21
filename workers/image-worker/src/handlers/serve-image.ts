@@ -12,8 +12,7 @@ export async function handleImageServing(
   request: Request,
   env: Env,
   fileId: string,
-  createJsonResponse: CreateImageWorkerResponse,
-  corsHeaders: Record<string, string>
+  createJsonResponse: CreateImageWorkerResponse
 ): Promise<Response> {
   const requestUrl = new URL(request.url);
   const hasSignedToken = requestUrl.searchParams.has('st');
@@ -56,7 +55,6 @@ export async function handleImageServing(
   return new Response(plaintext, {
     status: 200,
     headers: {
-      ...corsHeaders,
       'Cache-Control': 'no-store',
       'Content-Type': contentType,
       'Content-Disposition': contentDisposition

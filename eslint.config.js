@@ -73,6 +73,8 @@ export default [
               fixStyle: "inline-type-imports"
             }
           ],
+          // Allow _-prefixed and rest-sibling discard variables (e.g. const { x: _, ...rest } = obj)
+          "@typescript-eslint/no-unused-vars": ["error", { "varsIgnorePattern": "^_", "argsIgnorePattern": "^_", "ignoreRestSiblings": true }],
         },
         settings: {
           "import/internal-regex": "^~/",

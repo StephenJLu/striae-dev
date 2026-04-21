@@ -40,12 +40,6 @@ const reportModuleLoaders: Record<string, () => Promise<ReportModule>> = {
 
 };
 
-const corsHeaders: Record<string, string> = {
-  'Access-Control-Allow-Origin': 'PAGES_CUSTOM_DOMAIN',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, X-Custom-Auth-Key',
-};
-
 const hasValidHeader = (request: Request, env: Env): boolean =>
   request.headers.get('X-Custom-Auth-Key') === env.PDF_WORKER_AUTH;
 
@@ -60,7 +54,7 @@ function isTimeoutError(error: unknown): boolean {
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json' },
   });
 }
 
@@ -190,10 +184,6 @@ async function renderPdfViaRestEndpoint(env: Env, html: string, pdfOptions: Repo
     responseHeaders.set('cache-control', 'no-store');
   }
 
-  for (const [headerName, headerValue] of Object.entries(corsHeaders)) {
-    responseHeaders.set(headerName, headerValue);
-  }
-
   return new Response(endpointResponse.body, {
     status: endpointResponse.status,
     statusText: endpointResponse.statusText,
@@ -203,10 +193,6 @@ async function renderPdfViaRestEndpoint(env: Env, html: string, pdfOptions: Repo
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (request.method === 'OPTIONS') {
-      return new Response(null, { headers: corsHeaders });
-    }
-
     if (!hasValidHeader(request, env)) {
       return jsonResponse({ error: 'Forbidden' }, 403);
     }
