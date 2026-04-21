@@ -75,11 +75,6 @@ required_vars=(
     # Core Cloudflare Configuration
     "ACCOUNT_ID"
 
-    # Shared Authentication & Storage
-    "USER_DB_AUTH"
-    "R2_KEY_SECRET"
-    "IMAGES_API_TOKEN"
-
     # Firebase Auth Configuration
     "API_KEY"
     "AUTH_DOMAIN"
@@ -109,7 +104,6 @@ required_vars=(
     "KV_STORE_ID"
 
     # Worker-Specific Secrets (required for deployment)
-    "PDF_WORKER_AUTH"
     "IMAGE_SIGNED_URL_SECRET"
     "BROWSER_API_TOKEN"
     "MANIFEST_SIGNING_PRIVATE_KEY"

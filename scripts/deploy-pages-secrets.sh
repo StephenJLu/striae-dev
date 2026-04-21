@@ -151,11 +151,7 @@ if [ -z "$PAGES_PROJECT_NAME" ] || is_placeholder "$PAGES_PROJECT_NAME"; then
 fi
 
 required_pages_secrets=(
-    "IMAGES_API_TOKEN"
-    "PDF_WORKER_AUTH"
     "PROJECT_ID"
-    "R2_KEY_SECRET"
-    "USER_DB_AUTH"
 )
 
 echo -e "${YELLOW}🔍 Validating required Pages secret values...${NC}"

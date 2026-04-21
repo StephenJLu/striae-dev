@@ -1,4 +1,3 @@
-import { hasValidToken } from '../auth';
 import {
   normalizeSignedUrlTtlSeconds,
   parseSignedUrlBaseUrl,
@@ -21,10 +20,6 @@ export async function handleSignedUrlMinting(
   fileId: string,
   createJsonResponse: CreateImageWorkerResponse
 ): Promise<Response> {
-  if (!hasValidToken(request, env)) {
-    return createJsonResponse({ error: 'Unauthorized' }, 403);
-  }
-
   requireSignedUrlConfig(env);
 
   const existing = await env.STRIAE_FILES.head(fileId);

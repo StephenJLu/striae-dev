@@ -28,5 +28,5 @@ firebase-debug.log
 *.dev.vars
 *.toml
 *.jsonc
-worker-configuration.d.ts
+*.d.ts
 app/config

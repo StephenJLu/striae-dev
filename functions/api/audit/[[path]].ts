@@ -73,7 +73,7 @@ export const onRequest = async ({ request, env }: AuditProxyContext): Promise<Re
     return textResponse('Forbidden', 403);
   }
 
-  if (!env.AUDIT_WORKER || !env.R2_KEY_SECRET) {
+  if (!env.AUDIT_WORKER) {
     return textResponse('Audit service not configured', 502);
   }
 
@@ -107,8 +107,6 @@ export const onRequest = async ({ request, env }: AuditProxyContext): Promise<Re
   if (acceptHeader) {
     upstreamHeaders.set('Accept', acceptHeader);
   }
-
-  upstreamHeaders.set('X-Custom-Auth-Key', env.R2_KEY_SECRET);
 
   let upstreamResponse: Response;
   try {

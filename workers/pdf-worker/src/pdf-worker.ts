@@ -2,7 +2,6 @@ import type { PDFGenerationData, PDFGenerationRequest, ReportModule, ReportPdfOp
 import { getAuditTrailPdfOptions, isAuditTrailReportMode, renderAuditTrailReport } from './audit-trail-report';
 
 interface Env {
-  PDF_WORKER_AUTH: string;
   ACCOUNT_ID?: string;
   BROWSER_API_TOKEN?: string;
 }
@@ -39,9 +38,6 @@ const reportModuleLoaders: Record<string, () => Promise<ReportModule>> = {
   primershear: () => import('./formats/format-primer-shear'),
 
 };
-
-const hasValidHeader = (request: Request, env: Env): boolean =>
-  request.headers.get('X-Custom-Auth-Key') === env.PDF_WORKER_AUTH;
 
 function isTimeoutError(error: unknown): boolean {
   return error instanceof Error && (
@@ -193,10 +189,6 @@ async function renderPdfViaRestEndpoint(env: Env, html: string, pdfOptions: Repo
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (!hasValidHeader(request, env)) {
-      return jsonResponse({ error: 'Forbidden' }, 403);
-    }
-
     if (request.method === 'POST') {
       try {
         const payload = await request.json() as unknown;

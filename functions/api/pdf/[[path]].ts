@@ -80,7 +80,7 @@ export const onRequest = async ({ request, env }: PdfProxyContext): Promise<Resp
     return textResponse('Not Found', 404);
   }
 
-  if (!env.PDF_WORKER || !env.PDF_WORKER_AUTH) {
+  if (!env.PDF_WORKER) {
     return textResponse('PDF service not configured', 502);
   }
 
@@ -94,8 +94,6 @@ export const onRequest = async ({ request, env }: PdfProxyContext): Promise<Resp
   if (acceptHeader) {
     upstreamHeaders.set('Accept', acceptHeader);
   }
-
-  upstreamHeaders.set('X-Custom-Auth-Key', env.PDF_WORKER_AUTH);
 
   // Resolve the report format server-side based on the verified user email.
   // This prevents email lists from ever being exposed in the client bundle.

@@ -50,10 +50,6 @@ function extractProxyPath(url: URL): ProxyPathResult {
   }
 }
 
-function resolveImageWorkerToken(env: Env): string {
-  return typeof env.IMAGES_API_TOKEN === 'string' ? env.IMAGES_API_TOKEN.trim() : '';
-}
-
 const BASE64URL_SEGMENT = /^[A-Za-z0-9_-]+$/;
 
 function looksLikeSignedToken(value: string): boolean {
@@ -101,8 +97,7 @@ export const onRequest = async ({ request, env }: ImageProxyContext): Promise<Re
 
   const proxyPath = proxyPathResult.path;
 
-  const imageWorkerToken = resolveImageWorkerToken(env);
-  if (!env.IMAGE_WORKER || !imageWorkerToken) {
+  if (!env.IMAGE_WORKER) {
     return textResponse('Image service not configured', 502);
   }
 
@@ -116,8 +111,6 @@ export const onRequest = async ({ request, env }: ImageProxyContext): Promise<Re
   if (acceptHeader) {
     upstreamHeaders.set('Accept', acceptHeader);
   }
-
-  upstreamHeaders.set('Authorization', `Bearer ${imageWorkerToken}`);
 
   const shouldForwardBody = request.method !== 'GET' && request.method !== 'HEAD';
 

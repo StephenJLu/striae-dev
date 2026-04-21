@@ -1,12 +1,5 @@
 import type { Env } from './types';
 
-export async function authenticate(request: Request, env: Env): Promise<void> {
-  const authKey = request.headers.get('X-Custom-Auth-Key');
-  if (authKey !== env.USER_DB_AUTH) {
-    throw new Error('Unauthorized');
-  }
-}
-
 export function requireUserKvReadConfig(env: Env): void {
   const hasLegacyPrivateKey = typeof env.USER_KV_ENCRYPTION_PRIVATE_KEY === 'string' && env.USER_KV_ENCRYPTION_PRIVATE_KEY.trim().length > 0;
   const hasRegistryPrivateKeys = typeof env.USER_KV_ENCRYPTION_KEYS_JSON === 'string' && env.USER_KV_ENCRYPTION_KEYS_JSON.trim().length > 0;

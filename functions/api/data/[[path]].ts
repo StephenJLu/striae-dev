@@ -82,7 +82,7 @@ export const onRequest = async ({ request, env }: DataProxyContext): Promise<Res
     }
   }
 
-  if (!env.DATA_WORKER || !env.R2_KEY_SECRET) {
+  if (!env.DATA_WORKER) {
     return textResponse('Data service not configured', 502);
   }
 
@@ -96,8 +96,6 @@ export const onRequest = async ({ request, env }: DataProxyContext): Promise<Res
   if (acceptHeader) {
     upstreamHeaders.set('Accept', acceptHeader);
   }
-
-  upstreamHeaders.set('X-Custom-Auth-Key', env.R2_KEY_SECRET);
 
   const shouldForwardBody = request.method !== 'GET' && request.method !== 'HEAD';
 

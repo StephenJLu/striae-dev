@@ -23,7 +23,7 @@ prompt_for_secrets() {
     is_auto_generated_secret_var() {
         local var_name=$1
         case "$var_name" in
-            USER_DB_AUTH|R2_KEY_SECRET|PDF_WORKER_AUTH|IMAGES_API_TOKEN|IMAGE_SIGNED_URL_SECRET)
+            IMAGE_SIGNED_URL_SECRET)
                 return 0
                 ;;
             *)
@@ -36,18 +36,6 @@ prompt_for_secrets() {
         local var_name=$1
         local value=$2
         case "$var_name" in
-            USER_DB_AUTH)
-                [ "$value" = "your_custom_user_db_auth_token_here" ]
-                ;;
-            R2_KEY_SECRET)
-                [ "$value" = "your_custom_r2_secret_here" ]
-                ;;
-            PDF_WORKER_AUTH)
-                [ "$value" = "your_custom_pdf_worker_auth_token_here" ]
-                ;;
-            IMAGES_API_TOKEN)
-                [ "$value" = "your_cloudflare_images_api_token_here" ]
-                ;;
             IMAGE_SIGNED_URL_SECRET)
                 [ "$value" = "your_image_signed_url_secret_here" ]
                 ;;
@@ -218,13 +206,7 @@ prompt_for_secrets() {
     echo "=================================="
     prompt_for_var "ACCOUNT_ID" "Your Cloudflare Account ID"
 
-    echo -e "${BLUE}🔐 SHARED AUTHENTICATION & STORAGE${NC}"
-    echo "==================================="
-    prompt_for_var "USER_DB_AUTH" "Custom user database authentication token (generate with: openssl rand -hex 16)"
-    prompt_for_var "R2_KEY_SECRET" "Custom R2 storage authentication token (generate with: openssl rand -hex 16)"
-    prompt_for_var "IMAGES_API_TOKEN" "Image worker API token (shared between workers)"
-
-    echo -e "${BLUE}🔥 FIREBASE AUTH CONFIGURATION${NC}"
+    echo -e "${BLUE} FIREBASE AUTH CONFIGURATION${NC}"
     echo "==============================="
     prompt_for_var "API_KEY" "Firebase API key"
     prompt_for_var "AUTH_DOMAIN" "Firebase auth domain (project-id.firebaseapp.com)"
@@ -259,7 +241,6 @@ prompt_for_secrets() {
 
     echo -e "${BLUE}🔐 SERVICE-SPECIFIC SECRETS${NC}"
     echo "============================"
-    prompt_for_var "PDF_WORKER_AUTH" "PDF worker authentication token (generate with: openssl rand -hex 16)"
     prompt_for_var "IMAGE_SIGNED_URL_SECRET" "Image signed URL secret (generate with: openssl rand -base64 48 | tr '+/' '-_' | tr -d '=')"
 
     # Auto-derive IMAGE_SIGNED_URL_BASE_URL from PAGES_CUSTOM_DOMAIN if not yet set or still

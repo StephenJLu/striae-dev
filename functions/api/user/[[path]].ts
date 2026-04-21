@@ -96,7 +96,7 @@ export const onRequest = async ({ request, env }: UserProxyContext): Promise<Res
     return textResponse('Not Found', 404);
   }
 
-  if (!env.USER_WORKER || !env.USER_DB_AUTH) {
+  if (!env.USER_WORKER) {
     return textResponse('User service not configured', 502);
   }
 
@@ -113,8 +113,7 @@ export const onRequest = async ({ request, env }: UserProxyContext): Promise<Res
         {
           method: 'GET',
           headers: {
-            'Accept': 'application/json',
-            'X-Custom-Auth-Key': env.USER_DB_AUTH
+            'Accept': 'application/json'
           }
         }
       );
@@ -152,8 +151,7 @@ export const onRequest = async ({ request, env }: UserProxyContext): Promise<Res
         {
           method: 'GET',
           headers: {
-            'Accept': 'application/json',
-            'X-Custom-Auth-Key': env.USER_DB_AUTH
+            'Accept': 'application/json'
           }
         }
       );
@@ -186,8 +184,6 @@ export const onRequest = async ({ request, env }: UserProxyContext): Promise<Res
   if (acceptHeader) {
     upstreamHeaders.set('Accept', acceptHeader);
   }
-
-  upstreamHeaders.set('X-Custom-Auth-Key', env.USER_DB_AUTH);
 
   const shouldForwardBody = request.method !== 'GET' && request.method !== 'HEAD';
 
