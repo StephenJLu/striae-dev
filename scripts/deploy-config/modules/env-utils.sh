@@ -56,27 +56,10 @@ normalize_worker_label_value() {
     printf '%s' "$label"
 }
 
-normalize_worker_subdomain_value() {
-    local subdomain="$1"
-
-    subdomain=$(normalize_domain_value "$subdomain")
-    subdomain="${subdomain#.}"
-    subdomain="${subdomain%.}"
-    subdomain=$(printf '%s' "$subdomain" | tr '[:upper:]' '[:lower:]')
-
-    printf '%s' "$subdomain"
-}
-
 is_valid_worker_label() {
     local label="$1"
 
     [[ "$label" =~ ^[a-z0-9-]+$ ]]
-}
-
-is_valid_worker_subdomain() {
-    local subdomain="$1"
-
-    [[ "$subdomain" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$ ]]
 }
 
 strip_carriage_returns() {
@@ -194,57 +177,6 @@ confirm_key_pair_regeneration() {
     fi
 
     return 1
-}
-
-generate_worker_subdomain_label() {
-    node -e "const { randomInt } = require('crypto'); const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789'; let value = ''; for (let index = 0; index < 10; index += 1) { value += alphabet[randomInt(alphabet.length)]; } process.stdout.write(value);" 2>/dev/null
-}
-
-compose_worker_domain() {
-    local worker_name=$1
-    local worker_subdomain=$2
-
-    worker_name=$(normalize_worker_label_value "$worker_name")
-    worker_subdomain=$(normalize_worker_subdomain_value "$worker_subdomain")
-
-    if [ -z "$worker_name" ] || [ -z "$worker_subdomain" ]; then
-        return 1
-    fi
-
-    if ! is_valid_worker_label "$worker_name" || ! is_valid_worker_subdomain "$worker_subdomain"; then
-        return 1
-    fi
-
-    printf '%s.%s' "$worker_name" "$worker_subdomain"
-}
-
-infer_worker_subdomain_from_domain() {
-    local worker_name=$1
-    local worker_domain=$2
-    local worker_subdomain=""
-
-    worker_name=$(normalize_worker_label_value "$worker_name")
-    worker_domain=$(normalize_domain_value "$worker_domain")
-    worker_domain=$(printf '%s' "$worker_domain" | tr '[:upper:]' '[:lower:]')
-
-    if [ -z "$worker_name" ] || [ -z "$worker_domain" ] || is_placeholder "$worker_name" || is_placeholder "$worker_domain"; then
-        printf '%s' ""
-        return 0
-    fi
-
-    case "$worker_domain" in
-        "$worker_name".*)
-            worker_subdomain="${worker_domain#${worker_name}.}"
-            worker_subdomain=$(normalize_worker_subdomain_value "$worker_subdomain")
-
-            if is_valid_worker_subdomain "$worker_subdomain"; then
-                printf '%s' "$worker_subdomain"
-                return 0
-            fi
-            ;;
-    esac
-
-    printf '%s' ""
 }
 
 write_env_var() {

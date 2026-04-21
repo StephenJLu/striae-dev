@@ -17,19 +17,6 @@ function textResponse(message: string, status: number): Response {
   });
 }
 
-function normalizeWorkerBaseUrl(workerDomain: string): string {
-  if (typeof workerDomain !== 'string' || workerDomain.trim().length === 0) {
-    throw new Error('Invalid worker domain');
-  }
-
-  const trimmedDomain = workerDomain.trim().replace(/\/+$/, '');
-  if (trimmedDomain.startsWith('http://') || trimmedDomain.startsWith('https://')) {
-    return trimmedDomain;
-  }
-
-  return `https://${trimmedDomain}`;
-}
-
 type ProxyPathResult =
   | { ok: true; path: string }
   | { ok: false; reason: 'not-found' | 'bad-encoding' };
@@ -115,12 +102,9 @@ export const onRequest = async ({ request, env }: ImageProxyContext): Promise<Re
   const proxyPath = proxyPathResult.path;
 
   const imageWorkerToken = resolveImageWorkerToken(env);
-  if (!env.IMAGES_WORKER_DOMAIN || !imageWorkerToken) {
+  if (!env.IMAGE_WORKER || !imageWorkerToken) {
     return textResponse('Image service not configured', 502);
   }
-
-  const imageWorkerBaseUrl = normalizeWorkerBaseUrl(env.IMAGES_WORKER_DOMAIN);
-  const upstreamUrl = `${imageWorkerBaseUrl}${proxyPath}${requestUrl.search}`;
 
   const upstreamHeaders = new Headers();
   const contentTypeHeader = request.headers.get('Content-Type');
@@ -139,11 +123,14 @@ export const onRequest = async ({ request, env }: ImageProxyContext): Promise<Re
 
   let upstreamResponse: Response;
   try {
-    upstreamResponse = await fetch(upstreamUrl, {
-      method: request.method,
-      headers: upstreamHeaders,
-      body: shouldForwardBody ? request.body : undefined
-    });
+    upstreamResponse = await env.IMAGE_WORKER.fetch(
+      `https://worker${proxyPath}${requestUrl.search}`,
+      {
+        method: request.method,
+        headers: upstreamHeaders,
+        body: shouldForwardBody ? request.body : undefined
+      }
+    );
   } catch {
     return textResponse('Upstream image service unavailable', 502);
   }

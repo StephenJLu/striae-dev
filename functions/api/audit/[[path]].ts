@@ -18,19 +18,6 @@ function textResponse(message: string, status: number): Response {
   });
 }
 
-function normalizeWorkerBaseUrl(workerDomain: string): string {
-  if (typeof workerDomain !== 'string' || workerDomain.trim().length === 0) {
-    throw new Error('Invalid worker domain');
-  }
-
-  const trimmedDomain = workerDomain.trim().replace(/\/+$/, '');
-  if (trimmedDomain.startsWith('http://') || trimmedDomain.startsWith('https://')) {
-    return trimmedDomain;
-  }
-
-  return `https://${trimmedDomain}`;
-}
-
 function extractProxyPath(url: URL): string | null {
   const routePrefix = '/api/audit';
   if (!url.pathname.startsWith(routePrefix)) {
@@ -86,12 +73,9 @@ export const onRequest = async ({ request, env }: AuditProxyContext): Promise<Re
     return textResponse('Forbidden', 403);
   }
 
-  if (!env.AUDIT_WORKER_DOMAIN || !env.R2_KEY_SECRET) {
+  if (!env.AUDIT_WORKER || !env.R2_KEY_SECRET) {
     return textResponse('Audit service not configured', 502);
   }
-
-  const auditWorkerBaseUrl = normalizeWorkerBaseUrl(env.AUDIT_WORKER_DOMAIN);
-  const upstreamUrl = `${auditWorkerBaseUrl}${proxyPath}${requestUrl.search}`;
 
   let bodyToForward: BodyInit | undefined;
   if (request.method === 'POST') {
@@ -128,11 +112,14 @@ export const onRequest = async ({ request, env }: AuditProxyContext): Promise<Re
 
   let upstreamResponse: Response;
   try {
-    upstreamResponse = await fetch(upstreamUrl, {
-      method: request.method,
-      headers: upstreamHeaders,
-      body: bodyToForward
-    });
+    upstreamResponse = await env.AUDIT_WORKER.fetch(
+      `https://worker${proxyPath}${requestUrl.search}`,
+      {
+        method: request.method,
+        headers: upstreamHeaders,
+        body: bodyToForward
+      }
+    );
   } catch {
     return textResponse('Upstream audit service unavailable', 502);
   }

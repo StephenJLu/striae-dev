@@ -52,7 +52,6 @@
     "firebase.json",
     "tsconfig.json",
     "vite.config.ts",
-    "/worker-configuration.d.ts",
     "wrangler.toml.example",
     "LICENSE"
   ],

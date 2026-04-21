@@ -214,31 +214,6 @@ prompt_for_secrets() {
         echo ""
     }
 
-    set_worker_domain_from_shared_subdomain() {
-        local worker_name_var=$1
-        local worker_domain_var=$2
-        local worker_name_value="${!worker_name_var}"
-        local composed_domain=""
-
-        worker_name_value=$(normalize_worker_label_value "$worker_name_value")
-
-        if [ -z "$worker_name_value" ] || ! is_valid_worker_label "$worker_name_value"; then
-            echo -e "${RED}❌ $worker_name_var must use only lowercase letters, numbers, and dashes.${NC}"
-            exit 1
-        fi
-
-        composed_domain=$(compose_worker_domain "$worker_name_value" "$shared_worker_subdomain" || echo "")
-
-        if [ -z "$composed_domain" ]; then
-            echo -e "${RED}❌ Could not build $worker_domain_var from $worker_name_var and shared worker-subdomain.${NC}"
-            exit 1
-        fi
-
-        write_env_var "$worker_domain_var" "$composed_domain"
-        export "$worker_domain_var=$composed_domain"
-        echo -e "${GREEN}✅ $worker_domain_var set to $composed_domain${NC}"
-    }
-
     echo -e "${BLUE}📊 CLOUDFLARE CORE CONFIGURATION${NC}"
     echo "=================================="
     prompt_for_var "ACCOUNT_ID" "Your Cloudflare Account ID"
@@ -264,77 +239,15 @@ prompt_for_secrets() {
     prompt_for_var "PAGES_PROJECT_NAME" "Your Cloudflare Pages project name"
     prompt_for_var "PAGES_CUSTOM_DOMAIN" "Your custom domain (e.g., striae.org) - DO NOT include https://"
 
-    echo -e "${BLUE}🔑 WORKER NAMES & DOMAINS${NC}"
-    echo "========================="
+    echo -e "${BLUE}🔑 WORKER NAMES${NC}"
+    echo "==============="
     echo -e "${YELLOW}Worker names are lowercased automatically and must use only letters, numbers, and dashes.${NC}"
-    echo -e "${YELLOW}Enter one shared worker-subdomain as a hostname (for example: team-name.workers.dev).${NC}"
-    echo -e "${YELLOW}Each worker domain is generated as {worker-name}.{worker-subdomain}.${NC}"
-
-    local shared_worker_subdomain=""
-    local shared_worker_subdomain_default=""
-    local shared_worker_subdomain_input=""
-
-    shared_worker_subdomain_default=$(infer_worker_subdomain_from_domain "$USER_WORKER_NAME" "$USER_WORKER_DOMAIN")
-    if [ -z "$shared_worker_subdomain_default" ]; then
-        shared_worker_subdomain_default=$(infer_worker_subdomain_from_domain "$DATA_WORKER_NAME" "$DATA_WORKER_DOMAIN")
-    fi
-    if [ -z "$shared_worker_subdomain_default" ]; then
-        shared_worker_subdomain_default=$(infer_worker_subdomain_from_domain "$AUDIT_WORKER_NAME" "$AUDIT_WORKER_DOMAIN")
-    fi
-    if [ -z "$shared_worker_subdomain_default" ]; then
-        shared_worker_subdomain_default=$(infer_worker_subdomain_from_domain "$IMAGES_WORKER_NAME" "$IMAGES_WORKER_DOMAIN")
-    fi
-    if [ -z "$shared_worker_subdomain_default" ]; then
-        shared_worker_subdomain_default=$(infer_worker_subdomain_from_domain "$PDF_WORKER_NAME" "$PDF_WORKER_DOMAIN")
-    fi
-
-    while true; do
-        echo -e "${BLUE}WORKER_SUBDOMAIN${NC}"
-
-        if [ "$update_env" != "true" ] && [ -n "$shared_worker_subdomain_default" ] && ! is_placeholder "$shared_worker_subdomain_default"; then
-            echo -e "${GREEN}Current value: $shared_worker_subdomain_default${NC}"
-            read -p "New value (or press Enter to keep current): " shared_worker_subdomain_input
-            shared_worker_subdomain_input=$(strip_carriage_returns "$shared_worker_subdomain_input")
-
-            if [ -z "$shared_worker_subdomain_input" ]; then
-                shared_worker_subdomain="$shared_worker_subdomain_default"
-            else
-                shared_worker_subdomain="$shared_worker_subdomain_input"
-            fi
-        else
-            read -p "Enter shared worker-subdomain (e.g., team-name.workers.dev): " shared_worker_subdomain_input
-            shared_worker_subdomain_input=$(strip_carriage_returns "$shared_worker_subdomain_input")
-            shared_worker_subdomain="$shared_worker_subdomain_input"
-        fi
-
-        if [ -z "$shared_worker_subdomain" ] || is_placeholder "$shared_worker_subdomain"; then
-            echo -e "${RED}❌ shared worker-subdomain is required and cannot be a placeholder.${NC}"
-            continue
-        fi
-
-        shared_worker_subdomain=$(normalize_worker_subdomain_value "$shared_worker_subdomain")
-
-        if [ -z "$shared_worker_subdomain" ] || ! is_valid_worker_subdomain "$shared_worker_subdomain"; then
-            echo -e "${RED}❌ shared worker-subdomain must be a valid hostname like team-name.workers.dev (letters, numbers, dashes, and dots).${NC}"
-            continue
-        fi
-
-        echo -e "${GREEN}✅ Shared worker-subdomain set to: $shared_worker_subdomain${NC}"
-        echo ""
-        break
-    done
 
     prompt_for_var "USER_WORKER_NAME" "User worker name"
     prompt_for_var "DATA_WORKER_NAME" "Data worker name"
     prompt_for_var "AUDIT_WORKER_NAME" "Audit worker name"
     prompt_for_var "IMAGES_WORKER_NAME" "Images worker name"
     prompt_for_var "PDF_WORKER_NAME" "PDF worker name"
-
-    set_worker_domain_from_shared_subdomain "USER_WORKER_NAME" "USER_WORKER_DOMAIN"
-    set_worker_domain_from_shared_subdomain "DATA_WORKER_NAME" "DATA_WORKER_DOMAIN"
-    set_worker_domain_from_shared_subdomain "AUDIT_WORKER_NAME" "AUDIT_WORKER_DOMAIN"
-    set_worker_domain_from_shared_subdomain "IMAGES_WORKER_NAME" "IMAGES_WORKER_DOMAIN"
-    set_worker_domain_from_shared_subdomain "PDF_WORKER_NAME" "PDF_WORKER_DOMAIN"
     echo ""
 
     echo -e "${BLUE}🗄️ STORAGE CONFIGURATION${NC}"
