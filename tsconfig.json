@@ -7,10 +7,7 @@
     "**/.client/**/*.ts",
     "**/.client/**/*.tsx",
     ".react-router/types/**/*"
-  ],
-  "exclude": [
-    "tests/e2e"
-  ],
+  ],  
   "compilerOptions": {
     "lib": [
       "DOM",
