@@ -20,6 +20,14 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-04-21] - *[Major Release v7.0.0](https://github.com/striae-org/striae/releases/tag/v7.0.0)*
+
+- **🔗 Service Bindings Migration** - Replaced HTTP-based worker proxying (domain environment variables and URL normalization) with Cloudflare Service Bindings across all five worker proxy functions; removed top-level `worker-configuration.d.ts` and `env-utils.sh` deploy helper; updated `wrangler.toml.example` and all worker `wrangler.jsonc.example` files.
+- **🔑 Custom Auth Key Removal** - Removed stale `CUSTOM_AUTH_KEY_SECRET` bindings from all worker types and cleaned up the associated generated `worker-configuration.d.ts` files.
+- **🖼️ Image Management Cleanup** - Removed the direct blob retrieval fallback from `image-manage.ts`; image access now exclusively uses signed URLs.
+- **⚙️ Deploy Config Update** - Added worker name registration step to `scaffolding.sh` for service binding setup.
+- **📦 Dependency Updates** - Bumped Firebase SDK, ESLint, app deps, worker package versions, and Cloudflare compatibility dates across all layers.
+
 ## [2026-04-20] - *[Patch Release v6.1.8](https://github.com/striae-org/striae/releases/tag/v6.1.8)*
 
 - **🧹 Worker CORS Cleanup** - Removed CORS configuration from all worker entry points and consolidated worker source files by renaming `.example.ts` files to canonical `.ts` files; refactored user worker routes and removed CORS scaffolding from deploy config scripts.
