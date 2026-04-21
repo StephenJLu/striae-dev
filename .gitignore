@@ -36,9 +36,3 @@ firebase-debug.log
 *.toml
 *.jsonc
 app/config
-
-# Test artifacts
-.env.test
-tests/e2e/.auth/
-playwright-report/
-test-results/
