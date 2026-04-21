@@ -4,13 +4,6 @@ build/
 dist/
 archive/
 
-# Workers
-workers/audit-worker/src/audit-worker.ts
-workers/data-worker/src/data-worker.ts
-workers/image-worker/src/image-worker.ts
-workers/pdf-worker/src/pdf-worker.ts
-workers/user-worker/src/user-worker.ts
-
 # PDF Formats (Except Striae Default)
 workers/pdf-worker/src/formats/*.ts
 !workers/pdf-worker/src/formats/format-striae.ts

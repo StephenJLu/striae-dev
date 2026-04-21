@@ -109,44 +109,6 @@ copy_example_configs() {
     # Return to project root
     cd ../..
 
-    # Copy worker source template files
-    echo -e "${YELLOW}  Copying worker source template files...${NC}"
-
-    if [ -f "workers/user-worker/src/user-worker.example.ts" ] && { [ "$update_env" = "true" ] || [ ! -f "workers/user-worker/src/user-worker.ts" ]; }; then
-        cp workers/user-worker/src/user-worker.example.ts workers/user-worker/src/user-worker.ts
-        echo -e "${GREEN}    ✅ user-worker: user-worker.ts created from example${NC}"
-    elif [ -f "workers/user-worker/src/user-worker.ts" ]; then
-        echo -e "${YELLOW}    ⚠️  user-worker: user-worker.ts already exists, skipping copy${NC}"
-    fi
-
-    if [ -f "workers/data-worker/src/data-worker.example.ts" ] && { [ "$update_env" = "true" ] || [ ! -f "workers/data-worker/src/data-worker.ts" ]; }; then
-        cp workers/data-worker/src/data-worker.example.ts workers/data-worker/src/data-worker.ts
-        echo -e "${GREEN}    ✅ data-worker: data-worker.ts created from example${NC}"
-    elif [ -f "workers/data-worker/src/data-worker.ts" ]; then
-        echo -e "${YELLOW}    ⚠️  data-worker: data-worker.ts already exists, skipping copy${NC}"
-    fi
-
-    if [ -f "workers/audit-worker/src/audit-worker.example.ts" ] && { [ "$update_env" = "true" ] || [ ! -f "workers/audit-worker/src/audit-worker.ts" ]; }; then
-        cp workers/audit-worker/src/audit-worker.example.ts workers/audit-worker/src/audit-worker.ts
-        echo -e "${GREEN}    ✅ audit-worker: audit-worker.ts created from example${NC}"
-    elif [ -f "workers/audit-worker/src/audit-worker.ts" ]; then
-        echo -e "${YELLOW}    ⚠️  audit-worker: audit-worker.ts already exists, skipping copy${NC}"
-    fi
-
-    if [ -f "workers/image-worker/src/image-worker.example.ts" ] && { [ "$update_env" = "true" ] || [ ! -f "workers/image-worker/src/image-worker.ts" ]; }; then
-        cp workers/image-worker/src/image-worker.example.ts workers/image-worker/src/image-worker.ts
-        echo -e "${GREEN}    ✅ image-worker: image-worker.ts created from example${NC}"
-    elif [ -f "workers/image-worker/src/image-worker.ts" ]; then
-        echo -e "${YELLOW}    ⚠️  image-worker: image-worker.ts already exists, skipping copy${NC}"
-    fi
-
-    if [ -f "workers/pdf-worker/src/pdf-worker.example.ts" ] && { [ "$update_env" = "true" ] || [ ! -f "workers/pdf-worker/src/pdf-worker.ts" ]; }; then
-        cp workers/pdf-worker/src/pdf-worker.example.ts workers/pdf-worker/src/pdf-worker.ts
-        echo -e "${GREEN}    ✅ pdf-worker: pdf-worker.ts created from example${NC}"
-    elif [ -f "workers/pdf-worker/src/pdf-worker.ts" ]; then
-        echo -e "${YELLOW}    ⚠️  pdf-worker: pdf-worker.ts already exists, skipping copy${NC}"
-    fi
-
     # Copy main wrangler.toml from example
     if [ -f "wrangler.toml.example" ] && { [ "$update_env" = "true" ] || [ ! -f "wrangler.toml" ]; }; then
         cp wrangler.toml.example wrangler.toml
@@ -187,24 +149,12 @@ update_wrangler_configs() {
         echo -e "${GREEN}    ✅ audit-worker configuration updated${NC}"
     fi
 
-    if [ -f "workers/audit-worker/src/audit-worker.ts" ]; then
-        echo -e "${YELLOW}  Updating audit-worker source placeholders...${NC}"
-        sed -i "s|'Access-Control-Allow-Origin': '[^']*'|'Access-Control-Allow-Origin': 'https://$escaped_pages_custom_domain'|g" workers/audit-worker/src/audit-worker.ts
-        echo -e "${GREEN}    ✅ audit-worker source placeholders updated${NC}"
-    fi
-
     if [ -f "workers/data-worker/wrangler.jsonc" ]; then
         echo -e "${YELLOW}  Updating data-worker/wrangler.jsonc...${NC}"
         sed -i "s/\"DATA_WORKER_NAME\"/\"$DATA_WORKER_NAME\"/g" workers/data-worker/wrangler.jsonc
         sed -i "s/\"ACCOUNT_ID\"/\"$escaped_account_id\"/g" workers/data-worker/wrangler.jsonc
         sed -i "s/\"DATA_BUCKET_NAME\"/\"$DATA_BUCKET_NAME\"/g" workers/data-worker/wrangler.jsonc
         echo -e "${GREEN}    ✅ data-worker configuration updated${NC}"
-    fi
-
-    if [ -f "workers/data-worker/src/data-worker.ts" ]; then
-        echo -e "${YELLOW}  Updating data-worker source placeholders...${NC}"
-        sed -i "s|'Access-Control-Allow-Origin': '[^']*'|'Access-Control-Allow-Origin': 'https://$escaped_pages_custom_domain'|g" workers/data-worker/src/data-worker.ts
-        echo -e "${GREEN}    ✅ data-worker source placeholders updated${NC}"
     fi
 
     if [ -f "workers/image-worker/wrangler.jsonc" ]; then
@@ -215,23 +165,11 @@ update_wrangler_configs() {
         echo -e "${GREEN}    ✅ image-worker configuration updated${NC}"
     fi
 
-    if [ -f "workers/image-worker/src/image-worker.ts" ]; then
-        echo -e "${YELLOW}  Updating image-worker source placeholders...${NC}"
-        sed -i "s|'Access-Control-Allow-Origin': '[^']*'|'Access-Control-Allow-Origin': 'https://$escaped_pages_custom_domain'|g" workers/image-worker/src/image-worker.ts
-        echo -e "${GREEN}    ✅ image-worker source placeholders updated${NC}"
-    fi
-
     if [ -f "workers/pdf-worker/wrangler.jsonc" ]; then
         echo -e "${YELLOW}  Updating pdf-worker/wrangler.jsonc...${NC}"
         sed -i "s/\"PDF_WORKER_NAME\"/\"$PDF_WORKER_NAME\"/g" workers/pdf-worker/wrangler.jsonc
         sed -i "s/\"ACCOUNT_ID\"/\"$escaped_account_id\"/g" workers/pdf-worker/wrangler.jsonc
         echo -e "${GREEN}    ✅ pdf-worker configuration updated${NC}"
-    fi
-
-    if [ -f "workers/pdf-worker/src/pdf-worker.ts" ]; then
-        echo -e "${YELLOW}  Updating pdf-worker source placeholders...${NC}"
-        sed -i "s|'Access-Control-Allow-Origin': '[^']*'|'Access-Control-Allow-Origin': 'https://$escaped_pages_custom_domain'|g" workers/pdf-worker/src/pdf-worker.ts
-        echo -e "${GREEN}    ✅ pdf-worker source placeholders updated${NC}"
     fi
 
     if [ -f "workers/user-worker/wrangler.jsonc" ]; then
@@ -242,12 +180,6 @@ update_wrangler_configs() {
         sed -i "s/\"DATA_BUCKET_NAME\"/\"$DATA_BUCKET_NAME\"/g" workers/user-worker/wrangler.jsonc
         sed -i "s/\"FILES_BUCKET_NAME\"/\"$FILES_BUCKET_NAME\"/g" workers/user-worker/wrangler.jsonc
         echo -e "${GREEN}    ✅ user-worker configuration updated${NC}"
-    fi
-
-    if [ -f "workers/user-worker/src/user-worker.ts" ]; then
-        echo -e "${YELLOW}  Updating user-worker source placeholders...${NC}"
-        sed -i "s|'Access-Control-Allow-Origin': '[^']*'|'Access-Control-Allow-Origin': 'https://$escaped_pages_custom_domain'|g" workers/user-worker/src/user-worker.ts
-        echo -e "${GREEN}    ✅ user-worker source placeholders updated${NC}"
     fi
 
     if [ -f "wrangler.toml" ]; then

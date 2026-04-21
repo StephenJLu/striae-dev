@@ -10,28 +10,15 @@ import {
 } from './handlers/user-routes';
 import type { Env } from './types';
 
-const corsHeaders: Record<string, string> = {
-  'Access-Control-Allow-Origin': 'PAGES_CUSTOM_DOMAIN',
-  'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, X-Custom-Auth-Key'
-};
-
-function createTextResponse(message: string, status: number, headers: Record<string, string>): Response {
+function createTextResponse(message: string, status: number): Response {
   return new Response(message, {
     status,
-    headers: {
-      ...headers,
-      'Content-Type': 'text/plain; charset=utf-8'
-    }
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' }
   });
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (request.method === 'OPTIONS') {
-      return new Response(null, { headers: corsHeaders });
-    }
-
     try {
       await authenticate(request, env);
 
@@ -48,15 +35,15 @@ export default {
       const isCasesEndpoint = parts[2] === USER_CASES_SEGMENT;
       
       if (!userUid) {
-        return createTextResponse('Not Found', 404, corsHeaders);
+        return createTextResponse('Not Found', 404);
       }
 
       // Handle regular cases endpoint
       if (isCasesEndpoint) {
         switch (request.method) {
-          case 'PUT': return handleAddCases(request, env, userUid, corsHeaders);
-          case 'DELETE': return handleDeleteCases(request, env, userUid, corsHeaders);
-          default: return createTextResponse('Method not allowed', 405, corsHeaders);
+          case 'PUT': return handleAddCases(request, env, userUid);
+          case 'DELETE': return handleDeleteCases(request, env, userUid);
+          default: return createTextResponse('Method not allowed', 405);
         }
       }
 
@@ -65,24 +52,24 @@ export default {
       const streamProgress = url.searchParams.get('stream') === 'true' || acceptsEventStream;
 
       switch (request.method) {
-        case 'GET': return handleGetUser(env, userUid, corsHeaders);
-        case 'PUT': return handleAddUser(request, env, userUid, corsHeaders);
+        case 'GET': return handleGetUser(env, userUid);
+        case 'PUT': return handleAddUser(request, env, userUid);
         case 'DELETE': return streamProgress
-          ? handleDeleteUserWithProgress(env, userUid, corsHeaders)
-          : handleDeleteUser(env, userUid, corsHeaders);
-        default: return createTextResponse('Method not allowed', 405, corsHeaders);
+          ? handleDeleteUserWithProgress(env, userUid)
+          : handleDeleteUser(env, userUid);
+        default: return createTextResponse('Method not allowed', 405);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       if (errorMessage === 'Unauthorized') {
-        return createTextResponse('Forbidden', 403, corsHeaders);
+        return createTextResponse('Forbidden', 403);
       }
 
       if (errorMessage === 'User KV encryption is not fully configured') {
-        return createTextResponse(errorMessage, 500, corsHeaders);
+        return createTextResponse(errorMessage, 500);
       }
       
-      return createTextResponse('Internal Server Error', 500, corsHeaders);
+      return createTextResponse('Internal Server Error', 500);
     }
   }
 };

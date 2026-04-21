@@ -5,56 +5,47 @@ import type {
   AccountDeletionProgressEvent,
   DeleteCasesRequest,
   Env,
-  ResponseHeaders,
   UserData,
   UserRequestData
 } from '../types';
 
-function createJsonResponse(data: unknown, headers: ResponseHeaders, status: number = 200): Response {
+function createJsonResponse(data: unknown, status: number = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: {
-      ...headers,
-      'Content-Type': 'application/json; charset=utf-8'
-    }
+    headers: { 'Content-Type': 'application/json; charset=utf-8' }
   });
 }
 
-function createTextResponse(message: string, headers: ResponseHeaders, status: number): Response {
+function createTextResponse(message: string, status: number): Response {
   return new Response(message, {
     status,
-    headers: {
-      ...headers,
-      'Content-Type': 'text/plain; charset=utf-8'
-    }
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' }
   });
 }
 
 export async function handleGetUser(
   env: Env,
-  userUid: string,
-  corsHeaders: ResponseHeaders
+  userUid: string
 ): Promise<Response> {
   try {
     const userData = await readUserRecord(env, userUid);
     if (userData === null) {
-      return createTextResponse('User not found', corsHeaders, 404);
+      return createTextResponse('User not found', 404);
     }
 
-    return createJsonResponse(userData, corsHeaders);
+    return createJsonResponse(userData);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown user data read error';
     console.error('Failed to get user data:', { uid: userUid, reason: errorMessage });
 
-    return createTextResponse('Failed to get user data', corsHeaders, 500);
+    return createTextResponse('Failed to get user data', 500);
   }
 }
 
 export async function handleAddUser(
   request: Request,
   env: Env,
-  userUid: string,
-  corsHeaders: ResponseHeaders
+  userUid: string
 ): Promise<Response> {
   try {
     const requestData: UserRequestData = await request.json();
@@ -96,16 +87,15 @@ export async function handleAddUser(
 
     await writeUserRecord(env, userUid, userData);
 
-    return createJsonResponse(userData, corsHeaders, existingUser !== null ? 200 : 201);
+    return createJsonResponse(userData, existingUser !== null ? 200 : 201);
   } catch {
-    return createTextResponse('Failed to save user data', corsHeaders, 500);
+    return createTextResponse('Failed to save user data', 500);
   }
 }
 
 export async function handleDeleteUser(
   env: Env,
-  userUid: string,
-  corsHeaders: ResponseHeaders
+  userUid: string
 ): Promise<Response> {
   try {
     const result = await executeUserDeletion(env, userUid);
@@ -113,29 +103,27 @@ export async function handleDeleteUser(
     return createJsonResponse({
       success: result.success,
       message: result.message
-    }, corsHeaders);
+    });
   } catch (error) {
     console.error('Delete user error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 
     if (errorMessage === 'User not found') {
-      return createTextResponse('User not found', corsHeaders, 404);
+      return createTextResponse('User not found', 404);
     }
 
     return createJsonResponse({
       success: false,
       message: 'Failed to delete user account'
-    }, corsHeaders, 500);
+    }, 500);
   }
 }
 
 export function handleDeleteUserWithProgress(
   env: Env,
-  userUid: string,
-  corsHeaders: ResponseHeaders
+  userUid: string
 ): Response {
-  const sseHeaders: ResponseHeaders = {
-    ...corsHeaders,
+  const sseHeaders = {
     'Content-Type': 'text/event-stream; charset=utf-8',
     'Cache-Control': 'no-cache, no-transform',
     Connection: 'keep-alive'
@@ -182,14 +170,13 @@ export function handleDeleteUserWithProgress(
 export async function handleAddCases(
   request: Request,
   env: Env,
-  userUid: string,
-  corsHeaders: ResponseHeaders
+  userUid: string
 ): Promise<Response> {
   try {
     const { cases = [] }: AddCasesRequest = await request.json();
     const userData = await readUserRecord(env, userUid);
     if (!userData) {
-      return createTextResponse('User not found', corsHeaders, 404);
+      return createTextResponse('User not found', 404);
     }
 
     const existingCases = userData.cases || [];
@@ -201,31 +188,30 @@ export async function handleAddCases(
     userData.updatedAt = new Date().toISOString();
     await writeUserRecord(env, userUid, userData);
 
-    return createJsonResponse(userData, corsHeaders);
+    return createJsonResponse(userData);
   } catch {
-    return createTextResponse('Failed to add cases', corsHeaders, 500);
+    return createTextResponse('Failed to add cases', 500);
   }
 }
 
 export async function handleDeleteCases(
   request: Request,
   env: Env,
-  userUid: string,
-  corsHeaders: ResponseHeaders
+  userUid: string
 ): Promise<Response> {
   try {
     const { casesToDelete }: DeleteCasesRequest = await request.json();
     const userData = await readUserRecord(env, userUid);
     if (!userData) {
-      return createTextResponse('User not found', corsHeaders, 404);
+      return createTextResponse('User not found', 404);
     }
 
     userData.cases = userData.cases.filter((caseItem) => !casesToDelete.includes(caseItem.caseNumber));
     userData.updatedAt = new Date().toISOString();
     await writeUserRecord(env, userUid, userData);
 
-    return createJsonResponse(userData, corsHeaders);
+    return createJsonResponse(userData);
   } catch {
-    return createTextResponse('Failed to delete cases', corsHeaders, 500);
+    return createTextResponse('Failed to delete cases', 500);
   }
 }
