@@ -81,7 +81,11 @@ export const onRequest = async ({ request, env }: ImageProxyContext): Promise<Re
     signedToken !== null &&
     looksLikeSignedToken(signedToken);
 
-  if (!isSignedTokenRequest) {
+  if (request.method === 'GET') {
+    if (!isSignedTokenRequest) {
+      return textResponse('Unauthorized', 403);
+    }
+  } else {
     const identity = await verifyFirebaseIdentityFromRequest(request, env);
     if (!identity) {
       return textResponse('Unauthorized', 401);

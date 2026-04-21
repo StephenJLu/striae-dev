@@ -1,6 +1,6 @@
 {
   "name": "user-worker",
-  "version": "6.1.8",
+  "version": "7.0.0",
   "private": true,
   "scripts": {
     "deploy": "wrangler deploy",
