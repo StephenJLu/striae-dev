@@ -2,8 +2,7 @@ import {
   DECRYPT_EXPORT_PATH,
   SIGN_AUDIT_EXPORT_PATH,
   SIGN_CONFIRMATION_PATH,
-  SIGN_MANIFEST_PATH,
-  hasValidHeader
+  SIGN_MANIFEST_PATH
 } from './config';
 import { handleDecryptExport } from './handlers/decrypt-export';
 import {
@@ -21,10 +20,6 @@ const createWorkerResponse: CreateResponse = (data, status: number = 200): Respo
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (!hasValidHeader(request, env)) {
-      return createWorkerResponse({ error: 'Forbidden' }, 403);
-    }
-
     try {
       const url = new URL(request.url);
       const pathname = url.pathname;

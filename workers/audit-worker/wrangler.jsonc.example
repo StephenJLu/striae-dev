@@ -1,13 +1,9 @@
 {
-  // Required secrets: R2_KEY_SECRET
-  // Optional data-at-rest secrets/vars:
-  // - DATA_AT_REST_ENCRYPTION_ENABLED=true
-  // - DATA_AT_REST_ENCRYPTION_PRIVATE_KEY (required for decrypting encrypted records)
-  // - DATA_AT_REST_ENCRYPTION_PUBLIC_KEY and DATA_AT_REST_ENCRYPTION_KEY_ID (required when encrypt-on-write is enabled)
   "name": "AUDIT_WORKER_NAME",
   "account_id": "ACCOUNT_ID",
   "main": "src/audit-worker.ts",
-  "compatibility_date": "2026-04-20",
+  "workers_dev": false,
+  "compatibility_date": "2026-04-21",
   "compatibility_flags": [
     "nodejs_compat"
   ], 

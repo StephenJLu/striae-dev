@@ -97,8 +97,6 @@ load_required_admin_service_credentials
 
 build_user_worker_secret_list() {
     local secrets=(
-        "USER_DB_AUTH"
-        "R2_KEY_SECRET"
         "PROJECT_ID"
         "FIREBASE_SERVICE_ACCOUNT_EMAIL"
         "FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY"
@@ -149,9 +147,7 @@ build_user_worker_secret_list() {
 }
 
 build_audit_worker_secret_list() {
-    local secrets=(
-        "R2_KEY_SECRET"
-    )
+    local secrets=()
 
     if [ -n "${DATA_AT_REST_ENCRYPTION_ENABLED:-}" ]; then
         secrets+=("DATA_AT_REST_ENCRYPTION_ENABLED")
@@ -230,7 +226,6 @@ set_worker_secrets() {
 
 build_data_worker_secret_list() {
     local secrets=(
-        "R2_KEY_SECRET"
         "MANIFEST_SIGNING_PRIVATE_KEY"
         "MANIFEST_SIGNING_KEY_ID"
         "EXPORT_ENCRYPTION_PRIVATE_KEY"
@@ -274,7 +269,6 @@ build_data_worker_secret_list() {
 
 build_images_worker_secret_list() {
     local secrets=(
-        "IMAGES_API_TOKEN"
         "DATA_AT_REST_ENCRYPTION_PUBLIC_KEY"
         "DATA_AT_REST_ENCRYPTION_KEY_ID"
         "IMAGE_SIGNED_URL_SECRET"
@@ -365,7 +359,7 @@ fi
 
 # PDF Worker
 if ! set_worker_secrets "PDF Worker" "workers/pdf-worker" \
-    "PDF_WORKER_AUTH" "ACCOUNT_ID" "BROWSER_API_TOKEN"; then
+    "ACCOUNT_ID" "BROWSER_API_TOKEN"; then
     echo -e "${YELLOW}⚠️  Skipping PDF Worker (not configured)${NC}"
 fi
 

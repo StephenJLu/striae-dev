@@ -29,19 +29,6 @@ function jsonResponse(payload: Record<string, unknown>, status: number = 200): R
   });
 }
 
-function normalizeWorkerBaseUrl(workerDomain: string): string {
-  if (typeof workerDomain !== 'string' || workerDomain.trim().length === 0) {
-    throw new Error('Invalid worker domain');
-  }
-
-  const trimmedDomain = workerDomain.trim().replace(/\/+$/, '');
-  if (trimmedDomain.startsWith('http://') || trimmedDomain.startsWith('https://')) {
-    return trimmedDomain;
-  }
-
-  return `https://${trimmedDomain}`;
-}
-
 function extractProxyPath(url: URL): string | null {
   const routePrefix = '/api/user';
   if (!url.pathname.startsWith(routePrefix)) {
@@ -109,11 +96,9 @@ export const onRequest = async ({ request, env }: UserProxyContext): Promise<Res
     return textResponse('Not Found', 404);
   }
 
-  if (!env.USER_WORKER_DOMAIN || !env.USER_DB_AUTH) {
+  if (!env.USER_WORKER) {
     return textResponse('User service not configured', 502);
   }
-
-  const userWorkerBaseUrl = normalizeWorkerBaseUrl(env.USER_WORKER_DOMAIN);
 
   const existenceCheckUserId = extractExistenceCheckUserId(proxyPath);
   if (existenceCheckUserId !== null) {
@@ -123,13 +108,12 @@ export const onRequest = async ({ request, env }: UserProxyContext): Promise<Res
 
     let existenceResponse: Response;
     try {
-      existenceResponse = await fetch(
-        `${userWorkerBaseUrl}/${encodeURIComponent(existenceCheckUserId)}`,
+      existenceResponse = await env.USER_WORKER.fetch(
+        `https://worker/${encodeURIComponent(existenceCheckUserId)}`,
         {
           method: 'GET',
           headers: {
-            'Accept': 'application/json',
-            'X-Custom-Auth-Key': env.USER_DB_AUTH
+            'Accept': 'application/json'
           }
         }
       );
@@ -162,14 +146,15 @@ export const onRequest = async ({ request, env }: UserProxyContext): Promise<Res
   // This is defense-in-depth — the primary check runs client-side in the login flow.
   if (request.method === 'PUT' && env.REGISTRATION_EMAILS && env.REGISTRATION_EMAILS.trim().length > 0) {
     try {
-      const existenceCheckUrl = `${userWorkerBaseUrl}/${encodeURIComponent(requestedUserId)}`;
-      const existenceResponse = await fetch(existenceCheckUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'X-Custom-Auth-Key': env.USER_DB_AUTH
+      const existenceResponse = await env.USER_WORKER.fetch(
+        `https://worker/${encodeURIComponent(requestedUserId)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          }
         }
-      });
+      );
 
       if (existenceResponse.status === 404) {
         // User does not exist yet — this is a registration PUT.
@@ -189,8 +174,6 @@ export const onRequest = async ({ request, env }: UserProxyContext): Promise<Res
     }
   }
 
-  const upstreamUrl = `${userWorkerBaseUrl}${proxyPath}${requestUrl.search}`;
-
   const upstreamHeaders = new Headers();
   const contentTypeHeader = request.headers.get('Content-Type');
   if (contentTypeHeader) {
@@ -202,17 +185,18 @@ export const onRequest = async ({ request, env }: UserProxyContext): Promise<Res
     upstreamHeaders.set('Accept', acceptHeader);
   }
 
-  upstreamHeaders.set('X-Custom-Auth-Key', env.USER_DB_AUTH);
-
   const shouldForwardBody = request.method !== 'GET' && request.method !== 'HEAD';
 
   let upstreamResponse: Response;
   try {
-    upstreamResponse = await fetch(upstreamUrl, {
-      method: request.method,
-      headers: upstreamHeaders,
-      body: shouldForwardBody ? request.body : undefined
-    });
+    upstreamResponse = await env.USER_WORKER.fetch(
+      `https://worker${proxyPath}${requestUrl.search}`,
+      {
+        method: request.method,
+        headers: upstreamHeaders,
+        body: shouldForwardBody ? request.body : undefined
+      }
+    );
   } catch {
     return textResponse('Upstream user service unavailable', 502);
   }

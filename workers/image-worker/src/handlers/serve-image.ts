@@ -1,4 +1,3 @@
-import { hasValidToken } from '../auth';
 import {
   decryptBinaryWithRegistry,
   requireEncryptionRetrievalConfig
@@ -29,7 +28,7 @@ export async function handleImageServing(
     if (!tokenValid) {
       return createJsonResponse({ error: 'Invalid or expired signed URL token' }, 403);
     }
-  } else if (!hasValidToken(request, env)) {
+  } else {
     return createJsonResponse({ error: 'Unauthorized' }, 403);
   }
 

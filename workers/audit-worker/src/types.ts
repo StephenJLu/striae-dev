@@ -1,5 +1,4 @@
 export interface Env {
-  R2_KEY_SECRET: string;
   STRIAE_AUDIT: R2Bucket;
   DATA_AT_REST_ENCRYPTION_ENABLED?: string;
   DATA_AT_REST_ENCRYPTION_PRIVATE_KEY?: string;

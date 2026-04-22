@@ -1,4 +1,3 @@
-import { hasValidHeader } from './config';
 import { handleAuditRequest } from './handlers/audit-routes';
 import type { CreateResponse, Env } from './types';
 
@@ -9,10 +8,6 @@ const createWorkerResponse: CreateResponse = (data, status: number = 200): Respo
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (!hasValidHeader(request, env)) {
-      return createWorkerResponse({ error: 'Forbidden' }, 403);
-    }
-
     try {
       const url = new URL(request.url);
       const pathname = url.pathname;

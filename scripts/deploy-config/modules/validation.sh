@@ -75,11 +75,6 @@ required_vars=(
     # Core Cloudflare Configuration
     "ACCOUNT_ID"
 
-    # Shared Authentication & Storage
-    "USER_DB_AUTH"
-    "R2_KEY_SECRET"
-    "IMAGES_API_TOKEN"
-
     # Firebase Auth Configuration
     "API_KEY"
     "AUTH_DOMAIN"
@@ -102,13 +97,6 @@ required_vars=(
     "IMAGES_WORKER_NAME"
     "PDF_WORKER_NAME"
 
-    # Worker Domains (required for proxy/env secrets and worker fallbacks)
-    "USER_WORKER_DOMAIN"
-    "DATA_WORKER_DOMAIN"
-    "AUDIT_WORKER_DOMAIN"
-    "IMAGES_WORKER_DOMAIN"
-    "PDF_WORKER_DOMAIN"
-
     # Storage Configuration (required for config replacement)
     "DATA_BUCKET_NAME"
     "AUDIT_BUCKET_NAME"
@@ -116,7 +104,6 @@ required_vars=(
     "KV_STORE_ID"
 
     # Worker-Specific Secrets (required for deployment)
-    "PDF_WORKER_AUTH"
     "IMAGE_SIGNED_URL_SECRET"
     "BROWSER_API_TOKEN"
     "MANIFEST_SIGNING_PRIVATE_KEY"
@@ -212,11 +199,6 @@ validate_env_value_formats() {
     echo -e "${YELLOW}🔍 Validating environment value formats...${NC}"
 
     validate_domain_var "PAGES_CUSTOM_DOMAIN"
-    validate_domain_var "USER_WORKER_DOMAIN"
-    validate_domain_var "DATA_WORKER_DOMAIN"
-    validate_domain_var "AUDIT_WORKER_DOMAIN"
-    validate_domain_var "IMAGES_WORKER_DOMAIN"
-    validate_domain_var "PDF_WORKER_DOMAIN"
 
     if ! [[ "$KV_STORE_ID" =~ ^([0-9a-fA-F]{32}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$ ]]; then
         echo -e "${RED}❌ Error: KV_STORE_ID must be a 32-character hex namespace ID (or UUID format)${NC}"
@@ -313,7 +295,7 @@ validate_generated_configs() {
     assert_contains_literal "app/config/firebase.ts" "$MEASUREMENT_ID" "MEASUREMENT_ID missing in app/config/firebase.ts"
 
     local placeholder_pattern
-    placeholder_pattern="(\"(ACCOUNT_ID|PAGES_PROJECT_NAME|PAGES_CUSTOM_DOMAIN|USER_WORKER_NAME|DATA_WORKER_NAME|AUDIT_WORKER_NAME|IMAGES_WORKER_NAME|PDF_WORKER_NAME|USER_WORKER_DOMAIN|DATA_WORKER_DOMAIN|AUDIT_WORKER_DOMAIN|IMAGES_WORKER_DOMAIN|PDF_WORKER_DOMAIN|DATA_BUCKET_NAME|AUDIT_BUCKET_NAME|FILES_BUCKET_NAME|KV_STORE_ID|MANIFEST_SIGNING_KEY_ID|MANIFEST_SIGNING_PUBLIC_KEY|EXPORT_ENCRYPTION_KEY_ID|EXPORT_ENCRYPTION_PUBLIC_KEY|YOUR_FIREBASE_API_KEY|YOUR_FIREBASE_AUTH_DOMAIN|YOUR_FIREBASE_PROJECT_ID|YOUR_FIREBASE_STORAGE_BUCKET|YOUR_FIREBASE_MESSAGING_SENDER_ID|YOUR_FIREBASE_APP_ID|YOUR_FIREBASE_MEASUREMENT_ID)\")"
+    placeholder_pattern="(\"(ACCOUNT_ID|PAGES_PROJECT_NAME|PAGES_CUSTOM_DOMAIN|USER_WORKER_NAME|DATA_WORKER_NAME|AUDIT_WORKER_NAME|IMAGES_WORKER_NAME|PDF_WORKER_NAME|DATA_BUCKET_NAME|AUDIT_BUCKET_NAME|FILES_BUCKET_NAME|KV_STORE_ID|MANIFEST_SIGNING_KEY_ID|MANIFEST_SIGNING_PUBLIC_KEY|EXPORT_ENCRYPTION_KEY_ID|EXPORT_ENCRYPTION_PUBLIC_KEY|YOUR_FIREBASE_API_KEY|YOUR_FIREBASE_AUTH_DOMAIN|YOUR_FIREBASE_PROJECT_ID|YOUR_FIREBASE_STORAGE_BUCKET|YOUR_FIREBASE_MESSAGING_SENDER_ID|YOUR_FIREBASE_APP_ID|YOUR_FIREBASE_MEASUREMENT_ID)\")"
 
     local files_to_scan=(
         "wrangler.toml"

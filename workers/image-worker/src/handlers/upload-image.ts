@@ -1,4 +1,3 @@
-import { hasValidToken } from '../auth';
 import { encryptBinaryForStorage } from '../encryption-utils';
 import { requireEncryptionUploadConfig } from '../security/key-registry';
 import type { CreateImageWorkerResponse, Env } from '../types';
@@ -9,10 +8,6 @@ export async function handleImageUpload(
   env: Env,
   createJsonResponse: CreateImageWorkerResponse
 ): Promise<Response> {
-  if (!hasValidToken(request, env)) {
-    return createJsonResponse({ error: 'Unauthorized' }, 403);
-  }
-
   requireEncryptionUploadConfig(env);
 
   const formData = await request.formData();

@@ -2,7 +2,8 @@
   "name": "IMAGES_WORKER_NAME",
   "account_id": "ACCOUNT_ID",
   "main": "src/image-worker.ts",
-  "compatibility_date": "2026-04-20",
+  "workers_dev": false,
+  "compatibility_date": "2026-04-21",
   "compatibility_flags": [
     "nodejs_compat"
   ], 

@@ -1,8 +1,28 @@
 #:schema node_modules/wrangler/config-schema.json
 name = "PAGES_PROJECT_NAME"
-compatibility_date = "2026-04-20"
+compatibility_date = "2026-04-21"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "./build/client"
 
 [placement]
 mode = "smart"
+
+[[services]]
+binding = "USER_WORKER"
+service = "USER_WORKER_NAME"
+
+[[services]]
+binding = "DATA_WORKER"
+service = "DATA_WORKER_NAME"
+
+[[services]]
+binding = "AUDIT_WORKER"
+service = "AUDIT_WORKER_NAME"
+
+[[services]]
+binding = "IMAGE_WORKER"
+service = "IMAGES_WORKER_NAME"
+
+[[services]]
+binding = "PDF_WORKER"
+service = "PDF_WORKER_NAME"

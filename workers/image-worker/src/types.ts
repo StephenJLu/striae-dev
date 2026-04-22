@@ -1,5 +1,4 @@
 export interface Env {
-  IMAGES_API_TOKEN: string;
   STRIAE_FILES: R2Bucket;
   DATA_AT_REST_ENCRYPTION_PRIVATE_KEY?: string;
   DATA_AT_REST_ENCRYPTION_PUBLIC_KEY: string;

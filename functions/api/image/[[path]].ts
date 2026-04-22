@@ -17,19 +17,6 @@ function textResponse(message: string, status: number): Response {
   });
 }
 
-function normalizeWorkerBaseUrl(workerDomain: string): string {
-  if (typeof workerDomain !== 'string' || workerDomain.trim().length === 0) {
-    throw new Error('Invalid worker domain');
-  }
-
-  const trimmedDomain = workerDomain.trim().replace(/\/+$/, '');
-  if (trimmedDomain.startsWith('http://') || trimmedDomain.startsWith('https://')) {
-    return trimmedDomain;
-  }
-
-  return `https://${trimmedDomain}`;
-}
-
 type ProxyPathResult =
   | { ok: true; path: string }
   | { ok: false; reason: 'not-found' | 'bad-encoding' };
@@ -63,10 +50,6 @@ function extractProxyPath(url: URL): ProxyPathResult {
   }
 }
 
-function resolveImageWorkerToken(env: Env): string {
-  return typeof env.IMAGES_API_TOKEN === 'string' ? env.IMAGES_API_TOKEN.trim() : '';
-}
-
 const BASE64URL_SEGMENT = /^[A-Za-z0-9_-]+$/;
 
 function looksLikeSignedToken(value: string): boolean {
@@ -98,7 +81,11 @@ export const onRequest = async ({ request, env }: ImageProxyContext): Promise<Re
     signedToken !== null &&
     looksLikeSignedToken(signedToken);
 
-  if (!isSignedTokenRequest) {
+  if (request.method === 'GET') {
+    if (!isSignedTokenRequest) {
+      return textResponse('Unauthorized', 403);
+    }
+  } else {
     const identity = await verifyFirebaseIdentityFromRequest(request, env);
     if (!identity) {
       return textResponse('Unauthorized', 401);
@@ -114,13 +101,9 @@ export const onRequest = async ({ request, env }: ImageProxyContext): Promise<Re
 
   const proxyPath = proxyPathResult.path;
 
-  const imageWorkerToken = resolveImageWorkerToken(env);
-  if (!env.IMAGES_WORKER_DOMAIN || !imageWorkerToken) {
+  if (!env.IMAGE_WORKER) {
     return textResponse('Image service not configured', 502);
   }
-
-  const imageWorkerBaseUrl = normalizeWorkerBaseUrl(env.IMAGES_WORKER_DOMAIN);
-  const upstreamUrl = `${imageWorkerBaseUrl}${proxyPath}${requestUrl.search}`;
 
   const upstreamHeaders = new Headers();
   const contentTypeHeader = request.headers.get('Content-Type');
@@ -133,17 +116,18 @@ export const onRequest = async ({ request, env }: ImageProxyContext): Promise<Re
     upstreamHeaders.set('Accept', acceptHeader);
   }
 
-  upstreamHeaders.set('Authorization', `Bearer ${imageWorkerToken}`);
-
   const shouldForwardBody = request.method !== 'GET' && request.method !== 'HEAD';
 
   let upstreamResponse: Response;
   try {
-    upstreamResponse = await fetch(upstreamUrl, {
-      method: request.method,
-      headers: upstreamHeaders,
-      body: shouldForwardBody ? request.body : undefined
-    });
+    upstreamResponse = await env.IMAGE_WORKER.fetch(
+      `https://worker${proxyPath}${requestUrl.search}`,
+      {
+        method: request.method,
+        headers: upstreamHeaders,
+        body: shouldForwardBody ? request.body : undefined
+      }
+    );
   } catch {
     return textResponse('Upstream image service unavailable', 502);
   }

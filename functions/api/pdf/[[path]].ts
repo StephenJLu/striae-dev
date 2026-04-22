@@ -23,19 +23,6 @@ function textResponse(message: string, status: number): Response {
   });
 }
 
-function normalizeWorkerBaseUrl(workerDomain: string): string {
-  if (typeof workerDomain !== 'string' || workerDomain.trim().length === 0) {
-    throw new Error('Invalid worker domain');
-  }
-
-  const trimmedDomain = workerDomain.trim().replace(/\/+$/, '');
-  if (trimmedDomain.startsWith('http://') || trimmedDomain.startsWith('https://')) {
-    return trimmedDomain;
-  }
-
-  return `https://${trimmedDomain}`;
-}
-
 function extractProxyPath(url: URL): string | null {
   const routePrefix = '/api/pdf';
   if (!url.pathname.startsWith(routePrefix)) {
@@ -93,12 +80,9 @@ export const onRequest = async ({ request, env }: PdfProxyContext): Promise<Resp
     return textResponse('Not Found', 404);
   }
 
-  if (!env.PDF_WORKER_DOMAIN || !env.PDF_WORKER_AUTH) {
+  if (!env.PDF_WORKER) {
     return textResponse('PDF service not configured', 502);
   }
-
-  const pdfWorkerBaseUrl = normalizeWorkerBaseUrl(env.PDF_WORKER_DOMAIN);
-  const upstreamUrl = `${pdfWorkerBaseUrl}${proxyPath}${requestUrl.search}`;
 
   const upstreamHeaders = new Headers();
   const contentTypeHeader = request.headers.get('Content-Type');
@@ -110,8 +94,6 @@ export const onRequest = async ({ request, env }: PdfProxyContext): Promise<Resp
   if (acceptHeader) {
     upstreamHeaders.set('Accept', acceptHeader);
   }
-
-  upstreamHeaders.set('X-Custom-Auth-Key', env.PDF_WORKER_AUTH);
 
   // Resolve the report format server-side based on the verified user email.
   // This prevents email lists from ever being exposed in the client bundle.
@@ -138,11 +120,14 @@ export const onRequest = async ({ request, env }: PdfProxyContext): Promise<Resp
 
   let upstreamResponse: Response;
   try {
-    upstreamResponse = await fetch(upstreamUrl, {
-      method: request.method,
-      headers: upstreamHeaders,
-      body: upstreamBody
-    });
+    upstreamResponse = await env.PDF_WORKER.fetch(
+      `https://worker${proxyPath}${requestUrl.search}`,
+      {
+        method: request.method,
+        headers: upstreamHeaders,
+        body: upstreamBody
+      }
+    );
   } catch {
     return textResponse('Upstream PDF service unavailable', 502);
   }

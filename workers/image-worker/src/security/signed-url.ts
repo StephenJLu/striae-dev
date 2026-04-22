@@ -51,7 +51,7 @@ export function normalizeSignedUrlTtlSeconds(requestedTtlSeconds: unknown, env: 
 }
 
 export function requireSignedUrlConfig(env: Env): void {
-  const resolvedSecret = (env.IMAGE_SIGNED_URL_SECRET || env.IMAGES_API_TOKEN || '').trim();
+  const resolvedSecret = (env.IMAGE_SIGNED_URL_SECRET || '').trim();
   if (resolvedSecret.length === 0) {
     throw new Error('Signed URL configuration is missing');
   }
@@ -77,7 +77,7 @@ export function parseSignedUrlBaseUrl(raw: string): string {
 }
 
 async function getSignedUrlHmacKey(env: Env): Promise<CryptoKey> {
-  const resolvedSecret = (env.IMAGE_SIGNED_URL_SECRET || env.IMAGES_API_TOKEN || '').trim();
+  const resolvedSecret = (env.IMAGE_SIGNED_URL_SECRET || '').trim();
   const keyBytes = new TextEncoder().encode(resolvedSecret);
 
   return crypto.subtle.importKey(

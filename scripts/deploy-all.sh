@@ -79,7 +79,7 @@ echo -e "${GREEN}✅ Preflight checks passed${NC}"
 echo ""
 
 # Step 1: Configuration Setup
-echo -e "${PURPLE}Step 1/6: Configuration Setup${NC}"
+echo -e "${PURPLE}Step 1/7: Configuration Setup${NC}"
 echo "------------------------------"
 echo -e "${YELLOW}⚙️  Setting up configuration files and replacing placeholders...${NC}"
 if ! bash "$SCRIPT_DIR/deploy-config.sh"; then
@@ -92,7 +92,7 @@ run_config_checkpoint
 echo ""
 
 # Step 2: Install Worker Dependencies
-echo -e "${PURPLE}Step 2/6: Installing Worker Dependencies${NC}"
+echo -e "${PURPLE}Step 2/7: Installing Worker Dependencies${NC}"
 echo "----------------------------------------"
 echo -e "${YELLOW}📦 Installing npm dependencies for all workers...${NC}"
 if ! bash "$SCRIPT_DIR/install-workers.sh"; then
@@ -102,8 +102,26 @@ fi
 echo -e "${GREEN}✅ All worker dependencies installed successfully${NC}"
 echo ""
 
-# Step 3: Deploy Workers
-echo -e "${PURPLE}Step 3/6: Deploying Workers${NC}"
+# Step 3: Generate Wrangler Types
+echo -e "${PURPLE}Step 3/7: Generating Wrangler Types${NC}"
+echo "-------------------------------------"
+echo -e "${YELLOW}📝 Running wrangler types in root and all worker directories...${NC}"
+if ! npx wrangler types; then
+    echo -e "${RED}❌ Root wrangler types generation failed!${NC}"
+    exit 1
+fi
+for WORKER in audit-worker data-worker image-worker pdf-worker user-worker; do
+    echo -e "${YELLOW}  → Generating types for ${WORKER}...${NC}"
+    if ! (cd "workers/$WORKER" && npx wrangler types); then
+        echo -e "${RED}❌ wrangler types failed for ${WORKER}!${NC}"
+        exit 1
+    fi
+done
+echo -e "${GREEN}✅ Wrangler types generated successfully${NC}"
+echo ""
+
+# Step 4: Deploy Workers
+echo -e "${PURPLE}Step 4/7: Deploying Workers${NC}"
 echo "----------------------------"
 echo -e "${YELLOW}🔧 Deploying all 5 Cloudflare Workers...${NC}"
 if ! npm run deploy-workers; then
@@ -113,8 +131,8 @@ fi
 echo -e "${GREEN}✅ All workers deployed successfully${NC}"
 echo ""
 
-# Step 4: Deploy Worker Secrets
-echo -e "${PURPLE}Step 4/6: Deploying Worker Secrets${NC}"
+# Step 5: Deploy Worker Secrets
+echo -e "${PURPLE}Step 5/7: Deploying Worker Secrets${NC}"
 echo "-----------------------------------"
 echo -e "${YELLOW}🔐 Deploying worker environment variables...${NC}"
 if ! bash "$SCRIPT_DIR/deploy-worker-secrets.sh"; then
@@ -124,8 +142,8 @@ fi
 echo -e "${GREEN}✅ Worker secrets deployed successfully${NC}"
 echo ""
 
-# Step 5: Deploy Pages Secrets
-echo -e "${PURPLE}Step 5/6: Deploying Pages Secrets${NC}"
+# Step 6: Deploy Pages Secrets
+echo -e "${PURPLE}Step 6/7: Deploying Pages Secrets${NC}"
 echo "----------------------------------"
 echo -e "${YELLOW}🔐 Deploying Pages environment variables...${NC}"
 if ! bash "$SCRIPT_DIR/deploy-pages-secrets.sh"; then
@@ -135,8 +153,8 @@ fi
 echo -e "${GREEN}✅ Pages secrets deployed successfully${NC}"
 echo ""
 
-# Step 6: Deploy Pages
-echo -e "${PURPLE}Step 6/6: Deploying Pages${NC}"
+# Step 7: Deploy Pages
+echo -e "${PURPLE}Step 7/7: Deploying Pages${NC}"
 echo "--------------------------"
 echo -e "${YELLOW}🌐 Building and deploying Pages...${NC}"
 if ! npm run deploy-pages; then
@@ -153,6 +171,7 @@ echo "=========================================="
 echo ""
 echo -e "${BLUE}Deployed Components:${NC}"
 echo "  ✅ Worker dependencies (npm install)"
+echo "  ✅ Wrangler types (root + all workers)"
 echo "  ✅ 5 Cloudflare Workers"
 echo "  ✅ Worker environment variables"
 echo "  ✅ Pages environment variables"

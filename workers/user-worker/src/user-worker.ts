@@ -1,4 +1,4 @@
-import { authenticate, requireUserKvReadConfig, requireUserKvWriteConfig } from './auth';
+import { requireUserKvReadConfig, requireUserKvWriteConfig } from './auth';
 import { USER_CASES_SEGMENT } from './config';
 import {
   handleAddCases,
@@ -20,8 +20,6 @@ function createTextResponse(message: string, status: number): Response {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
-      await authenticate(request, env);
-
       // DELETE can mutate user KV data (for example /:uid/cases), so non-GET methods require write config.
       if (request.method === 'GET') {
         requireUserKvReadConfig(env);

@@ -18,19 +18,6 @@ function textResponse(message: string, status: number): Response {
   });
 }
 
-function normalizeWorkerBaseUrl(workerDomain: string): string {
-  if (typeof workerDomain !== 'string' || workerDomain.trim().length === 0) {
-    throw new Error('Invalid worker domain');
-  }
-
-  const trimmedDomain = workerDomain.trim().replace(/\/+$/, '');
-  if (trimmedDomain.startsWith('http://') || trimmedDomain.startsWith('https://')) {
-    return trimmedDomain;
-  }
-
-  return `https://${trimmedDomain}`;
-}
-
 function extractProxyPath(url: URL): string | null {
   const routePrefix = '/api/data';
   if (!url.pathname.startsWith(routePrefix)) {
@@ -95,12 +82,9 @@ export const onRequest = async ({ request, env }: DataProxyContext): Promise<Res
     }
   }
 
-  if (!env.DATA_WORKER_DOMAIN || !env.R2_KEY_SECRET) {
+  if (!env.DATA_WORKER) {
     return textResponse('Data service not configured', 502);
   }
-
-  const dataWorkerBaseUrl = normalizeWorkerBaseUrl(env.DATA_WORKER_DOMAIN);
-  const upstreamUrl = `${dataWorkerBaseUrl}${proxyPath}${requestUrl.search}`;
 
   const upstreamHeaders = new Headers();
   const contentTypeHeader = request.headers.get('Content-Type');
@@ -113,17 +97,18 @@ export const onRequest = async ({ request, env }: DataProxyContext): Promise<Res
     upstreamHeaders.set('Accept', acceptHeader);
   }
 
-  upstreamHeaders.set('X-Custom-Auth-Key', env.R2_KEY_SECRET);
-
   const shouldForwardBody = request.method !== 'GET' && request.method !== 'HEAD';
 
   let upstreamResponse: Response;
   try {
-    upstreamResponse = await fetch(upstreamUrl, {
-      method: request.method,
-      headers: upstreamHeaders,
-      body: shouldForwardBody ? request.body : undefined
-    });
+    upstreamResponse = await env.DATA_WORKER.fetch(
+      `https://worker${proxyPath}${requestUrl.search}`,
+      {
+        method: request.method,
+        headers: upstreamHeaders,
+        body: shouldForwardBody ? request.body : undefined
+      }
+    );
   } catch {
     return textResponse('Upstream data service unavailable', 502);
   }

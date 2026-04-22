@@ -1,6 +1,6 @@
 {
   "name": "pdf-worker",
-  "version": "6.1.8",
+  "version": "7.0.0",
   "private": true,
   "scripts": {
     "generate:assets": "node scripts/generate-assets.js",
@@ -9,6 +9,6 @@
     "start": "wrangler dev"
   },
   "devDependencies": {
-    "wrangler": "^4.84.0"
+    "wrangler": "^4.84.1"
   }
 }

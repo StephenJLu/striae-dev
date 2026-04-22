@@ -185,6 +185,11 @@ update_wrangler_configs() {
     if [ -f "wrangler.toml" ]; then
         echo -e "${YELLOW}  Updating wrangler.toml...${NC}"
         sed -i "s/\"PAGES_PROJECT_NAME\"/\"$PAGES_PROJECT_NAME\"/g" wrangler.toml
+        sed -i "s/USER_WORKER_NAME/$USER_WORKER_NAME/g" wrangler.toml
+        sed -i "s/DATA_WORKER_NAME/$DATA_WORKER_NAME/g" wrangler.toml
+        sed -i "s/AUDIT_WORKER_NAME/$AUDIT_WORKER_NAME/g" wrangler.toml
+        sed -i "s/IMAGES_WORKER_NAME/$IMAGES_WORKER_NAME/g" wrangler.toml
+        sed -i "s/PDF_WORKER_NAME/$PDF_WORKER_NAME/g" wrangler.toml
         echo -e "${GREEN}    ✅ main wrangler.toml configuration updated${NC}"
     fi
 

@@ -265,61 +265,13 @@ export const getImageUrl = async (
   const defaultAccessReason = accessReason || 'Image viewer access';
 
   try {
-    try {
-      const signedUrlResponse = await createSignedImageUrlApi(user, fileData.id);
-
-      await auditService.logFileAccess(
-        user,
-        fileData.originalFilename || fileData.id,
-        fileData.id,
-        'signed-url',
-        caseNumber,
-        'success',
-        Date.now() - startTime,
-        defaultAccessReason,
-        fileData.originalFilename
-      );
-
-      return {
-        url: signedUrlResponse.result.url,
-        revoke: () => {},
-        urlType: 'signed',
-        expiresAt: signedUrlResponse.result.expiresAt
-      };
-    } catch {
-      // Fallback to direct blob retrieval during migration.
-    }
-
-    const workerResponse = await fetchImageApi(user, `/${encodeURIComponent(fileData.id)}`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/octet-stream,image/*'
-      }
-    });
-
-    if (!workerResponse.ok) {
-      await auditService.logFileAccess(
-        user,
-        fileData.originalFilename || fileData.id,
-        fileData.id,
-        'direct-url',
-        caseNumber,
-        'failure',
-        Date.now() - startTime,
-        'Image retrieval failed',
-        fileData.originalFilename
-      );
-      throw new Error('Failed to retrieve image');
-    }
-
-    const blob = await workerResponse.blob();
-    const objectUrl = URL.createObjectURL(blob);
+    const signedUrlResponse = await createSignedImageUrlApi(user, fileData.id);
 
     await auditService.logFileAccess(
       user,
       fileData.originalFilename || fileData.id,
       fileData.id,
-      'direct-url',
+      'signed-url',
       caseNumber,
       'success',
       Date.now() - startTime,
@@ -328,25 +280,23 @@ export const getImageUrl = async (
     );
 
     return {
-      blob,
-      url: objectUrl,
-      revoke: () => URL.revokeObjectURL(objectUrl),
-      urlType: 'blob'
+      url: signedUrlResponse.result.url,
+      revoke: () => {},
+      urlType: 'signed',
+      expiresAt: signedUrlResponse.result.expiresAt
     };
   } catch (error) {
-    if (!(error instanceof Error && error.message.includes('Failed to retrieve image'))) {
-      await auditService.logFileAccess(
-        user,
-        fileData.originalFilename || fileData.id,
-        fileData.id,
-        'direct-url',
-        caseNumber,
-        'failure',
-        Date.now() - startTime,
-        `Unexpected error during ${accessReason || 'image access'}`,
-        fileData.originalFilename
-      );
-    }
+    await auditService.logFileAccess(
+      user,
+      fileData.originalFilename || fileData.id,
+      fileData.id,
+      'signed-url',
+      caseNumber,
+      'failure',
+      Date.now() - startTime,
+      `Unexpected error during ${accessReason || 'image access'}`,
+      fileData.originalFilename
+    );
     throw error;
   }
 };

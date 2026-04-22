@@ -1,5 +1,4 @@
 export interface Env {
-  R2_KEY_SECRET: string;
   STRIAE_DATA: R2Bucket;
   MANIFEST_SIGNING_PRIVATE_KEY: string;
   MANIFEST_SIGNING_KEY_ID: string;
