@@ -57,10 +57,6 @@ export default {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      if (errorMessage === 'Unauthorized') {
-        return createWorkerResponse({ error: 'Forbidden' }, 403);
-      }
-
       if (errorMessage === 'User KV encryption is not fully configured') {
         return createWorkerResponse({ error: errorMessage }, 500);
       }

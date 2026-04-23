@@ -198,7 +198,7 @@ export async function handleDeleteCases(
       return respond({ error: 'User not found' }, 404);
     }
 
-    userData.cases = userData.cases.filter((caseItem) => !casesToDelete.includes(caseItem.caseNumber));
+    userData.cases = (userData.cases || []).filter((caseItem) => !casesToDelete.includes(caseItem.caseNumber));
     userData.updatedAt = new Date().toISOString();
     await writeUserRecord(env, userUid, userData);
 
