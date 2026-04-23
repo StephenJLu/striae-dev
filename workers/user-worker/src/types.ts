@@ -28,6 +28,18 @@ export interface PrivateKeyRegistry {
 
 export type DecryptionTelemetryOutcome = 'primary-hit' | 'fallback-hit' | 'all-failed';
 
+export interface SuccessResponse {
+  success: boolean;
+}
+
+export interface ErrorResponse {
+  error: string;
+}
+
+export type APIResponse = SuccessResponse | ErrorResponse | UserData | Record<string, unknown>;
+
+export type CreateResponse = (data: APIResponse, status?: number) => Response;
+
 export interface CaseItem {
   caseNumber: string;
   caseName?: string;
