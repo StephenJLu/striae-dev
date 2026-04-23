@@ -20,6 +20,12 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-04-22] - *[Patch Release v7.0.1](https://github.com/striae-org/striae/releases/tag/v7.0.1)*
+
+- **🖼️ Canvas L/R Notes Display** - Added left/right notes rendering to the canvas component, allowing examiners to view per-side annotation notes directly within the comparison canvas view; updated canvas CSS module and bumped compatibility dates across all worker `wrangler.jsonc.example` files.
+- **⚙️ Worker Response Logic Alignment** - Standardized response handling patterns across the image worker and user worker for consistency; refactored router and handler response construction in the image worker and aligned response/error types and route handling in the user worker.
+- **🧹 Code Review Follow-Up** - Applied minor code review fixes to the user worker including type refinements and removal of stale logic.
+
 ## [2026-04-21] - *[Major Release v7.0.0](https://github.com/striae-org/striae/releases/tag/v7.0.0)*
 
 - **🔗 Service Bindings Migration** - Replaced HTTP-based worker proxying (domain environment variables and URL normalization) with Cloudflare Service Bindings across all five worker proxy functions; removed top-level `worker-configuration.d.ts` and worker domain helper functions from `env-utils.sh`; updated `wrangler.toml.example` and all worker `wrangler.jsonc.example` files.
