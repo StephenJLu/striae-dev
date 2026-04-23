@@ -424,12 +424,33 @@ export const Canvas = ({
         </div>{/* end imageContainer */}
         
         {/* Additional Notes - Right Panel */}
-        {activeAnnotations?.has('notes') && annotationData?.additionalNotes && (
+        {activeAnnotations?.has('notes') &&
+          (annotationData?.leftAdditionalNotes || annotationData?.rightAdditionalNotes || annotationData?.additionalNotes) && (
           <aside className={styles.notesPanel} aria-label="Additional notes">
-            <div className={styles.notesPanelHeader}>Notes</div>
-            <div className={styles.additionalNotesBox}>
-              {annotationData.additionalNotes}
-            </div>
+            {annotationData?.leftAdditionalNotes && (
+              <div className={styles.noteSection}>
+                <div className={styles.notesPanelHeader}>Left Item</div>
+                <div className={styles.additionalNotesBox}>
+                  {annotationData.leftAdditionalNotes}
+                </div>
+              </div>
+            )}
+            {annotationData?.rightAdditionalNotes && (
+              <div className={styles.noteSection}>
+                <div className={styles.notesPanelHeader}>Right Item</div>
+                <div className={styles.additionalNotesBox}>
+                  {annotationData.rightAdditionalNotes}
+                </div>
+              </div>
+            )}
+            {annotationData?.additionalNotes && (
+              <div className={styles.noteSection}>
+                <div className={styles.notesPanelHeader}>Notes</div>
+                <div className={styles.additionalNotesBox}>
+                  {annotationData.additionalNotes}
+                </div>
+              </div>
+            )}
           </aside>
         )}
         </div>
