@@ -130,7 +130,7 @@
     "firebase-admin": "^13.8.0",
     "modern-normalize": "^3.0.1",
     "typescript": "^6.0.3",
-    "vite": "^8.0.9",
+    "vite": "^8.0.10",
     "vitest": "^4.1.5",
     "wrangler": "^4.84.1"
   },
