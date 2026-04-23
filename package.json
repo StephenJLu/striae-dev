@@ -135,7 +135,8 @@
     "wrangler": "^4.84.1"
   },
   "overrides": {
-    "@tootallnate/once": "3.0.1"
+    "@tootallnate/once": "3.0.1",
+    "uuid": "^14.0.0"
   },
   "engines": {
     "node": ">=20.19.0"
