@@ -1,19 +1,19 @@
 import { encryptBinaryForStorage } from '../encryption-utils';
 import { requireEncryptionUploadConfig } from '../security/key-registry';
-import type { CreateImageWorkerResponse, Env } from '../types';
+import type { CreateResponse, Env } from '../types';
 import { deriveFileKind } from '../utils/content-disposition';
 
 export async function handleImageUpload(
   request: Request,
   env: Env,
-  createJsonResponse: CreateImageWorkerResponse
+  respond: CreateResponse
 ): Promise<Response> {
   requireEncryptionUploadConfig(env);
 
   const formData = await request.formData();
   const fileValue = formData.get('file');
   if (!(fileValue instanceof Blob)) {
-    return createJsonResponse({ error: 'Missing file upload payload' }, 400);
+    return respond({ error: 'Missing file upload payload' }, 400);
   }
 
   const fileBlob = fileValue;
@@ -44,7 +44,7 @@ export async function handleImageUpload(
     }
   });
 
-  return createJsonResponse({
+  return respond({
     success: true,
     errors: [],
     messages: [],

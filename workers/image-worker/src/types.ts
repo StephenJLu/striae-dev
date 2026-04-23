@@ -64,4 +64,4 @@ export interface SignedAccessPayload {
   nonce: string;
 }
 
-export type CreateImageWorkerResponse = (data: APIResponse, status?: number) => Response;
+export type CreateResponse = (data: APIResponse, status?: number) => Response;

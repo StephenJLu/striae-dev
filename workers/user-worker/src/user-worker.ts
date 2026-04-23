@@ -8,14 +8,12 @@ import {
   handleDeleteUserWithProgress,
   handleGetUser
 } from './handlers/user-routes';
-import type { Env } from './types';
+import type { CreateResponse, Env } from './types';
 
-function createTextResponse(message: string, status: number): Response {
-  return new Response(message, {
-    status,
-    headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-  });
-}
+const createWorkerResponse: CreateResponse = (data, status: number = 200): Response => new Response(
+  JSON.stringify(data),
+  { status, headers: { 'Content-Type': 'application/json' } }
+);
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -26,22 +24,22 @@ export default {
       } else {
         requireUserKvWriteConfig(env);
       }
-      
+
       const url = new URL(request.url);
       const parts = url.pathname.split('/');
       const userUid = parts[1];
       const isCasesEndpoint = parts[2] === USER_CASES_SEGMENT;
-      
+
       if (!userUid) {
-        return createTextResponse('Not Found', 404);
+        return createWorkerResponse({ error: 'Not Found' }, 404);
       }
 
       // Handle regular cases endpoint
       if (isCasesEndpoint) {
         switch (request.method) {
-          case 'PUT': return handleAddCases(request, env, userUid);
-          case 'DELETE': return handleDeleteCases(request, env, userUid);
-          default: return createTextResponse('Method not allowed', 405);
+          case 'PUT': return handleAddCases(request, env, userUid, createWorkerResponse);
+          case 'DELETE': return handleDeleteCases(request, env, userUid, createWorkerResponse);
+          default: return createWorkerResponse({ error: 'Method not allowed' }, 405);
         }
       }
 
@@ -50,24 +48,20 @@ export default {
       const streamProgress = url.searchParams.get('stream') === 'true' || acceptsEventStream;
 
       switch (request.method) {
-        case 'GET': return handleGetUser(env, userUid);
-        case 'PUT': return handleAddUser(request, env, userUid);
+        case 'GET': return handleGetUser(env, userUid, createWorkerResponse);
+        case 'PUT': return handleAddUser(request, env, userUid, createWorkerResponse);
         case 'DELETE': return streamProgress
           ? handleDeleteUserWithProgress(env, userUid)
-          : handleDeleteUser(env, userUid);
-        default: return createTextResponse('Method not allowed', 405);
+          : handleDeleteUser(env, userUid, createWorkerResponse);
+        default: return createWorkerResponse({ error: 'Method not allowed' }, 405);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      if (errorMessage === 'Unauthorized') {
-        return createTextResponse('Forbidden', 403);
+      if (errorMessage === 'User KV encryption is not fully configured') {
+        return createWorkerResponse({ error: errorMessage }, 500);
       }
 
-      if (errorMessage === 'User KV encryption is not fully configured') {
-        return createTextResponse(errorMessage, 500);
-      }
-      
-      return createTextResponse('Internal Server Error', 500);
+      return createWorkerResponse({ error: 'Internal Server Error' }, 500);
     }
   }
 };

@@ -5,7 +5,7 @@ import {
   signSignedAccessPayload
 } from '../security/signed-url';
 import type {
-  CreateImageWorkerResponse,
+  CreateResponse,
   Env,
   SignedAccessPayload
 } from '../types';
@@ -18,13 +18,13 @@ export async function handleSignedUrlMinting(
   request: Request,
   env: Env,
   fileId: string,
-  createJsonResponse: CreateImageWorkerResponse
+  respond: CreateResponse
 ): Promise<Response> {
   requireSignedUrlConfig(env);
 
   const existing = await env.STRIAE_FILES.head(fileId);
   if (!existing) {
-    return createJsonResponse({ error: 'File not found' }, 404);
+    return respond({ error: 'File not found' }, 404);
   }
 
   let requestedExpiresInSeconds: number | undefined;
@@ -58,7 +58,7 @@ export async function handleSignedUrlMinting(
       console.error('Invalid IMAGE_SIGNED_URL_BASE_URL configuration', {
         reason: error instanceof Error ? error.message : String(error)
       });
-      return createJsonResponse({ error: 'Signed URL base URL is misconfigured' }, 500);
+      return respond({ error: 'Signed URL base URL is misconfigured' }, 500);
     }
   } else {
     baseUrl = new URL(request.url).origin;
@@ -66,7 +66,7 @@ export async function handleSignedUrlMinting(
 
   const signedUrl = `${baseUrl}/${encodeURIComponent(fileId)}?st=${encodeURIComponent(signedToken)}`;
 
-  return createJsonResponse({
+  return respond({
     success: true,
     result: {
       fileId,
