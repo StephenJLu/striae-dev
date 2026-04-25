@@ -112,7 +112,7 @@
     "react-router": "^7.14.2"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.14.9",
+    "@cloudflare/vitest-pool-workers": "^0.15.0",
     "@react-router/dev": "^7.14.2",
     "@react-router/fs-routes": "^7.14.2",
     "@types/qrcode": "^1.5.6",
