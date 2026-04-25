@@ -117,16 +117,6 @@ deploy_pages_secrets() {
         printf '%s' "$secret_value" | wrangler pages secret put "$secret" --project-name "$PAGES_PROJECT_NAME"
     done
 
-    local optional_primershear_emails
-    optional_primershear_emails=$(get_optional_value "PRIMERSHEAR_EMAILS")
-    echo -e "${YELLOW}  Setting PRIMERSHEAR_EMAILS...${NC}"
-    printf '%s' "$optional_primershear_emails" | wrangler pages secret put "PRIMERSHEAR_EMAILS" --project-name "$PAGES_PROJECT_NAME"
-
-    local optional_registration_emails
-    optional_registration_emails=$(get_optional_value "REGISTRATION_EMAILS")
-    echo -e "${YELLOW}  Setting REGISTRATION_EMAILS...${NC}"
-    printf '%s' "$optional_registration_emails" | wrangler pages secret put "REGISTRATION_EMAILS" --project-name "$PAGES_PROJECT_NAME"
-
     echo -e "${GREEN}✅ Pages secrets deployed to production${NC}"
 }
 

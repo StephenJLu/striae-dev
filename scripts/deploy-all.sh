@@ -110,7 +110,7 @@ if ! npx wrangler types; then
     echo -e "${RED}❌ Root wrangler types generation failed!${NC}"
     exit 1
 fi
-for WORKER in audit-worker data-worker image-worker pdf-worker user-worker; do
+for WORKER in audit-worker data-worker image-worker lists-worker pdf-worker user-worker; do
     echo -e "${YELLOW}  → Generating types for ${WORKER}...${NC}"
     if ! (cd "workers/$WORKER" && npx wrangler types); then
         echo -e "${RED}❌ wrangler types failed for ${WORKER}!${NC}"
@@ -123,7 +123,7 @@ echo ""
 # Step 4: Deploy Workers
 echo -e "${PURPLE}Step 4/7: Deploying Workers${NC}"
 echo "----------------------------"
-echo -e "${YELLOW}🔧 Deploying all 5 Cloudflare Workers...${NC}"
+echo -e "${YELLOW}🔧 Deploying all 6 Cloudflare Workers...${NC}"
 if ! npm run deploy-workers; then
     echo -e "${RED}❌ Worker deployment failed!${NC}"
     exit 1
@@ -172,7 +172,7 @@ echo ""
 echo -e "${BLUE}Deployed Components:${NC}"
 echo "  ✅ Worker dependencies (npm install)"
 echo "  ✅ Wrangler types (root + all workers)"
-echo "  ✅ 5 Cloudflare Workers"
+echo "  ✅ 6 Cloudflare Workers"
 echo "  ✅ Worker environment variables"
 echo "  ✅ Pages environment variables"
 echo "  ✅ Cloudflare Pages frontend"

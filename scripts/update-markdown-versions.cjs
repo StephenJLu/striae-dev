@@ -11,6 +11,7 @@ const workerDirs = [
   'workers/audit-worker',
   'workers/data-worker',
   'workers/image-worker',
+  'workers/lists-worker',
   'workers/pdf-worker',
   'workers/user-worker',
 ];

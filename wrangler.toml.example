@@ -1,6 +1,6 @@
 #:schema node_modules/wrangler/config-schema.json
 name = "PAGES_PROJECT_NAME"
-compatibility_date = "2026-04-24"
+compatibility_date = "2026-04-25"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "./build/client"
 
@@ -26,3 +26,7 @@ service = "IMAGES_WORKER_NAME"
 [[services]]
 binding = "PDF_WORKER"
 service = "PDF_WORKER_NAME"
+
+[[services]]
+binding = "LISTS_WORKER"
+service = "LISTS_WORKER_NAME"

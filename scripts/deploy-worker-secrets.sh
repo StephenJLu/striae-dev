@@ -267,6 +267,13 @@ build_data_worker_secret_list() {
     printf '%s\n' "${secrets[@]}"
 }
 
+build_lists_worker_secret_list() {
+    local secrets=(
+        "LISTS_ADMIN_SECRET"
+    )
+    printf '%s\n' "${secrets[@]}"
+}
+
 build_images_worker_secret_list() {
     local secrets=(
         "DATA_AT_REST_ENCRYPTION_PUBLIC_KEY"
@@ -299,7 +306,7 @@ echo -e "\n${BLUE}🔐 Deploying secrets to workers...${NC}"
 # Check if workers are configured
 echo -e "${YELLOW}🔍 Checking worker configurations...${NC}"
 workers_configured=0
-total_workers=5
+total_workers=6
 
 for worker_dir in workers/*/; do
     if [ -f "$worker_dir/wrangler.jsonc" ] || [ -f "$worker_dir/wrangler.toml" ]; then
@@ -363,6 +370,16 @@ if ! set_worker_secrets "PDF Worker" "workers/pdf-worker" \
     echo -e "${YELLOW}⚠️  Skipping PDF Worker (not configured)${NC}"
 fi
 
+# Lists Worker
+lists_worker_secrets=()
+while IFS= read -r secret; do
+    lists_worker_secrets+=("$secret")
+done < <(build_lists_worker_secret_list)
+
+if ! set_worker_secrets "Lists Worker" "workers/lists-worker" "${lists_worker_secrets[@]}"; then
+    echo -e "${YELLOW}⚠️  Skipping Lists Worker (not configured)${NC}"
+fi
+
 echo -e "\n${GREEN}🎉 Worker secrets deployment completed!${NC}"
 
 echo -e "\n${YELLOW}⚠️  WORKER CONFIGURATION REMINDERS:${NC}"
@@ -371,6 +388,7 @@ echo "   - Configure KV namespace ID in workers/user-worker/wrangler.jsonc"
 echo "   - Configure R2 bucket name in workers/data-worker/wrangler.jsonc"
 echo "   - Configure R2 bucket name in workers/audit-worker/wrangler.jsonc"
 echo "   - Configure R2 bucket name in workers/image-worker/wrangler.jsonc"
+echo "   - Configure KV namespace ID in workers/lists-worker/wrangler.jsonc"
 echo "   - Update ACCOUNT_ID and custom domains in all worker configurations"
 
 echo -e "\n${BLUE}📝 For manual deployment, use these commands:${NC}"

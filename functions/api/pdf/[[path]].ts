@@ -1,4 +1,5 @@
 import { verifyFirebaseIdentityFromRequest } from '../_shared/firebase-auth';
+import { fetchListFromWorker } from '../_shared/lists-client';
 
 interface PdfProxyContext {
   request: Request;
@@ -97,9 +98,11 @@ export const onRequest = async ({ request, env }: PdfProxyContext): Promise<Resp
 
   // Resolve the report format server-side based on the verified user email.
   // This prevents email lists from ever being exposed in the client bundle.
+  // Fail-open: if the lists-worker is unavailable, fall back to the default format.
+  const primershearResult = await fetchListFromWorker(env.LISTS_WORKER, 'primershear', env.LISTS_ADMIN_SECRET);
   const reportFormat = resolveReportFormat(
     identity.email,
-    env.PRIMERSHEAR_EMAILS ?? ''
+    primershearResult.ok ? primershearResult.list : ''
   );
 
   let upstreamBody: BodyInit;

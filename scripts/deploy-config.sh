@@ -200,36 +200,6 @@ source "$DEPLOY_CONFIG_VALIDATION_MODULE"
 source "$DEPLOY_CONFIG_SCAFFOLDING_MODULE"
 source "$DEPLOY_CONFIG_PROMPT_MODULE"
 
-EMAIL_LIST_CONFIG_DIR="app/config"
-MEMBERS_EMAILS_FILE="$EMAIL_LIST_CONFIG_DIR/members.emails"
-PRIMERSHEAR_EMAILS_FILE="$EMAIL_LIST_CONFIG_DIR/primershear.emails"
-
-sync_env_var_from_email_list_file() {
-    local env_var_name=$1
-    local file_path=$2
-    local loaded_values=""
-
-    if [ ! -f "$file_path" ]; then
-        echo -e "${YELLOW}⚠️  $file_path not found; keeping existing $env_var_name value in .env${NC}"
-        return 0
-    fi
-
-    loaded_values=$(grep -v '^[[:space:]]*#' "$file_path" | grep -v '^[[:space:]]*$' | sed -e 's/\r$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | paste -sd ',' - || true)
-
-    write_env_var "$env_var_name" "$loaded_values"
-    export "$env_var_name=$loaded_values"
-
-    local loaded_count
-    loaded_count=$(echo "$loaded_values" | tr ',' '\n' | grep -c '[^[:space:]]' || true)
-    echo -e "${GREEN}✅ Synced $env_var_name from $file_path ($loaded_count entry/entries)${NC}"
-}
-
-sync_email_list_env_vars_from_config() {
-    echo -e "${YELLOW}📧 Syncing optional email list env vars from app/config...${NC}"
-    sync_env_var_from_email_list_file "REGISTRATION_EMAILS" "$MEMBERS_EMAILS_FILE"
-    sync_env_var_from_email_list_file "PRIMERSHEAR_EMAILS" "$PRIMERSHEAR_EMAILS_FILE"
-}
-
 if [ "$validate_only" = "true" ]; then
     echo -e "\n${BLUE}🧪 Validate-only mode enabled${NC}"
     run_validation_checkpoint
@@ -246,9 +216,6 @@ load_admin_service_credentials
 
 # Always prompt for secrets to ensure configuration
 prompt_for_secrets
-
-# Keep optional email list env vars aligned with app/config source files.
-sync_email_list_env_vars_from_config
 
 # Validate after secrets have been configured
 validate_required_vars
