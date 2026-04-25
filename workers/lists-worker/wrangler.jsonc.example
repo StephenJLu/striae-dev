@@ -1,0 +1,30 @@
+{
+  "name": "LISTS_WORKER_NAME",
+  "account_id": "ACCOUNT_ID",
+  "main": "src/lists-worker.ts",
+  "workers_dev": false,
+  "compatibility_date": "2026-04-24",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+
+  "observability": {
+    "enabled": true
+  },
+
+  "kv_namespaces": [
+    {
+      "binding": "STRIAE_LISTS",
+      "id": "STRIAE_LISTS_KV_ID"
+    }
+  ],
+
+  "routes": [
+    {
+      "pattern": "LISTS_WORKER_DOMAIN",
+      "custom_domain": true
+    }
+  ],
+
+  "placement": { "mode": "smart" }
+}

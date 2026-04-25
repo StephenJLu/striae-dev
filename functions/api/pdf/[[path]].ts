@@ -1,4 +1,5 @@
 import { verifyFirebaseIdentityFromRequest } from '../_shared/firebase-auth';
+import { fetchListFromWorker } from '../_shared/lists-client';
 
 interface PdfProxyContext {
   request: Request;
@@ -99,7 +100,7 @@ export const onRequest = async ({ request, env }: PdfProxyContext): Promise<Resp
   // This prevents email lists from ever being exposed in the client bundle.
   const reportFormat = resolveReportFormat(
     identity.email,
-    env.PRIMERSHEAR_EMAILS ?? ''
+    await fetchListFromWorker(env.LISTS_WORKER, 'primershear')
   );
 
   let upstreamBody: BodyInit;

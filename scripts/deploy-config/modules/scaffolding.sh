@@ -106,6 +106,14 @@ copy_example_configs() {
         echo -e "${YELLOW}    ⚠️  pdf-worker: wrangler.jsonc already exists, skipping copy${NC}"
     fi
 
+    cd ../lists-worker
+    if [ -f "wrangler.jsonc.example" ] && { [ "$update_env" = "true" ] || [ ! -f "wrangler.jsonc" ]; }; then
+        cp wrangler.jsonc.example wrangler.jsonc
+        echo -e "${GREEN}    ✅ lists-worker: wrangler.jsonc created from example${NC}"
+    elif [ -f "wrangler.jsonc" ]; then
+        echo -e "${YELLOW}    ⚠️  lists-worker: wrangler.jsonc already exists, skipping copy${NC}"
+    fi
+
     # Return to project root
     cd ../..
 
@@ -172,6 +180,17 @@ update_wrangler_configs() {
         echo -e "${GREEN}    ✅ pdf-worker configuration updated${NC}"
     fi
 
+    if [ -f "workers/lists-worker/wrangler.jsonc" ]; then
+        echo -e "${YELLOW}  Updating lists-worker/wrangler.jsonc...${NC}"
+        local escaped_striae_lists_kv_id
+        escaped_striae_lists_kv_id=$(escape_for_sed_replacement "$STRIAE_LISTS_KV_ID")
+        sed -i "s/\"LISTS_WORKER_NAME\"/\"$LISTS_WORKER_NAME\"/g" workers/lists-worker/wrangler.jsonc
+        sed -i "s/\"ACCOUNT_ID\"/\"$escaped_account_id\"/g" workers/lists-worker/wrangler.jsonc
+        sed -i "s/\"STRIAE_LISTS_KV_ID\"/\"$escaped_striae_lists_kv_id\"/g" workers/lists-worker/wrangler.jsonc
+        sed -i "s/\"LISTS_WORKER_DOMAIN\"/\"lists.$escaped_pages_custom_domain\"/g" workers/lists-worker/wrangler.jsonc
+        echo -e "${GREEN}    ✅ lists-worker configuration updated${NC}"
+    fi
+
     if [ -f "workers/user-worker/wrangler.jsonc" ]; then
         echo -e "${YELLOW}  Updating user-worker/wrangler.jsonc...${NC}"
         sed -i "s/\"USER_WORKER_NAME\"/\"$USER_WORKER_NAME\"/g" workers/user-worker/wrangler.jsonc
@@ -190,6 +209,7 @@ update_wrangler_configs() {
         sed -i "s/AUDIT_WORKER_NAME/$AUDIT_WORKER_NAME/g" wrangler.toml
         sed -i "s/IMAGES_WORKER_NAME/$IMAGES_WORKER_NAME/g" wrangler.toml
         sed -i "s/PDF_WORKER_NAME/$PDF_WORKER_NAME/g" wrangler.toml
+        sed -i "s/LISTS_WORKER_NAME/$LISTS_WORKER_NAME/g" wrangler.toml
         echo -e "${GREEN}    ✅ main wrangler.toml configuration updated${NC}"
     fi
 

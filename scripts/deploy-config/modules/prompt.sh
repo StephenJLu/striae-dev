@@ -23,7 +23,7 @@ prompt_for_secrets() {
     is_auto_generated_secret_var() {
         local var_name=$1
         case "$var_name" in
-            IMAGE_SIGNED_URL_SECRET)
+            IMAGE_SIGNED_URL_SECRET|LISTS_ADMIN_SECRET)
                 return 0
                 ;;
             *)
@@ -38,6 +38,9 @@ prompt_for_secrets() {
         case "$var_name" in
             IMAGE_SIGNED_URL_SECRET)
                 [ "$value" = "your_image_signed_url_secret_here" ]
+                ;;
+            LISTS_ADMIN_SECRET)
+                [ "$value" = "your_lists_admin_secret_here" ]
                 ;;
             *)
                 return 1
@@ -223,13 +226,44 @@ prompt_for_secrets() {
 
     echo -e "${BLUE}🔑 WORKER NAMES${NC}"
     echo "==============="
-    echo -e "${YELLOW}Worker names are lowercased automatically and must use only letters, numbers, and dashes.${NC}"
+    echo -e "${YELLOW}Worker names are auto-generated and lowercased. Press Enter to keep the generated value or type a custom name.${NC}"
 
-    prompt_for_var "USER_WORKER_NAME" "User worker name"
-    prompt_for_var "DATA_WORKER_NAME" "Data worker name"
-    prompt_for_var "AUDIT_WORKER_NAME" "Audit worker name"
-    prompt_for_var "IMAGES_WORKER_NAME" "Images worker name"
-    prompt_for_var "PDF_WORKER_NAME" "PDF worker name"
+    # Auto-generate each worker name if not yet set or still a placeholder.
+    _gen_worker_name() {
+        local var_name=$1
+        local current="${!var_name:-}"
+        if is_placeholder "$current" || [ -z "$current" ]; then
+            local suffix
+            suffix=$(openssl rand -base64 16 2>/dev/null | tr -dc 'a-z0-9' | head -c 10 || true)
+            if [ -n "$suffix" ]; then
+                printf '%s' "striae-dev-${suffix}"
+            fi
+        fi
+    }
+
+    _new=$(  _gen_worker_name "USER_WORKER_NAME")
+    [ -n "$_new" ] && { USER_WORKER_NAME="$_new"; export USER_WORKER_NAME; }
+    prompt_for_var "USER_WORKER_NAME" "User worker name (auto-generated; change only if using an existing worker)"
+
+    _new=$(_gen_worker_name "DATA_WORKER_NAME")
+    [ -n "$_new" ] && { DATA_WORKER_NAME="$_new"; export DATA_WORKER_NAME; }
+    prompt_for_var "DATA_WORKER_NAME" "Data worker name (auto-generated; change only if using an existing worker)"
+
+    _new=$(_gen_worker_name "AUDIT_WORKER_NAME")
+    [ -n "$_new" ] && { AUDIT_WORKER_NAME="$_new"; export AUDIT_WORKER_NAME; }
+    prompt_for_var "AUDIT_WORKER_NAME" "Audit worker name (auto-generated; change only if using an existing worker)"
+
+    _new=$(_gen_worker_name "IMAGES_WORKER_NAME")
+    [ -n "$_new" ] && { IMAGES_WORKER_NAME="$_new"; export IMAGES_WORKER_NAME; }
+    prompt_for_var "IMAGES_WORKER_NAME" "Images worker name (auto-generated; change only if using an existing worker)"
+
+    _new=$(_gen_worker_name "PDF_WORKER_NAME")
+    [ -n "$_new" ] && { PDF_WORKER_NAME="$_new"; export PDF_WORKER_NAME; }
+    prompt_for_var "PDF_WORKER_NAME" "PDF worker name (auto-generated; change only if using an existing worker)"
+
+    _new=$(_gen_worker_name "LISTS_WORKER_NAME")
+    [ -n "$_new" ] && { LISTS_WORKER_NAME="$_new"; export LISTS_WORKER_NAME; }
+    prompt_for_var "LISTS_WORKER_NAME" "Lists worker name (auto-generated; change only if using an existing worker)"
     echo ""
 
     echo -e "${BLUE}🗄️ STORAGE CONFIGURATION${NC}"
@@ -238,6 +272,7 @@ prompt_for_secrets() {
     prompt_for_var "AUDIT_BUCKET_NAME" "Your R2 bucket name for audit logs (separate from data bucket)"
     prompt_for_var "FILES_BUCKET_NAME" "Your R2 bucket name for encrypted files storage"
     prompt_for_var "KV_STORE_ID" "Your KV namespace ID (UUID format)"
+    prompt_for_var "STRIAE_LISTS_KV_ID" "KV namespace ID for the lists-worker (UUID format; backs registration and primershear allowlists)"
 
     echo -e "${BLUE}🔐 SERVICE-SPECIFIC SECRETS${NC}"
     echo "============================"
@@ -255,6 +290,7 @@ prompt_for_secrets() {
     prompt_for_var "IMAGE_SIGNED_URL_BASE_URL" "Signed URL delivery base URL — routes signed image delivery through the Pages proxy (leave as-is unless using a non-standard domain)"
 
     prompt_for_var "BROWSER_API_TOKEN" "Cloudflare Browser Rendering API token (for PDF Worker)"
+    prompt_for_var "LISTS_ADMIN_SECRET" "Lists worker admin secret — guards write endpoints (auto-generated; guards POST/DELETE on the lists-worker)"
 
     configure_manifest_signing_credentials
     configure_export_encryption_credentials

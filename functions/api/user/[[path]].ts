@@ -1,5 +1,6 @@
 import { verifyFirebaseIdentityFromRequest } from '../_shared/firebase-auth';
 import { isEmailAllowed } from '../_shared/registration-allowlist';
+import { fetchListFromWorker } from '../_shared/lists-client';
 
 interface UserProxyContext {
   request: Request;
@@ -142,35 +143,38 @@ export const onRequest = async ({ request, env }: UserProxyContext): Promise<Res
   }
 
   // Registration gateway: for PUT requests, check if this is a new user creation.
-  // If REGISTRATION_EMAILS is set and the user record does not yet exist, enforce the allowlist.
+  // If the registration allowlist has entries and the user record does not yet exist, enforce the allowlist.
   // This is defense-in-depth — the primary check runs client-side in the login flow.
-  if (request.method === 'PUT' && env.REGISTRATION_EMAILS && env.REGISTRATION_EMAILS.trim().length > 0) {
-    try {
-      const existenceResponse = await env.USER_WORKER.fetch(
-        `https://worker/${encodeURIComponent(requestedUserId)}`,
-        {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json'
+  if (request.method === 'PUT') {
+    const registrationEmails = await fetchListFromWorker(env.LISTS_WORKER, 'members');
+    if (registrationEmails.length > 0) {
+      try {
+        const existenceResponse = await env.USER_WORKER.fetch(
+          `https://worker/${encodeURIComponent(requestedUserId)}`,
+          {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json'
+            }
           }
-        }
-      );
+        );
 
-      if (existenceResponse.status === 404) {
-        // User does not exist yet — this is a registration PUT.
-        // Enforce the email allowlist.
-        if (!isEmailAllowed(identity.email ?? '', env.REGISTRATION_EMAILS)) {
-          return textResponse('Registration is not permitted for this email address', 403);
+        if (existenceResponse.status === 404) {
+          // User does not exist yet — this is a registration PUT.
+          // Enforce the email allowlist.
+          if (!isEmailAllowed(identity.email ?? '', registrationEmails)) {
+            return textResponse('Registration is not permitted for this email address', 403);
+          }
+        } else if (!existenceResponse.ok) {
+          // Existence check failed (non-404, non-2xx response).
+          // Fail closed: reject the registration to prevent allowlist bypass during errors.
+          return textResponse('Unable to verify registration eligibility', 502);
         }
-      } else if (!existenceResponse.ok) {
-        // Existence check failed (non-404, non-2xx response).
-        // Fail closed: reject the registration to prevent allowlist bypass during errors.
+        // If user already exists (200), proceed normally.
+      } catch {
+        // Fail closed: on network error with allowlist active, reject the request.
         return textResponse('Unable to verify registration eligibility', 502);
       }
-      // If user already exists (200), proceed normally.
-    } catch {
-      // Fail closed: on network error with allowlist active, reject the request.
-      return textResponse('Unable to verify registration eligibility', 502);
     }
   }
 

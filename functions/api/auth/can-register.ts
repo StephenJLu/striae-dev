@@ -1,4 +1,5 @@
 import { isEmailAllowed } from '../_shared/registration-allowlist';
+import { fetchListFromWorker } from '../_shared/lists-client';
 
 interface CanRegisterContext {
   request: Request;
@@ -49,7 +50,7 @@ export const onRequest = async ({ request, env }: CanRegisterContext): Promise<R
     return textResponse('Missing required parameter: email', 400);
   }
 
-  const registrationEmails = env.REGISTRATION_EMAILS ?? '';
+  const registrationEmails = await fetchListFromWorker(env.LISTS_WORKER, 'members');
 
   if (isEmailAllowed(email, registrationEmails)) {
     return jsonResponse({ allowed: true });

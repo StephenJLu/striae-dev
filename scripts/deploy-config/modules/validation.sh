@@ -96,12 +96,14 @@ required_vars=(
     "AUDIT_WORKER_NAME"
     "IMAGES_WORKER_NAME"
     "PDF_WORKER_NAME"
+    "LISTS_WORKER_NAME"
 
     # Storage Configuration (required for config replacement)
     "DATA_BUCKET_NAME"
     "AUDIT_BUCKET_NAME"
     "FILES_BUCKET_NAME"
     "KV_STORE_ID"
+    "STRIAE_LISTS_KV_ID"
 
     # Worker-Specific Secrets (required for deployment)
     "IMAGE_SIGNED_URL_SECRET"
@@ -112,6 +114,7 @@ required_vars=(
     "EXPORT_ENCRYPTION_PRIVATE_KEY"
     "EXPORT_ENCRYPTION_KEY_ID"
     "EXPORT_ENCRYPTION_PUBLIC_KEY"
+    "LISTS_ADMIN_SECRET"
 )
 
 validate_required_vars() {

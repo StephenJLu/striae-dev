@@ -34,7 +34,7 @@ if [ ! -d "$WORKERS_DIR" ]; then
 fi
 
 # List of workers
-WORKERS=("audit-worker" "data-worker" "image-worker" "pdf-worker" "user-worker")
+WORKERS=("audit-worker" "data-worker" "image-worker" "lists-worker" "pdf-worker" "user-worker")
 
 echo -e "${PURPLE}Installing npm dependencies for all workers...${NC}"
 echo ""
