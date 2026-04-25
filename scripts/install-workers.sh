@@ -7,8 +7,9 @@
 # 1. audit-worker
 # 2. data-worker
 # 3. image-worker
-# 4. pdf-worker
-# 5. user-worker
+# 4. lists-worker
+# 5. pdf-worker
+# 6. user-worker
 
 # Colors for output
 RED='\033[0;31m'
