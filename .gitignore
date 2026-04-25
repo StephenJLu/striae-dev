@@ -31,4 +31,3 @@ firebase-debug.log
 *.d.ts
 workers/*/*.d.ts
 app/config
-.github/workflows/*
