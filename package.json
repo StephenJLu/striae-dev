@@ -93,8 +93,6 @@
     "deploy-workers:secrets": "bash ./scripts/deploy-worker-secrets.sh",
     "deploy-pages:secrets": "bash ./scripts/deploy-pages-secrets.sh",
     "deploy-pages": "bash ./scripts/deploy-pages.sh",
-    "deploy-primershear": "bash ./scripts/deploy-primershear-emails.sh",
-    "deploy-members": "bash ./scripts/deploy-members-emails.sh",
     "deploy-workers:audit": "cd workers/audit-worker && npm run deploy",
     "deploy-workers:data": "cd workers/data-worker && npm run deploy",
     "deploy-workers:image": "cd workers/image-worker && npm run deploy",
