@@ -187,7 +187,6 @@ update_wrangler_configs() {
         sed -i "s/\"LISTS_WORKER_NAME\"/\"$LISTS_WORKER_NAME\"/g" workers/lists-worker/wrangler.jsonc
         sed -i "s/\"ACCOUNT_ID\"/\"$escaped_account_id\"/g" workers/lists-worker/wrangler.jsonc
         sed -i "s/\"STRIAE_LISTS_KV_ID\"/\"$escaped_striae_lists_kv_id\"/g" workers/lists-worker/wrangler.jsonc
-        sed -i "s/\"LISTS_WORKER_DOMAIN\"/\"lists.$escaped_pages_custom_domain\"/g" workers/lists-worker/wrangler.jsonc
         echo -e "${GREEN}    ✅ lists-worker configuration updated${NC}"
     fi
 

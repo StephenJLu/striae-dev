@@ -50,9 +50,13 @@ export const onRequest = async ({ request, env }: CanRegisterContext): Promise<R
     return textResponse('Missing required parameter: email', 400);
   }
 
-  const registrationEmails = await fetchListFromWorker(env.LISTS_WORKER, 'members');
+  const listResult = await fetchListFromWorker(env.LISTS_WORKER, 'members', env.LISTS_ADMIN_SECRET);
+  if (!listResult.ok) {
+    // Fail closed: cannot verify allowlist, deny to prevent bypass.
+    return textResponse('Unable to verify registration eligibility', 503);
+  }
 
-  if (isEmailAllowed(email, registrationEmails)) {
+  if (isEmailAllowed(email, listResult.list)) {
     return jsonResponse({ allowed: true });
   }
 

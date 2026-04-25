@@ -146,8 +146,13 @@ export const onRequest = async ({ request, env }: UserProxyContext): Promise<Res
   // If the registration allowlist has entries and the user record does not yet exist, enforce the allowlist.
   // This is defense-in-depth — the primary check runs client-side in the login flow.
   if (request.method === 'PUT') {
-    const registrationEmails = await fetchListFromWorker(env.LISTS_WORKER, 'members');
-    if (registrationEmails.length > 0) {
+    const listResult = await fetchListFromWorker(env.LISTS_WORKER, 'members', env.LISTS_ADMIN_SECRET);
+    if (!listResult.ok) {
+      // Fail closed: cannot verify allowlist, reject to prevent bypass.
+      return textResponse('Unable to verify registration eligibility', 503);
+    }
+    const activeEmails = listResult.list.split('\n').map((e) => e.trim()).filter((e) => e.length > 0);
+    if (activeEmails.length > 0) {
       try {
         const existenceResponse = await env.USER_WORKER.fetch(
           `https://worker/${encodeURIComponent(requestedUserId)}`,
@@ -162,7 +167,7 @@ export const onRequest = async ({ request, env }: UserProxyContext): Promise<Res
         if (existenceResponse.status === 404) {
           // User does not exist yet — this is a registration PUT.
           // Enforce the email allowlist.
-          if (!isEmailAllowed(identity.email ?? '', registrationEmails)) {
+          if (!isEmailAllowed(identity.email ?? '', listResult.list)) {
             return textResponse('Registration is not permitted for this email address', 403);
           }
         } else if (!existenceResponse.ok) {

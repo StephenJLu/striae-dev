@@ -1,9 +1,17 @@
 import type { Env } from './types';
 
-const JSON_HEADERS: HeadersInit = { 'Content-Type': 'application/json' };
+// ListsStore must be exported from the worker entry point so Wrangler can
+// register it as a Durable Object class.
+export { ListsStore } from './lists-do';
 
-/** Routes map URL path segment to the KV key used in STRIAE_LISTS. */
-const ROUTE_TO_KV_KEY: Record<string, string> = {
+const JSON_HEADERS: HeadersInit = {
+  'Content-Type': 'application/json',
+  'Cache-Control': 'no-store',
+  'Pragma': 'no-cache',
+};
+
+/** Routes map URL path segment to the DO/KV key for each list. */
+const ROUTE_TO_KEY: Record<string, string> = {
   members: 'allow',
   primershear: 'primershear',
 };
@@ -29,6 +37,7 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 
 function isAuthorized(request: Request, secret: string): boolean {
+  if (!secret) return false;
   const auth = request.headers.get('Authorization');
   if (!auth || !auth.startsWith('Bearer ')) return false;
   return timingSafeEqual(auth.slice(7), secret);
@@ -38,51 +47,37 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const segment = url.pathname.replace(/^\/+|\/+$/g, '');
-    const kvKey = ROUTE_TO_KV_KEY[segment];
+    const listKey = ROUTE_TO_KEY[segment];
 
-    if (!kvKey) {
+    if (!listKey) {
       return jsonResponse({ error: 'Not found' }, 404);
     }
 
-    if (request.method === 'GET') {
-      const list = (await env.STRIAE_LISTS.get(kvKey)) ?? '';
-      return jsonResponse({ list });
+    if (!['GET', 'POST', 'DELETE'].includes(request.method)) {
+      return jsonResponse({ error: 'Method not allowed' }, 405);
     }
 
-    if (request.method === 'POST' || request.method === 'DELETE') {
-      if (!isAuthorized(request, env.LISTS_ADMIN_SECRET)) {
-        return jsonResponse({ error: 'Unauthorized' }, 401);
-      }
-
-      let body: { entry?: unknown };
-      try {
-        body = await request.json() as { entry?: unknown };
-      } catch {
-        return jsonResponse({ error: 'Invalid JSON body' }, 400);
-      }
-
-      const entry = typeof body.entry === 'string' ? body.entry.trim() : '';
-      if (!entry) {
-        return jsonResponse({ error: 'Missing or empty entry' }, 400);
-      }
-
-      const current = (await env.STRIAE_LISTS.get(kvKey)) ?? '';
-      const entries = current ? current.split(',').map(e => e.trim()).filter(Boolean) : [];
-
-      if (request.method === 'POST') {
-        if (!entries.includes(entry)) {
-          entries.push(entry);
-        }
-        await env.STRIAE_LISTS.put(kvKey, entries.join(','));
-        return jsonResponse({ ok: true });
-      }
-
-      // DELETE
-      const filtered = entries.filter(e => e !== entry);
-      await env.STRIAE_LISTS.put(kvKey, filtered.join(','));
-      return jsonResponse({ ok: true });
+    if (!isAuthorized(request, env.LISTS_ADMIN_SECRET)) {
+      return jsonResponse({ error: 'Unauthorized' }, 401);
     }
 
-    return jsonResponse({ error: 'Method not allowed' }, 405);
+    // Route all reads and writes through the Durable Object. A single global
+    // DO instance per list key serialises operations and eliminates the
+    // read-modify-write race that would exist with direct KV access.
+    const id = env.LISTS_STORE.idFromName(listKey);
+    const stub = env.LISTS_STORE.get(id);
+
+    const doUrl = new URL(request.url);
+    doUrl.pathname = '/';
+    doUrl.search = '';
+    doUrl.searchParams.set('key', listKey);
+
+    const doRequest = new Request(doUrl.toString(), {
+      method: request.method,
+      headers: request.headers,
+      body: request.method !== 'GET' ? request.body : null,
+    });
+
+    return stub.fetch(doRequest);
   },
 };

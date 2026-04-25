@@ -1,22 +1,39 @@
+export type ListResult =
+  | { ok: true; list: string }
+  | { ok: false; error: string };
+
 /**
  * Client helper for reading email lists from the lists-worker via service binding.
- * Returns a CSV string compatible with isEmailAllowed() and resolveReportFormat().
- * Returns an empty string on any failure (fail-open for list reads).
+ * Returns a ListResult so callers can apply fail-open or fail-closed logic
+ * appropriate to their security context.
+ *
+ * - ok: true  → list fetched successfully (may be empty string if list is empty)
+ * - ok: false → worker unreachable, auth failure, or unexpected response shape
  */
 export async function fetchListFromWorker(
   binding: Fetcher,
-  list: 'members' | 'primershear'
-): Promise<string> {
+  list: 'members' | 'primershear',
+  secret: string
+): Promise<ListResult> {
   try {
-    const response = await binding.fetch(`https://worker/${list}`);
+    const response = await binding.fetch(`https://worker/${list}`, {
+      headers: { 'Authorization': `Bearer ${secret}` },
+    });
     if (!response.ok) {
-      console.error(`lists-client: GET /${list} returned ${response.status}`);
-      return '';
+      const msg = `lists-client: GET /${list} returned ${response.status}`;
+      console.error(msg);
+      return { ok: false, error: msg };
     }
     const data = await response.json() as { list?: unknown };
-    return typeof data.list === 'string' ? data.list : '';
+    if (typeof data.list !== 'string') {
+      const msg = `lists-client: unexpected response shape for /${list}`;
+      console.error(msg);
+      return { ok: false, error: msg };
+    }
+    return { ok: true, list: data.list };
   } catch (err) {
-    console.error(`lists-client: failed to fetch /${list}`, err);
-    return '';
+    const msg = `lists-client: failed to fetch /${list}`;
+    console.error(msg, err);
+    return { ok: false, error: msg };
   }
 }
