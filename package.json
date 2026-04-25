@@ -136,7 +136,9 @@
   },
   "overrides": {
     "@tootallnate/once": "3.0.1",
-    "uuid": "^14.0.0"
+    "firebase-admin": {
+      "uuid": "^14.0.0"
+    }
   },
   "engines": {
     "node": ">=20.19.0"
