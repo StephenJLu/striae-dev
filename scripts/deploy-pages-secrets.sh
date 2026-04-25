@@ -142,6 +142,7 @@ fi
 
 required_pages_secrets=(
     "PROJECT_ID"
+    "LISTS_ADMIN_SECRET"
 )
 
 echo -e "${YELLOW}🔍 Validating required Pages secret values...${NC}"
