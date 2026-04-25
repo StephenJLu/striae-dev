@@ -18,22 +18,6 @@
       "id": "STRIAE_LISTS_KV_ID"
     }
   ],
-
-  "durable_objects": {
-    "bindings": [
-      {
-        "name": "LISTS_STORE",
-        "class_name": "ListsStore"
-      }
-    ]
-  },
-
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_classes": ["ListsStore"]
-    }
-  ],
-
+  
   "placement": { "mode": "smart" }
 }
