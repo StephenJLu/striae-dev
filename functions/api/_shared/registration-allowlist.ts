@@ -7,12 +7,12 @@
  *   - An exact email address:  user@example.com
  *   - A domain wildcard:       @example.com  (matches any email from that domain)
  *
- * If registrationEmails is empty or unset, all registrations are allowed
- * (backward-compatible — deployments with an empty allowlist are unrestricted).
+ * If registrationEmails is empty or unset, registration is denied (fail closed).
+ * An empty list indicates the allowlist has not been populated, not that all are allowed.
  */
 export function isEmailAllowed(email: string, registrationEmails: string): boolean {
   if (!registrationEmails || registrationEmails.trim().length === 0) {
-    return true;
+    return false;
   }
 
   const normalizedEmail = email.toLowerCase().trim();
