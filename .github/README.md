@@ -20,6 +20,14 @@ Striae is a specialized, cloud-native platform designed to streamline forensic f
 
 ## 📋 Changelog
 
+## [2026-04-25] - *[Minor Release v7.1.0](https://github.com/striae-org/striae/releases/tag/v7.1.0)*
+
+- **📋 Lists Worker** - Added a dedicated Cloudflare Worker (`lists-worker`) for KV-backed email allowlist management; exposes auth-gated GET/POST/DELETE endpoints for member and Primer Shear lists with constant-time auth comparison; integrated into the Pages registration flow via a service binding and shared client helper.
+- **🔗 Registration Allowlist Integration** - Refactored registration allowlist and check paths to use the lists-worker service binding instead of static config files; removed `members.emails` and `primershear.emails` config-example files superseded by KV storage.
+- **🧹 Dead Script Cleanup** - Removed `deploy-members-emails.sh`, `deploy-primershear-emails.sh`, and related package script references; updated deploy-config scaffolding to register the new lists worker.
+- **🔐 UUID Security Fix** - Resolved a known `uuid` package vulnerability via a scoped npm override targeting the `firebase-admin` dependency chain.
+- **⚙️ Maintenance** - Bumped Vite, applied general dependency updates, and refreshed Cloudflare compatibility dates across the app and workers.
+
 ## [2026-04-22] - *[Patch Release v7.0.1](https://github.com/striae-org/striae/releases/tag/v7.0.1)*
 
 - **🖼️ Canvas L/R Notes Display** - Added left/right notes rendering to the canvas component, allowing examiners to view per-side annotation notes directly within the comparison canvas view; updated canvas CSS module and bumped compatibility dates across all worker `wrangler.jsonc.example` files.
