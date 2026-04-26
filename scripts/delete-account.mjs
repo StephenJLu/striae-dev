@@ -27,15 +27,46 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // --- Argument parsing ---
 
-const args = process.argv.slice(2);
-const uid = args.find((a) => !a.startsWith('--'));
-const confirmed = args.includes('--confirm');
-const urlFlagIndex = args.findIndex((a) => a === '--url');
-const urlOverride = urlFlagIndex !== -1 ? args[urlFlagIndex + 1] : null;
+const USAGE = 'Usage: npm run delete-account -- <uid> --confirm [--url <base-url>]';
+
+let uid = null;
+let confirmed = false;
+let urlOverride = null;
+
+{
+  const args = process.argv.slice(2);
+  let i = 0;
+  while (i < args.length) {
+    const arg = args[i];
+    if (arg === '--confirm') {
+      confirmed = true;
+      i++;
+    } else if (arg === '--url') {
+      if (i + 1 >= args.length || args[i + 1].startsWith('--')) {
+        console.error('\n❌ --url requires a value (e.g. --url https://your-project.pages.dev)');
+        console.error(USAGE);
+        process.exit(1);
+      }
+      urlOverride = args[i + 1];
+      i += 2;
+    } else if (arg.startsWith('--')) {
+      console.error(`\n❌ Unknown flag: ${arg}`);
+      console.error(USAGE);
+      process.exit(1);
+    } else if (uid === null) {
+      uid = arg;
+      i++;
+    } else {
+      console.error(`\n❌ Unexpected argument: ${arg}`);
+      console.error(USAGE);
+      process.exit(1);
+    }
+  }
+}
 
 if (!uid) {
   console.error('\n❌ No UID provided.');
-  console.error('\nUsage: npm run delete-account -- <uid> --confirm [--url <base-url>]');
+  console.error(`\n${USAGE}`);
   console.error('\n  --url  The pages.dev URL (e.g. https://your-project.pages.dev)');
   console.error('         Required: the custom domain blocks automated requests via Bot Fight Mode.');
   process.exit(1);
@@ -193,7 +224,7 @@ try {
   process.exit(1);
 }
 
-if (!deleteResponse.ok && deleteResponse.status !== 200) {
+if (!deleteResponse.ok) {
   const body = await deleteResponse.text();
   console.error(`\n❌ DELETE request failed (${deleteResponse.status}): ${body}`);
   process.exit(1);
@@ -217,10 +248,16 @@ if (!isStream) {
 }
 
 // Stream processing
+if (!deleteResponse.body) {
+  console.error('\n❌ DELETE response has no body/stream. Cannot read SSE output.');
+  process.exit(1);
+}
+
 const reader = deleteResponse.body.getReader();
 const decoder = new TextDecoder();
 let buffer = '';
 let failed = false;
+let completed = false;
 
 console.log('');
 
@@ -251,9 +288,14 @@ outer: while (true) {
         console.log(`   [${event.currentCaseNumber}/${event.totalCases}] Deleting case...`);
         break;
       case 'case-complete':
-        console.log(`   [${event.completedCases}/${event.totalCases}] Case deleted.`);
+        if (event.success === false) {
+          console.error(`   [${event.completedCases}/${event.totalCases}] Case cleanup failed: ${event.message ?? 'Unknown error'}`);
+        } else {
+          console.log(`   [${event.completedCases}/${event.totalCases}] Case deleted.`);
+        }
         break;
       case 'complete':
+        completed = true;
         console.log('\n✅ Account deleted successfully.');
         break outer;
       case 'error':
@@ -262,6 +304,11 @@ outer: while (true) {
         break outer;
     }
   }
+}
+
+if (!completed && !failed) {
+  console.error('\n❌ SSE stream ended without a completion event (possible network cut or worker crash).');
+  process.exit(1);
 }
 
 process.exit(failed ? 1 : 0);
